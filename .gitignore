@@ -1,21 +1,25 @@
-# Binaries
-/scraper
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+xcdebugger/
+.swiftpm/configuration/
 
-# Go workspace
-go.work
-go.work.sum
+# SPM / builds
+.build/
+build/
+*.ipa
+*.dSYM
 
-# Coverage
-*.out
+# macOS
+.DS_Store
 
-# Docs (generated/specs/plans)
-/docs/
+# Local secrets/config
+*.xcconfig.local
+Secrets.plist
+
+# Download caches (runtime)
+Downloads/
 
 # Superpowers working files
 /.superpowers/

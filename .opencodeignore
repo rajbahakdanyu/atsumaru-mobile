@@ -1,13 +1,12 @@
-# Dependencies and locks
-vendor/
-go.sum
+# Build output
+DerivedData/
+.build/
+build/
+*.xcuserstate
+xcuserdata/
 
-# Generated / Protobuf files (if large)
-*.pb.go
-*_gn.go
+# Test fixtures (large recorded JSON)
+Tests/Fixtures/
 
-# Binaries
-*.exe
-*.test
-bin/
-dist/
+# Downloads / runtime data
+Downloads/
