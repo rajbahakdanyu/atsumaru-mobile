@@ -29,3 +29,6 @@ Downloads/
 *.part
 *.resume.json
 *.sha256
+
+# Worktrees
+.worktrees/
