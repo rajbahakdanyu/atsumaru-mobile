@@ -1,0 +1,27 @@
+# Binaries
+/scraper
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Go workspace
+go.work
+go.work.sum
+
+# Coverage
+*.out
+
+# Docs (generated/specs/plans)
+/docs/
+
+# Superpowers working files
+/.superpowers/
+
+# Release artifacts
+/dist/
+*.part
+*.resume.json
+*.sha256
