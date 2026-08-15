@@ -1,0 +1,44 @@
+name: Atsumaru
+options:
+  bundleIdPrefix: dev.atsumaru
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  Kingfisher:
+    url: https://github.com/onevcat/Kingfisher
+    from: 8.0.0
+  MarkdownUI:
+    url: https://github.com/gonzalezreal/swift-markdown-ui
+    from: 2.0.0
+targets:
+  Core:
+    type: framework
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources: [Core/Sources]
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
+  Atsumaru:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources: [Atsumaru]
+    dependencies:
+      - target: Core
+      - package: Kingfisher
+      - package: MarkdownUI
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        PRODUCT_BUNDLE_IDENTIFIER: dev.atsumaru.app
+        INFOPLIST_FILE: Atsumaru/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Atsumaru/Atsumaru.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: Atsumaru/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIBackgroundModes: [fetch, processing]
