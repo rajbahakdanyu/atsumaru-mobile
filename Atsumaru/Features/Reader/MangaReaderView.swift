@@ -11,6 +11,7 @@ struct MangaReaderView: View {
 
     @AppStorage("readerMode") private var storedMode: ReaderMode = .paged
     @AppStorage("readingDirection") private var readingDirection: String = "ltr"
+    @AppStorage("readerFit") private var readerFit: ReaderFit = .fit
 
     @State private var viewModel: ReaderViewModel?
     @State private var zoomScale: CGFloat = 1.0
@@ -92,6 +93,7 @@ struct MangaReaderView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .onChange(of: viewModel.currentPage) { _, _ in
                 viewModel.scheduleProgressSave()
+                zoomScale = 1.0
             }
 
             tapZones(viewModel: viewModel, total: pages.count)
@@ -100,41 +102,60 @@ struct MangaReaderView: View {
 
     @ViewBuilder
     private func stripReader(viewModel: ReaderViewModel, pages: [PageImage]) -> some View {
-        ScrollView {
-            LazyVStack(spacing: 4) {
-                ForEach(pages) { page in
-                    KFImage(ImageURLBuilder.page(page.image))
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity)
-                        .onAppear {
-                            viewModel.currentPage = page.number
-                            viewModel.scheduleProgressSave()
-                        }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 4) {
+                    ForEach(pages) { page in
+                        fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
+                            .frame(maxWidth: .infinity)
+                            .clipped()
+                            .id(page.id)
+                            .onAppear {
+                                viewModel.currentPage = page.number
+                                viewModel.scheduleProgressSave()
+                            }
+                    }
                 }
+                .padding(.top, 4)
             }
-            .padding(.top, 4)
+            .onChange(of: viewModel.currentPage) { _, newPage in
+                guard pages.indices.contains(newPage) else { return }
+                withAnimation { proxy.scrollTo(pages[newPage].id, anchor: .top) }
+            }
         }
+    }
+
+    @ViewBuilder
+    private func fitImage(_ image: KFImage) -> some View {
+        if readerFit == .fit {
+            image.scaledToFit()
+        } else {
+            image.scaledToFill()
+        }
+    }
+
+    private var zoomGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { zoomScale = max(1.0, min(4.0, $0)) }
+            .onEnded { _ in
+                if zoomScale < 1.0 { zoomScale = 1.0 }
+            }
+            .simultaneously(with: TapGesture().onEnded { zoomScale = zoomScale > 1 ? 1 : 2 })
     }
 
     @ViewBuilder
     private func pageCell(_ page: PageImage) -> some View {
         GeometryReader { proxy in
+            let baseWidth = proxy.size.width
+            let baseHeight: CGFloat = readerFit == .fill
+                ? proxy.size.height
+                : baseWidth / CGFloat(page.aspectRatio)
             ScrollView([.vertical]) {
-                KFImage(ImageURLBuilder.page(page.image))
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: proxy.size.width)
-                    .scaleEffect(zoomScale)
-                    .gesture(
-                        MagnificationGesture()
-                            .onChanged { zoomScale = max(1.0, min(4.0, $0)) }
-                            .onEnded { _ in
-                                if zoomScale < 1.0 { zoomScale = 1.0 }
-                            }
-                            .simultaneously(with: TapGesture().onEnded { zoomScale = zoomScale > 1 ? 1 : 2 })
-                    )
-                    .frame(maxHeight: .infinity)
+                fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
+                    .frame(width: baseWidth * zoomScale, height: baseHeight * zoomScale)
+                    .clipped()
+                    .gesture(zoomGesture)
+                    .frame(maxWidth: .infinity)
             }
         }
     }

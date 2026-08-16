@@ -21,6 +21,8 @@ public struct PageImage: Codable, Identifiable, Hashable, Sendable {
 
 public enum ReaderMode: String, Sendable, CaseIterable { case paged, strip }
 
+public enum ReaderFit: String, Sendable, CaseIterable { case fit, fill }
+
 public struct ProgressState: Sendable, Equatable {
     public var mangaId: String
     public var chapterId: String

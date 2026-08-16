@@ -3,12 +3,14 @@ import SwiftData
 
 @Model
 final class ProgressRecord {
-    @Attribute(.unique) var mangaId: String
+    @Attribute(.unique) var key: String
+    var mangaId: String
     var chapterId: String
     var pageIndex: Int
     var updatedAt: Date
 
     init(mangaId: String, chapterId: String, pageIndex: Int, updatedAt: Date) {
+        self.key = "\(mangaId)_\(chapterId)"
         self.mangaId = mangaId
         self.chapterId = chapterId
         self.pageIndex = pageIndex
