@@ -13,7 +13,7 @@ final class FollowersViewModel {
     let mode: FollowListMode
     var users: [UserSummary] = []
     var isLoading = false
-    var loadFailed = false
+    var error: ApiError?
 
     private let repository: any CommunityRepository
 
@@ -30,9 +30,9 @@ final class FollowersViewModel {
             users = mode == .followers
                 ? try await repository.followers(slug: slug, page: 0)
                 : try await repository.following(slug: slug, page: 0)
-            loadFailed = false
+            error = nil
         } catch {
-            loadFailed = true
+            self.error = (error as? ApiError) ?? .decoding
         }
     }
 }
@@ -48,7 +48,7 @@ struct FollowersView: View {
             if let viewModel {
                 content(viewModel: viewModel)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingSkeletonView()
             }
         }
         .navigationTitle(mode == .followers ? "Followers" : "Following")
@@ -69,18 +69,14 @@ struct FollowersView: View {
     @ViewBuilder
     private func content(viewModel: FollowersViewModel) -> some View {
         if viewModel.isLoading && viewModel.users.isEmpty {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.loadFailed && viewModel.users.isEmpty {
-            ContentUnavailableView {
-                Label("Couldn't load", systemImage: "exclamationmark.triangle")
-            } actions: {
-                Button("Retry") { Task { await viewModel.load() } }
-            }
+            LoadingSkeletonView()
+        } else if let error = viewModel.error, viewModel.users.isEmpty {
+            ErrorStateView(error: error) { Task { await viewModel.load() } }
         } else {
             List {
                 if viewModel.users.isEmpty {
-                    Text("No one here yet")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(message: "No one here yet")
+                        .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.users) { user in
                         NavigationLink {

@@ -11,12 +11,12 @@ struct NotificationsView: View {
                 ForEach(items) { item in
                     NotificationRow(item: item)
                 }
+            } else if let error = viewModel?.error {
+                ErrorStateView(error: error) { Task { await viewModel?.load() } }
+                    .listRowBackground(Color.clear)
             } else if viewModel?.isLoading == false {
-                ContentUnavailableView(
-                    "No notifications",
-                    systemImage: "bell.slash",
-                    description: Text("You're all caught up.")
-                )
+                EmptyStateView(message: "You're all caught up.")
+                    .listRowBackground(Color.clear)
             }
         }
         .navigationTitle("Notifications")
@@ -74,7 +74,7 @@ final class NotificationsViewModel {
     var unreadCount: Int = 0
     var isLoading = false
     var isMarking = false
-    var loadFailed = false
+    var error: ApiError?
 
     private let userRepository: any UserRepository
 
@@ -85,12 +85,16 @@ final class NotificationsViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
-        async let listTask = try? userRepository.notifications()
-        async let countTask = try? userRepository.notificationCount()
-        let (list, count) = await (listTask, countTask)
-        notifications = list ?? []
-        unreadCount = count ?? 0
-        loadFailed = list == nil
+        do {
+            async let listTask = userRepository.notifications()
+            async let countTask = userRepository.notificationCount()
+            let (list, count) = try await (listTask, countTask)
+            notifications = list
+            unreadCount = count
+            error = nil
+        } catch {
+            self.error = (error as? ApiError) ?? .decoding
+        }
     }
 
     func markAllRead() async {

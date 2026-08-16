@@ -14,8 +14,7 @@ struct LibraryView: View {
             if let viewModel {
                 content(for: viewModel)
             } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingSkeletonView()
             }
         }
         .task {
@@ -43,7 +42,8 @@ struct LibraryView: View {
             case .continueReading:
                 ScrollView {
                     if viewModel.isLoading && viewModel.continueReading.isEmpty {
-                        ProgressView().padding(.top, 60)
+                        LoadingSkeletonView()
+                            .padding(.top, 20)
                     } else {
                         ContinueReadingView(items: viewModel.continueReading)
                             .padding(.horizontal, 16)
@@ -54,7 +54,8 @@ struct LibraryView: View {
             case .bookmarks:
                 ScrollView {
                     if viewModel.bookmarks.isEmpty && !viewModel.isLoading {
-                        empty("No bookmarks", "Tap the bookmark icon on a manga to save it here.")
+                        EmptyStateView(message: "No bookmarks")
+                            .padding(.top, 20)
                     } else {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(viewModel.bookmarks) { bookmark in
@@ -72,7 +73,8 @@ struct LibraryView: View {
             case .history:
                 ScrollView {
                     if viewModel.history.isEmpty && !viewModel.isLoading {
-                        empty("No history", "Manga you read will appear here.")
+                        EmptyStateView(message: "No history")
+                            .padding(.top, 20)
                     } else {
                         LazyVStack(spacing: 10) {
                             ForEach(viewModel.history) { entry in
@@ -103,13 +105,9 @@ struct LibraryView: View {
                     }
                     if viewModel.lists.isEmpty && !viewModel.isLoading {
                         Section {
-                            HStack {
-                                Spacer()
-                                Text("No lists yet")
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                            }
+                            EmptyStateView(message: "No lists yet")
                         }
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.plain)
@@ -209,15 +207,5 @@ struct LibraryView: View {
                     .foregroundStyle(.secondary)
             }
         }
-    }
-
-    @ViewBuilder
-    private func empty(_ title: String, _ message: String) -> some View {
-        ContentUnavailableView {
-            Label(title, systemImage: "tray")
-        } description: {
-            Text(message)
-        }
-        .padding(.top, 60)
     }
 }

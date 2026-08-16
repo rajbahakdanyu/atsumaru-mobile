@@ -4,9 +4,11 @@ import Core
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: SettingsViewModel?
+    @AppStorage("appTheme") private var appTheme: AppTheme = .slate
 
     var body: some View {
         Form {
+            themeSection
             usernameSection
             emailSection
             passwordSection
@@ -28,6 +30,19 @@ struct SettingsView: View {
             viewModel?.emailPassword = ""
             viewModel?.oldPassword = ""
             viewModel?.newPassword = ""
+        }
+    }
+
+    @ViewBuilder
+    private var themeSection: some View {
+        Section("Theme") {
+            Picker("Accent color", selection: $appTheme) {
+                ForEach(AppTheme.allCases) { theme in
+                    Label(theme.displayName, systemImage: "circle.fill")
+                        .tint(theme.accent)
+                        .tag(theme)
+                }
+            }
         }
     }
 

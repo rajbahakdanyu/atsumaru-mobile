@@ -6,7 +6,7 @@ import Core
 final class ForumViewModel {
     var channels: [ForumChannel] = []
     var isLoading = false
-    var loadFailed = false
+    var error: ApiError?
     var includeAdult = false
 
     private let repository: any ForumRepository
@@ -23,9 +23,9 @@ final class ForumViewModel {
         defer { isLoading = false }
         do {
             channels = try await repository.channels(includeAdult: includeAdult)
-            loadFailed = false
+            error = nil
         } catch {
-            loadFailed = true
+            self.error = (error as? ApiError) ?? .decoding
         }
     }
 }
@@ -39,8 +39,7 @@ struct ForumView: View {
             if let viewModel {
                 content(viewModel: viewModel)
             } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingSkeletonView()
             }
         }
         .task {
@@ -54,18 +53,13 @@ struct ForumView: View {
     @ViewBuilder
     private func content(viewModel: ForumViewModel) -> some View {
         if viewModel.isLoading && viewModel.channels.isEmpty {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.loadFailed && viewModel.channels.isEmpty {
-            ContentUnavailableView {
-                Label("Couldn't load forum", systemImage: "exclamationmark.triangle")
-            } actions: {
-                Button("Retry") { Task { await viewModel.load(force: true) } }
-            }
+            LoadingSkeletonView()
+        } else if let error = viewModel.error, viewModel.channels.isEmpty {
+            ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
         } else {
             List {
                 if viewModel.channels.isEmpty {
-                    Text("No channels")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(message: "No channels")
                 } else {
                     ForEach(viewModel.channels) { channel in
                         NavigationLink(value: channel) {
@@ -120,7 +114,7 @@ final class ChannelPostsViewModel {
     let channel: ForumChannel
     var posts: [ForumPost] = []
     var isLoading = false
-    var loadFailed = false
+    var error: ApiError?
 
     private let repository: any ForumRepository
 
@@ -134,9 +128,9 @@ final class ChannelPostsViewModel {
         defer { isLoading = false }
         do {
             posts = try await repository.posts(forumId: channel.id, sort: nil, page: 0)
-            loadFailed = false
+            error = nil
         } catch {
-            loadFailed = true
+            self.error = (error as? ApiError) ?? .decoding
         }
     }
 }
@@ -152,7 +146,7 @@ struct ChannelPostsView: View {
             if let viewModel {
                 content(viewModel: viewModel)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingSkeletonView()
             }
         }
         .navigationTitle(channel.name ?? "Posts")
@@ -182,18 +176,13 @@ struct ChannelPostsView: View {
     @ViewBuilder
     private func content(viewModel: ChannelPostsViewModel) -> some View {
         if viewModel.isLoading && viewModel.posts.isEmpty {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.loadFailed && viewModel.posts.isEmpty {
-            ContentUnavailableView {
-                Label("Couldn't load posts", systemImage: "exclamationmark.triangle")
-            } actions: {
-                Button("Retry") { Task { await viewModel.load() } }
-            }
+            LoadingSkeletonView()
+        } else if let error = viewModel.error, viewModel.posts.isEmpty {
+            ErrorStateView(error: error) { Task { await viewModel.load() } }
         } else {
             List {
                 if viewModel.posts.isEmpty {
-                    Text("No posts yet")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(message: "No posts yet")
                 } else {
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {

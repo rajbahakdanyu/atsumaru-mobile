@@ -12,11 +12,12 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if let viewModel, viewModel.results.isEmpty && !viewModel.isLoading {
-                    Text("No results")
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 80)
+                if let viewModel, viewModel.isLoading && viewModel.results.isEmpty {
+                    LoadingSkeletonView()
+                        .padding(.top, 40)
+                } else if let viewModel, viewModel.results.isEmpty && !viewModel.isLoading {
+                    EmptyStateView(message: "No results")
+                        .padding(.top, 40)
                 } else {
                     LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(viewModel?.results ?? []) { item in

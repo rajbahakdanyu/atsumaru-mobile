@@ -6,7 +6,7 @@ import Core
 final class GroupsViewModel {
     var groups: [CommunityGroup] = []
     var isLoading = false
-    var loadFailed = false
+    var error: ApiError?
     private let repository: any CommunityRepository
     private var loaded = false
 
@@ -21,9 +21,9 @@ final class GroupsViewModel {
         defer { isLoading = false }
         do {
             groups = try await repository.groups(page: 0)
-            loadFailed = false
+            error = nil
         } catch {
-            loadFailed = true
+            self.error = (error as? ApiError) ?? .decoding
         }
     }
 }
@@ -38,7 +38,7 @@ struct GroupsView: View {
             if let viewModel {
                 content(viewModel: viewModel)
             } else {
-                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingSkeletonView()
             }
         }
         .navigationTitle("Groups")
@@ -64,18 +64,14 @@ struct GroupsView: View {
     @ViewBuilder
     private func content(viewModel: GroupsViewModel) -> some View {
         if viewModel.isLoading && viewModel.groups.isEmpty {
-            ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if viewModel.loadFailed && viewModel.groups.isEmpty {
-            ContentUnavailableView {
-                Label("Couldn't load groups", systemImage: "exclamationmark.triangle")
-            } actions: {
-                Button("Retry") { Task { await viewModel.load(force: true) } }
-            }
+            LoadingSkeletonView()
+        } else if let error = viewModel.error, viewModel.groups.isEmpty {
+            ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
         } else {
             List {
                 if viewModel.groups.isEmpty {
-                    Text("No groups yet")
-                        .foregroundStyle(.secondary)
+                    EmptyStateView(message: "No groups yet")
+                        .listRowBackground(Color.clear)
                 } else {
                     ForEach(viewModel.groups) { group in
                         NavigationLink {

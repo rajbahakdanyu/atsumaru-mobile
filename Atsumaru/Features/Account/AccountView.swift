@@ -45,10 +45,8 @@ struct AccountView: View {
                         statsGrid(profile)
                     } else if viewModel?.isLoading == true {
                         ProgressView().padding(.vertical, 8)
-                    } else if viewModel?.loadFailed == true {
-                        Text("Couldn't load profile stats.")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+                    } else if let error = viewModel?.error {
+                        ErrorStateView(error: error) { Task { await viewModel?.load() } }
                     }
                     navigationLinks
                     signOutButton
@@ -213,7 +211,7 @@ final class AccountViewModel {
     var profile: PrivateProfile?
     var unreadCount: Int?
     var isLoading = false
-    var loadFailed = false
+    var error: ApiError?
 
     private let userRepository: any UserRepository
 
@@ -224,11 +222,15 @@ final class AccountViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
-        async let profileTask = try? userRepository.privateProfile()
-        async let countTask = try? userRepository.notificationCount()
-        let (loadedProfile, loadedCount) = await (profileTask, countTask)
-        profile = loadedProfile
-        unreadCount = loadedCount
-        loadFailed = loadedProfile == nil
+        do {
+            async let profileTask = userRepository.privateProfile()
+            async let countTask = userRepository.notificationCount()
+            let (loadedProfile, loadedCount) = try await (profileTask, countTask)
+            profile = loadedProfile
+            unreadCount = loadedCount
+            error = nil
+        } catch {
+            self.error = (error as? ApiError) ?? .decoding
+        }
     }
 }
