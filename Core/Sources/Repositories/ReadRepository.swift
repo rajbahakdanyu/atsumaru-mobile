@@ -24,3 +24,22 @@ public struct LiveReadRepository: ReadRepository {
         let _: EmptyResponse = try await client.post("/api/read/updateProgress", json: UpdateProgressBody(progress: update))
     }
 }
+
+public protocol NovelRepository: Sendable {
+    func novelChapter(mangaId: String, chapterId: String) async throws -> NovelChapter
+}
+
+public struct LiveNovelRepository: NovelRepository {
+    private let client: APIClient
+    public init(client: APIClient) { self.client = client }
+
+    private struct NovelChapterResponse: Decodable { let readNovelChapter: NovelChapter }
+
+    public func novelChapter(mangaId: String, chapterId: String) async throws -> NovelChapter {
+        let resp: NovelChapterResponse = try await client.get(
+            "/api/read/novelChapter",
+            query: ["mangaId": mangaId, "chapterId": chapterId]
+        )
+        return resp.readNovelChapter
+    }
+}

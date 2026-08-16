@@ -29,7 +29,11 @@ struct MangaDetailView: View {
         .navigationTitle(viewModel?.manga?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Chapter.self) { chapter in
-            MangaReaderView(mangaId: mangaId, chapter: chapter)
+            if viewModel?.manga?.medium == "Novel" {
+                NovelReaderView(mangaId: mangaId, chapter: chapter)
+            } else {
+                MangaReaderView(mangaId: mangaId, chapter: chapter)
+            }
         }
         .task {
             if viewModel == nil {

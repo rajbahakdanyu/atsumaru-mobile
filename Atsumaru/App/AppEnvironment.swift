@@ -9,6 +9,7 @@ final class AppEnvironment {
     let browseRepository: any BrowseRepository
     let mangaRepository: any MangaRepository
     let readRepository: any ReadRepository
+    let novelRepository: any NovelRepository
     let progressStore: ProgressStore?
 
     init() {
@@ -16,6 +17,7 @@ final class AppEnvironment {
         browseRepository = LiveBrowseRepository(client: apiClient)
         mangaRepository = LiveMangaRepository(client: apiClient)
         readRepository = LiveReadRepository(client: apiClient)
+        novelRepository = LiveNovelRepository(client: apiClient)
         progressStore = try? ProgressStore()
     }
 }
