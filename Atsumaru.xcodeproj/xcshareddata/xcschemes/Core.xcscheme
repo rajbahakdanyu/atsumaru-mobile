@@ -9,6 +9,20 @@
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "2631930C580BD752CB4E29E9"
+               BuildableName = "Atsumaru.app"
+               BlueprintName = "Atsumaru"
+               ReferencedContainer = "container:Atsumaru.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
             buildForRunning = "YES"
             buildForProfiling = "YES"
             buildForArchiving = "YES"

@@ -8,6 +8,7 @@ struct AtsumaruApp: App {
         WindowGroup {
             RootView()
                 .environment(environment)
+                .task { await environment.bootstrap() }
         }
     }
 }

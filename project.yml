@@ -28,10 +28,14 @@ targets:
     sources: [Core/Tests]
     dependencies:
       - target: Core
+      - target: Atsumaru
     settings:
       base:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: Core/Tests/CoreTests.entitlements
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Atsumaru.app/Atsumaru"
+        BUNDLE_LOADER: "$(TEST_HOST)"
   Atsumaru:
     type: application
     platform: iOS
@@ -48,16 +52,25 @@ targets:
         INFOPLIST_FILE: Atsumaru/Info.plist
         CODE_SIGN_ENTITLEMENTS: Atsumaru/Atsumaru.entitlements
         TARGETED_DEVICE_FAMILY: "1"
+    entitlements:
+      path: Atsumaru/Atsumaru.entitlements
+      properties:
+        keychain-access-groups:
+          - $(AppIdentifierPrefix)dev.atsumaru.app
     info:
       path: Atsumaru/Info.plist
       properties:
         UILaunchScreen: {}
         UIBackgroundModes: [fetch, processing]
+        CFBundleURLTypes:
+          - CFBundleURLName: dev.atsumaru.app
+            CFBundleURLSchemes: [atsumaru]
 schemes:
   Core:
     build:
       targets:
         Core: all
+        Atsumaru: [test]
         CoreTests: [test]
     test:
       targets:

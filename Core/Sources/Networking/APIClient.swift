@@ -83,3 +83,47 @@ public final class APIClient: @unchecked Sendable {
 public struct EmptyResponse: Decodable, Sendable {
     public init() {}
 }
+
+extension APIClient {
+    public func postForm<T: Decodable & Sendable>(
+        _ path: String,
+        fields: [String: String]
+    ) async throws -> T {
+        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
+            throw ApiError.invalidURL
+        }
+        components.path = path
+        guard let url = components.url else { throw ApiError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
+        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        request.httpBody = Data(Self.formEncode(fields).utf8)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
+        guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw ApiError.decoding
+        }
+    }
+
+    /// Percent-encodes form fields for `application/x-www-form-urlencoded`.
+    /// `&` and `=` are encoded so they survive inside values; `+` is also
+    /// encoded to avoid the form-decoding space ambiguity.
+    static func formEncode(_ fields: [String: String]) -> String {
+        var allowed = CharacterSet.urlQueryAllowed
+        allowed.subtract(CharacterSet(charactersIn: "&=+"))
+        return fields
+            .map { (key: $0.key, value: $0.value) }
+            .sorted { $0.key < $1.key }
+            .map { pair in
+                let key = pair.key.addingPercentEncoding(withAllowedCharacters: allowed) ?? pair.key
+                let value = pair.value.addingPercentEncoding(withAllowedCharacters: allowed) ?? pair.value
+                return "\(key)=\(value)"
+            }
+            .joined(separator: "&")
+    }
+}
