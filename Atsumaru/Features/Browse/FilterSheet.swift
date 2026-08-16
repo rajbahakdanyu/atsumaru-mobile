@@ -78,8 +78,8 @@ struct FilterSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Medium").font(.headline).padding(.leading, 4)
             HStack(spacing: 8) {
-                mediumChip("Comic", "medium")
-                mediumChip("Novel", "medium")
+                mediumChip("Comic", "Comic")
+                mediumChip("Novel", "Novel")
             }
         }
     }
