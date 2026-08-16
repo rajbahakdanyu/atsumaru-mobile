@@ -51,6 +51,7 @@ struct BrowseView: View {
                     }
                 }
             }
+            .id(displayMode)
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
