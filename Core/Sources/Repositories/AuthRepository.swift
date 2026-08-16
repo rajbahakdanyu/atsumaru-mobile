@@ -10,6 +10,7 @@ public protocol AuthRepository: Sendable {
     func sendPasswordReset(email: String) async throws
     func resetPassword(token: String, newPassword: String, confirmPassword: String) async throws
     func oauthURL(provider: String) async throws -> String
+    func oauthCallback(provider: String, code: String, state: String) async throws
 }
 
 public struct LiveAuthRepository: AuthRepository {
@@ -40,7 +41,7 @@ public struct LiveAuthRepository: AuthRepository {
             "/api/auth/login",
             fields: ["email": email, "password": password]
         )
-        _ = try await me()
+        _ = try? await me()
     }
 
     public func signup(email: String, username: String, password: String) async throws {
@@ -48,7 +49,7 @@ public struct LiveAuthRepository: AuthRepository {
             "/api/auth/signup",
             fields: ["email": email, "username": username, "password": password]
         )
-        _ = try await me()
+        _ = try? await me()
     }
 
     public func logout() async throws {
@@ -85,5 +86,12 @@ public struct LiveAuthRepository: AuthRepository {
     public func oauthURL(provider: String) async throws -> String {
         let resp: OAuthURLResponse = try await client.get("/api/auth/oauth/\(provider)/url")
         return resp.url
+    }
+
+    public func oauthCallback(provider: String, code: String, state: String) async throws {
+        let _: EmptyResponse = try await client.get(
+            "/api/auth/oauth/\(provider)/callback",
+            query: ["code": code, "state": state]
+        )
     }
 }
