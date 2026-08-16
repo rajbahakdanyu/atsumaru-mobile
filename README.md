@@ -9,8 +9,8 @@ A native iOS client for [atsu.moe](https://atsu.moe) — read, track, and downlo
 - **Browse & discover** — home feed rails, full browse grid, search with filters and sorting (genres, tags, types, statuses, ratings)
 - **Manga reader** — paged and vertical-strip modes, reading direction, data-saver image variants, reading progress sync
 - **Novel reader** — light-novel reading with adjustable typography and paragraph-level comments
-- **Offline downloads** — download chapters for offline reading, with storage management
-- **Background auto-update** — refresh your library and auto-download new chapters in the background (BGAppRefreshTask / BGProcessingTask)
+- **Offline downloads** — download chapters for offline reading, with storage management and LRU eviction
+- **Background auto-update** — refresh your library and auto-download new chapters in the background via BGTaskScheduler (BGAppRefreshTask / BGProcessingTask) with local notifications
 - **Accounts** — login, signup, OAuth (Google/Discord/AniList/MangaBaka), email verification, password reset, profile & settings management
 - **Library & tracking** — bookmarks, reading history, custom lists, continue-reading shelf
 - **Community** — chapter/paragraph comments, forum, user profiles, follows, and groups
@@ -48,7 +48,7 @@ xcodebuild -project Atsumaru.xcodeproj -scheme Core \
 - **UI:** SwiftUI with Apple's Liquid Glass design language (`glassEffect`, `GlassEffectContainer`), `@Observable` MVVM
 - **Networking:** typed `APIClient` mirroring Atsumaru's Hono RPC API (`https://atsu.moe/api/*`), cookie-session auth persisted in the Keychain
 - **Persistence:** SwiftData for the local cache (downloads, reading progress); server is the source of truth
-- **Downloads:** background `URLSession` + `BGTaskScheduler` for offline reading and background updates
+- **Downloads:** `DownloadManager` actor with per-chapter state/progress streams, `URLSession` downloads to `Documents/Downloads/`, and `BGTaskScheduler` for background auto-update
 - **Layout:** `Core/` (SPM package — models, networking, persistence) + `Atsumaru/` (app target — SwiftUI features)
 
 ## Dependencies
@@ -56,6 +56,10 @@ xcodebuild -project Atsumaru.xcodeproj -scheme Core \
 - [Kingfisher](https://github.com/onevcat/Kingfisher) — image loading & caching
 - [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui) — novel & forum rendering
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — project generation
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ## Legal
 
