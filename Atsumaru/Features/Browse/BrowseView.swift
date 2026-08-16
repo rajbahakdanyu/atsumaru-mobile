@@ -15,6 +15,9 @@ struct BrowseView: View {
                 if let viewModel, viewModel.isLoading && viewModel.results.isEmpty {
                     LoadingSkeletonView()
                         .padding(.top, 40)
+                } else if let viewModel, let error = viewModel.error, viewModel.results.isEmpty && !viewModel.isLoading {
+                    ErrorStateView(error: error) { Task { await viewModel.search() } }
+                        .padding(.top, 40)
                 } else if let viewModel, viewModel.results.isEmpty && !viewModel.isLoading {
                     EmptyStateView(message: "No results")
                         .padding(.top, 40)

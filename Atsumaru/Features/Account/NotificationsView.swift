@@ -85,16 +85,17 @@ final class NotificationsViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
+
+        async let listTask = userRepository.notifications()
+        async let countTask = userRepository.notificationCount()
+
         do {
-            async let listTask = userRepository.notifications()
-            async let countTask = userRepository.notificationCount()
-            let (list, count) = try await (listTask, countTask)
-            notifications = list
-            unreadCount = count
+            notifications = try await listTask
             error = nil
         } catch {
             self.error = (error as? ApiError) ?? .decoding
         }
+        unreadCount = (try? await countTask) ?? 0
     }
 
     func markAllRead() async {

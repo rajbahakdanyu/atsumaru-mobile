@@ -9,6 +9,7 @@ final class BrowseViewModel {
     var results: [HomeItem] = []
     var totalFound = 0
     var isLoading = false
+    var error: ApiError?
 
     private let browseRepository: any BrowseRepository
 
@@ -29,10 +30,13 @@ final class BrowseViewModel {
     func search() async {
         isLoading = true
         defer { isLoading = false }
-        guard let result = try? await browseRepository.search(query) else {
-            return
+        do {
+            let result = try await browseRepository.search(query)
+            results = result.hits.map(\.document)
+            totalFound = result.found
+            error = nil
+        } catch {
+            self.error = (error as? ApiError) ?? .decoding
         }
-        results = result.hits.map(\.document)
-        totalFound = result.found
     }
 }

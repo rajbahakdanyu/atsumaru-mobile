@@ -222,15 +222,16 @@ final class AccountViewModel {
     func load() async {
         isLoading = true
         defer { isLoading = false }
+
+        async let profileTask = userRepository.privateProfile()
+        async let countTask = userRepository.notificationCount()
+
         do {
-            async let profileTask = userRepository.privateProfile()
-            async let countTask = userRepository.notificationCount()
-            let (loadedProfile, loadedCount) = try await (profileTask, countTask)
-            profile = loadedProfile
-            unreadCount = loadedCount
+            profile = try await profileTask
             error = nil
         } catch {
             self.error = (error as? ApiError) ?? .decoding
         }
+        unreadCount = try? await countTask
     }
 }

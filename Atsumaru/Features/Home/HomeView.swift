@@ -11,6 +11,9 @@ struct HomeView: View {
                 if viewModel?.isLoading == true && (viewModel?.rails.isEmpty ?? true) {
                     LoadingSkeletonView()
                         .padding(.top, 40)
+                } else if let error = viewModel?.error, viewModel?.rails.isEmpty == true {
+                    ErrorStateView(error: error) { Task { await viewModel?.load() } }
+                        .padding(.top, 40)
                 } else if viewModel?.rails.isEmpty == true {
                     EmptyStateView(message: "Nothing here yet. Pull to refresh or try again later.")
                         .padding(.top, 40)

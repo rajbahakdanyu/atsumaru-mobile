@@ -5,6 +5,7 @@ import Core
 final class HomeViewModel {
     var rails: [(HomeEndpoint, [HomeItem])] = []
     var isLoading = false
+    var error: ApiError?
 
     private let homeRepository: any HomeRepository
 
@@ -17,11 +18,16 @@ final class HomeViewModel {
         defer { isLoading = false }
         let wanted: [HomeEndpoint] = [.popular, .recommended, .recentlyUpdated]
         var result: [(HomeEndpoint, [HomeItem])] = []
+        var lastError: ApiError?
         for endpoint in wanted {
-            if let rail = try? await homeRepository.rail(endpoint) {
+            do {
+                let rail = try await homeRepository.rail(endpoint)
                 result.append((endpoint, rail.items))
+            } catch {
+                lastError = (error as? ApiError) ?? .decoding
             }
         }
         rails = result
+        error = result.isEmpty ? lastError : nil
     }
 }
