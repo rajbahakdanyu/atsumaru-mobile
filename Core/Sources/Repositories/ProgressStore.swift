@@ -1,0 +1,60 @@
+import Foundation
+import SwiftData
+
+@Model
+final class ProgressRecord {
+    @Attribute(.unique) var mangaId: String
+    var chapterId: String
+    var pageIndex: Int
+    var updatedAt: Date
+
+    init(mangaId: String, chapterId: String, pageIndex: Int, updatedAt: Date) {
+        self.mangaId = mangaId
+        self.chapterId = chapterId
+        self.pageIndex = pageIndex
+        self.updatedAt = updatedAt
+    }
+}
+
+@MainActor
+public final class ProgressStore {
+    private let container: ModelContainer
+
+    public init(container: ModelContainer? = nil) throws {
+        if let container {
+            self.container = container
+        } else {
+            self.container = try ModelContainer(
+                for: ProgressRecord.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: false)
+            )
+        }
+    }
+
+    public func save(_ state: ProgressState) throws {
+        let context = container.mainContext
+        let existing = try fetch(mangaId: state.mangaId, chapterId: state.chapterId, in: context)
+        if let existing {
+            existing.chapterId = state.chapterId
+            existing.pageIndex = state.pageIndex
+            existing.updatedAt = state.updatedAt
+        } else {
+            context.insert(ProgressRecord(mangaId: state.mangaId, chapterId: state.chapterId, pageIndex: state.pageIndex, updatedAt: state.updatedAt))
+        }
+        try context.save()
+    }
+
+    public func progress(mangaId: String, chapterId: String) -> ProgressState? {
+        let context = container.mainContext
+        guard let record = try? fetch(mangaId: mangaId, chapterId: chapterId, in: context) else { return nil }
+        return ProgressState(mangaId: record.mangaId, chapterId: record.chapterId, pageIndex: record.pageIndex, updatedAt: record.updatedAt)
+    }
+
+    private func fetch(mangaId: String, chapterId: String, in context: ModelContext) throws -> ProgressRecord? {
+        var descriptor = FetchDescriptor<ProgressRecord>(
+            predicate: #Predicate { $0.mangaId == mangaId && $0.chapterId == chapterId }
+        )
+        descriptor.fetchLimit = 1
+        return try context.fetch(descriptor).first
+    }
+}

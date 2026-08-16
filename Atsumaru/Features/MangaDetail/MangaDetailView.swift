@@ -28,6 +28,9 @@ struct MangaDetailView: View {
         }
         .navigationTitle(viewModel?.manga?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: Chapter.self) { chapter in
+            MangaReaderView(mangaId: mangaId, chapter: chapter)
+        }
         .task {
             if viewModel == nil {
                 viewModel = MangaDetailViewModel(
@@ -45,7 +48,7 @@ struct MangaDetailView: View {
             VStack(alignment: .leading, spacing: 18) {
                 hero(manga)
                 titleSection(manga)
-                startReadingButton
+                startReadingButton(for: manga)
                 metaChips(manga)
                 if let synopsis = manga.synopsis, !synopsis.isEmpty {
                     Text(synopsis)
@@ -181,21 +184,24 @@ struct MangaDetailView: View {
                 Text("Chapters")
                     .font(.headline)
                 ForEach(manga.chapters) { chapter in
-                    HStack {
-                        Text("\(chapter.number)")
-                            .font(.body.bold())
-                            .frame(width: 44, alignment: .leading)
-                        Text(chapter.title)
-                            .font(.body)
-                            .lineLimit(1)
-                        Spacer()
-                        Text("\(chapter.pageCount) pp")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    NavigationLink(value: chapter) {
+                        HStack {
+                            Text("\(chapter.number)")
+                                .font(.body.bold())
+                                .frame(width: 44, alignment: .leading)
+                            Text(chapter.title)
+                                .font(.body)
+                                .lineLimit(1)
+                            Spacer()
+                            Text("\(chapter.pageCount) pp")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .glassCapsule()
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .glassCapsule()
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
@@ -220,15 +226,25 @@ struct MangaDetailView: View {
         }
     }
 
-    private var startReadingButton: some View {
-        Button {
-        } label: {
-            Label("Start Reading", systemImage: "book.fill")
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+    @ViewBuilder
+    private func startReadingButton(for manga: MangaPage) -> some View {
+        if let chapter = startReadingChapter(in: manga) {
+            NavigationLink(value: chapter) {
+                Label("Start Reading", systemImage: "book.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glassProminent)
+            .padding(.horizontal, 16)
         }
-        .buttonStyle(.glassProminent)
-        .padding(.horizontal, 16)
+    }
+
+    private func startReadingChapter(in manga: MangaPage) -> Chapter? {
+        if let sr = manga.startReading, let ch = manga.chapters.first(where: { $0.id == sr.chapterId }) {
+            return ch
+        }
+        if manga.chapters.isEmpty { return nil }
+        return manga.chapters.min { ($0.index ?? Int.max, $0.number) < ($1.index ?? Int.max, $1.number) }
     }
 }
 
