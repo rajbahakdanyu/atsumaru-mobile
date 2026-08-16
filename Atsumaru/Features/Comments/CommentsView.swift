@@ -5,6 +5,12 @@ import Core
 
 struct CommentsView: View {
     let sectionId: String
+    let ownsNavigation: Bool
+
+    init(sectionId: String, ownsNavigation: Bool = true) {
+        self.sectionId = sectionId
+        self.ownsNavigation = ownsNavigation
+    }
 
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
@@ -21,8 +27,10 @@ struct CommentsView: View {
         .navigationTitle("Comments")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button { dismiss() } label: { Text("Done").fontWeight(.semibold) }
+            if ownsNavigation {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { dismiss() } label: { Text("Done").fontWeight(.semibold) }
+                }
             }
         }
         .task {
@@ -65,7 +73,7 @@ struct CommentsView: View {
                     CommentRow(
                         comment: comment,
                         onReply: { viewModel.replyTarget = comment },
-                        onVote: { value in Task { await viewModel.vote(comment: comment, vote: value) } }
+                        onVote: { value in await viewModel.vote(comment: comment, vote: value) }
                     )
                     Divider()
                 }
@@ -116,7 +124,7 @@ struct CommentsView: View {
 struct CommentRow: View {
     let comment: Comment
     let onReply: () -> Void
-    let onVote: (Int) -> Void
+    let onVote: (Int) async -> Bool
 
     @State private var spoilerRevealed = false
     @State private var localVote = 0
@@ -186,7 +194,10 @@ struct CommentRow: View {
             Button {
                 guard localVote != 1 else { return }
                 localVote = 1
-                onVote(1)
+                Task {
+                    let success = await onVote(1)
+                    if !success { localVote = 0 }
+                }
             } label: {
                 Image(systemName: "arrow.up")
                     .font(.caption)
@@ -201,7 +212,10 @@ struct CommentRow: View {
             Button {
                 guard localVote != -1 else { return }
                 localVote = -1
-                onVote(-1)
+                Task {
+                    let success = await onVote(-1)
+                    if !success { localVote = 0 }
+                }
             } label: {
                 Image(systemName: "arrow.down")
                     .font(.caption)

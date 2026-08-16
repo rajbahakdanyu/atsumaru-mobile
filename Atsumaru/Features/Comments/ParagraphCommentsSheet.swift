@@ -47,7 +47,7 @@ struct ParagraphCommentsSheet: View {
     @ViewBuilder
     private func sectionContent(section: CommentSection) -> some View {
         if let sectionId = section.id, !sectionId.isEmpty {
-            CommentsView(sectionId: sectionId)
+            CommentsView(sectionId: sectionId, ownsNavigation: false)
         } else {
             readOnlyInline(section: section)
         }
@@ -66,7 +66,7 @@ struct ParagraphCommentsSheet: View {
                         .padding(.vertical, 48)
                 }
                 ForEach(comments) { comment in
-                    CommentRow(comment: comment, onReply: {}, onVote: { _ in })
+                    CommentRow(comment: comment, onReply: {}, onVote: { _ in false })
                     Divider()
                 }
             }

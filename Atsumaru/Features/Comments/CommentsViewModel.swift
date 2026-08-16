@@ -66,10 +66,13 @@ final class CommentsViewModel {
         }
     }
 
-    func vote(comment: Comment, vote: Int) async {
+    @discardableResult
+    func vote(comment: Comment, vote: Int) async -> Bool {
         do {
             try await repository.vote(commentId: comment.id, vote: vote)
+            return true
         } catch {
+            return false
         }
     }
 
