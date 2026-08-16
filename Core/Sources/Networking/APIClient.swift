@@ -78,6 +78,33 @@ public final class APIClient: @unchecked Sendable {
             throw ApiError.decoding
         }
     }
+
+    public func put<T: Decodable & Sendable, Body: Encodable & Sendable>(
+        _ path: String, query: [String: String] = [:], json body: Body
+    ) async throws -> T {
+        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
+            throw ApiError.invalidURL
+        }
+        components.path = path
+        if !query.isEmpty {
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        guard let url = components.url else { throw ApiError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
+        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        request.httpBody = try JSONEncoder().encode(body)
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
+        guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw ApiError.decoding
+        }
+    }
 }
 
 public struct EmptyResponse: Decodable, Sendable {
