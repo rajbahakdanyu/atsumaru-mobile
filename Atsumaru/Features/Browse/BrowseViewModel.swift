@@ -4,11 +4,6 @@ import Core
 @Observable @MainActor
 final class BrowseViewModel {
     var query = SearchQuery()
-    var results: [HomeItem] = []
-    var totalFound = 0
-    var isLoading = false
-    var error: ApiError?
-
     var recentlyUpdated: [HomeItem] = []
     var popular: [HomeItem] = []
     var recentlyUpdatedError: ApiError?
@@ -29,6 +24,7 @@ final class BrowseViewModel {
         !query.genres.isEmpty || !query.tags.isEmpty || !query.types.isEmpty
             || !query.statuses.isEmpty || !query.mediums.isEmpty
             || query.minChapters != nil || sort != .relevance
+            || (!query.q.isEmpty && query.q != "*")
     }
 
     private let pageSize = 30
@@ -85,19 +81,8 @@ final class BrowseViewModel {
     }
 
     func search() async {
-        isLoading = true
-        defer { isLoading = false }
-        var q = SearchQuery()
-        q.q = query.q
-        q.sortBy = sort.rawValue
-        do {
-            let result = try await browseRepository.search(q)
-            results = result.hits.map(\.document)
-            totalFound = result.found
-            error = nil
-        } catch {
-            self.error = (error as? ApiError) ?? .decoding
-        }
+        query.q = query.q.trimmingCharacters(in: .whitespacesAndNewlines)
+        await loadFiltered(reset: true)
     }
 
     func loadFiltered(reset: Bool = false) async {
@@ -107,7 +92,7 @@ final class BrowseViewModel {
         isLoadingFiltered = true
         defer { isLoadingFiltered = false }
         var q = query
-        q.q = "*"
+        if q.q.isEmpty { q.q = "*" }
         q.sortBy = sort.rawValue
         q.page = (filteredResults.count / pageSize) + 1
         q.perPage = pageSize
@@ -131,6 +116,7 @@ final class BrowseViewModel {
         query.statuses = []
         query.mediums = []
         query.minChapters = nil
+        query.q = "*"
         sort = .relevance
     }
 }

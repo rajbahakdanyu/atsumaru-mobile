@@ -12,8 +12,8 @@ enum BrowseDisplayMode: String, CaseIterable, Identifiable {
 struct BrowseView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: BrowseViewModel?
-    @State private var searchText = ""
     @State private var showingFilters = false
+    @State private var showingSearch = false
     @AppStorage("browseDisplayMode") private var displayMode: BrowseDisplayMode = .recentlyUpdated
 
     private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
@@ -23,29 +23,25 @@ struct BrowseView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, pinnedViews: [.sectionHeaders]) {
                     Section {
-                        if !searchText.isEmpty {
-                            searchContent
-                        } else {
-                            switch displayMode {
-                            case .recentlyUpdated:
-                                feedContent(items: viewModel?.recentlyUpdated ?? [],
-                                            error: viewModel?.recentlyUpdatedError,
-                                            isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
-                                            loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
-                            case .popular:
-                                feedContent(items: viewModel?.popular ?? [],
-                                            error: viewModel?.popularError,
-                                            isLoading: viewModel?.isLoadingPopular ?? false,
-                                            loadMore: { Task { await viewModel?.loadPopular() } })
-                            case .filtered:
-                                if let viewModel, viewModel.hasActiveFilters {
-                                    feedContent(items: viewModel.filteredResults,
-                                                error: viewModel.filteredError,
-                                                isLoading: viewModel.isLoadingFiltered,
-                                                loadMore: { Task { await viewModel.loadFiltered() } })
-                                } else {
-                                    filteredEmptyState
-                                }
+                        switch displayMode {
+                        case .recentlyUpdated:
+                            feedContent(items: viewModel?.recentlyUpdated ?? [],
+                                        error: viewModel?.recentlyUpdatedError,
+                                        isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
+                                        loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
+                        case .popular:
+                            feedContent(items: viewModel?.popular ?? [],
+                                        error: viewModel?.popularError,
+                                        isLoading: viewModel?.isLoadingPopular ?? false,
+                                        loadMore: { Task { await viewModel?.loadPopular() } })
+                        case .filtered:
+                            if let viewModel, viewModel.hasActiveFilters {
+                                feedContent(items: viewModel.filteredResults,
+                                            error: viewModel.filteredError,
+                                            isLoading: viewModel.isLoadingFiltered,
+                                            loadMore: { Task { await viewModel.loadFiltered() } })
+                            } else {
+                                filteredEmptyState
                             }
                         }
                     } header: {
@@ -64,7 +60,10 @@ struct BrowseView: View {
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button { showingSearch = true } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
                     Button { showingFilters = true } label: {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
@@ -73,7 +72,6 @@ struct BrowseView: View {
             .navigationDestination(for: String.self) { id in
                 MangaDetailView(mangaId: id)
             }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search manga")
             .sheet(isPresented: $showingFilters) {
                 if let viewModel {
                     FilterSheet(viewModel: viewModel)
@@ -82,6 +80,18 @@ struct BrowseView: View {
                             if viewModel.hasActiveFilters {
                                 displayMode = .filtered
                                 Task { await viewModel.loadFiltered(reset: true) }
+                            }
+                        }
+                }
+            }
+            .sheet(isPresented: $showingSearch) {
+                if let viewModel {
+                    SearchSheet(viewModel: viewModel)
+                        .presentationDetents([.large])
+                        .onDisappear {
+                            if !viewModel.query.q.isEmpty, viewModel.query.q != "*" {
+                                displayMode = .filtered
+                                Task { await viewModel.search() }
                             }
                         }
                 }
@@ -109,18 +119,15 @@ struct BrowseView: View {
                     }
                 }
             }
-            .task(id: searchText) {
-                guard !searchText.isEmpty, let viewModel else { return }
-                viewModel.query.q = searchText
-                await viewModel.search()
-            }
         }
     }
 
     @ViewBuilder
     private var filteredEmptyState: some View {
-        EmptyStateView(message: "No filters applied. Tap the filter button to set up filters.")
-            .padding(.top, 40)
+        VStack(spacing: 12) {
+            EmptyStateView(message: "Search or apply filters to see results here.")
+                .padding(.top, 40)
+        }
     }
 
     @ViewBuilder
@@ -131,7 +138,8 @@ struct BrowseView: View {
                 ErrorStateView(error: error ?? .decoding) { loadMore() }
                     .padding(.top, 40)
             } else if isLoading {
-                ProgressView().padding(.top, 40)
+                ProgressView()
+                    .frame(maxWidth: .infinity, minHeight: 200)
             } else {
                 EmptyStateView(message: "Nothing here yet.")
                     .padding(.top, 40)
@@ -153,30 +161,6 @@ struct BrowseView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .padding()
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-
-    @ViewBuilder
-    private var searchContent: some View {
-        if let viewModel, viewModel.isLoading && viewModel.results.isEmpty {
-            LoadingSkeletonView()
-                .padding(.top, 40)
-        } else if let viewModel, let error = viewModel.error, viewModel.results.isEmpty && !viewModel.isLoading {
-            ErrorStateView(error: error) { Task { await viewModel.search() } }
-                .padding(.top, 40)
-        } else if let viewModel, viewModel.results.isEmpty && !viewModel.isLoading {
-            EmptyStateView(message: "No results")
-                .padding(.top, 40)
-        } else {
-            LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(viewModel?.results ?? []) { item in
-                    NavigationLink(value: item.id) {
-                        Poster(item: item, showsTitle: true)
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal)
