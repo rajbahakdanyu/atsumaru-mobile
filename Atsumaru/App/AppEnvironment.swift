@@ -14,6 +14,7 @@ final class AppEnvironment {
     let authRepository: any AuthRepository
     let userRepository: any UserRepository
     let libraryRepository: any LibraryRepository
+    let commentsRepository: any CommentsRepository
     let downloadManager: DownloadManager
     let backgroundScheduler: BackgroundScheduler
     var currentUser: AuthUser?
@@ -28,6 +29,7 @@ final class AppEnvironment {
         authRepository = LiveAuthRepository(client: apiClient, keychain: keychainStore)
         userRepository = LiveUserRepository(client: apiClient)
         libraryRepository = LiveLibraryRepository(client: apiClient)
+        commentsRepository = LiveCommentsRepository(client: apiClient)
         let store = try? DownloadStore()
         let downloadMgr = DownloadManager(readRepository: readRepository, store: store)
         downloadManager = downloadMgr

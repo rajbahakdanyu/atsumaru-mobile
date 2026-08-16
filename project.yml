@@ -62,6 +62,9 @@ targets:
       properties:
         UILaunchScreen: {}
         UIBackgroundModes: [fetch, processing]
+        BGTaskSchedulerPermittedIdentifiers:
+          - dev.atsumaru.app.refresh
+          - dev.atsumaru.app.processing
         CFBundleURLTypes:
           - CFBundleURLName: dev.atsumaru.app
             CFBundleURLSchemes: [atsumaru]

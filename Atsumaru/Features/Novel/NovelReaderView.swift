@@ -15,7 +15,7 @@ struct NovelReaderView: View {
 
     @State private var viewModel: NovelReaderViewModel?
     @State private var showSettings = false
-    @State private var commentPopoverIndex: Int?
+    @State private var commentPopover: ParagraphIndex?
 
     var body: some View {
         Group {
@@ -48,6 +48,9 @@ struct NovelReaderView: View {
             }
             await viewModel?.load()
         }
+        .sheet(item: $commentPopover) {
+            ParagraphCommentsSheet(chapterId: chapter.id, paragraph: $0.value)
+        }
     }
 
     @ViewBuilder
@@ -71,7 +74,7 @@ struct NovelReaderView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 4)
             .contentShape(Rectangle())
-            .onTapGesture { commentPopoverIndex = index }
+            .onTapGesture { commentPopover = ParagraphIndex(value: index) }
             .overlay(alignment: .topTrailing) {
                 if let count, count > 0 {
                     Text("\(count)")
@@ -82,20 +85,6 @@ struct NovelReaderView: View {
                         .padding(.top, 2)
                         .padding(.trailing, 4)
                 }
-            }
-            .popover(isPresented: Binding(
-                get: { commentPopoverIndex == index },
-                set: { if !$0 { commentPopoverIndex = nil } }
-            )) {
-                VStack(spacing: 12) {
-                    Text("\(count ?? 0) comments")
-                        .font(.headline)
-                    Text("Comments coming soon")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .padding(20)
-                .frame(maxWidth: 240)
             }
     }
 
@@ -141,4 +130,9 @@ struct NovelReaderView: View {
         .frame(width: 300)
         .presentationCompactAdaptation(.popover)
     }
+}
+
+private struct ParagraphIndex: Identifiable {
+    let value: Int
+    var id: Int { value }
 }

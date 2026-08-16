@@ -15,6 +15,7 @@ struct MangaReaderView: View {
 
     @State private var viewModel: ReaderViewModel?
     @State private var zoomScale: CGFloat = 1.0
+    @State private var showComments = false
 
     var body: some View {
         Group {
@@ -55,6 +56,11 @@ struct MangaReaderView: View {
         }
         .onDisappear {
             viewModel?.saveProgressNow()
+        }
+        .sheet(isPresented: $showComments) {
+            NavigationStack {
+                CommentsView(sectionId: chapter.id)
+            }
         }
     }
 
@@ -216,6 +222,11 @@ struct MangaReaderView: View {
             Text(viewModel?.readChapter?.title ?? chapter.title)
                 .font(.subheadline.bold())
                 .lineLimit(1)
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            Button { showComments = true } label: {
+                Image(systemName: "bubble.left.and.bubble.right")
+            }
         }
         ToolbarItem(placement: .topBarTrailing) {
             Picker("Reader Mode", selection: $storedMode) {
