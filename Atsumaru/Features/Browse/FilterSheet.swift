@@ -40,7 +40,12 @@ struct FilterSheet: View {
                     Button("Clear", role: .destructive) { viewModel.clearFilters() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Apply") { dismiss() }.bold()
+                    Button("Apply") {
+                        if viewModel.hasActiveFilters {
+                            viewModel.prepareFilteredReload()
+                        }
+                        dismiss()
+                    }.bold()
                 }
             }
             .task { await viewModel.loadFilters() }

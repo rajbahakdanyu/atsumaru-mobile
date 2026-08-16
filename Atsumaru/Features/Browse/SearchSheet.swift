@@ -33,6 +33,11 @@ struct SearchSheet: View {
     private func apply() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         viewModel.query.q = trimmed.isEmpty ? "*" : trimmed
+        if trimmed.isEmpty {
+            viewModel.clearFilters()
+        } else {
+            viewModel.prepareFilteredReload()
+        }
         dismiss()
     }
 }
