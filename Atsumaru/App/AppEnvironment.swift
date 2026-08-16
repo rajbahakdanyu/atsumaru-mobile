@@ -43,12 +43,12 @@ final class AppEnvironment {
 
     func login(email: String, password: String) async throws {
         try await authRepository.login(email: email, password: password)
-        currentUser = try await authRepository.me()
+        if let me = try? await authRepository.me() { currentUser = me }
     }
 
     func signup(email: String, username: String, password: String) async throws {
         try await authRepository.signup(email: email, username: username, password: password)
-        currentUser = try await authRepository.me()
+        if let me = try? await authRepository.me() { currentUser = me }
     }
 
     func logout() async throws {
