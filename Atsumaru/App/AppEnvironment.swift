@@ -14,6 +14,8 @@ final class AppEnvironment {
     let authRepository: any AuthRepository
     let userRepository: any UserRepository
     let libraryRepository: any LibraryRepository
+    let downloadManager: DownloadManager
+    let backgroundScheduler: BackgroundScheduler
     var currentUser: AuthUser?
     let progressStore: ProgressStore?
 
@@ -26,6 +28,14 @@ final class AppEnvironment {
         authRepository = LiveAuthRepository(client: apiClient, keychain: keychainStore)
         userRepository = LiveUserRepository(client: apiClient)
         libraryRepository = LiveLibraryRepository(client: apiClient)
+        let store = try? DownloadStore()
+        let downloadMgr = DownloadManager(readRepository: readRepository, store: store)
+        downloadManager = downloadMgr
+        backgroundScheduler = BackgroundScheduler(
+            downloadManager: downloadMgr,
+            libraryRepository: libraryRepository,
+            mangaRepository: mangaRepository
+        )
         progressStore = try? ProgressStore()
     }
 
@@ -42,6 +52,12 @@ final class AppEnvironment {
             }
         } catch {
             // Keep any cached user from the keychain on transient network errors.
+        }
+        backgroundScheduler.registerTasks()
+        if UserDefaults.standard.object(forKey: "dev.atsumaru.app.backgroundRefresh") == nil
+            || UserDefaults.standard.bool(forKey: "dev.atsumaru.app.backgroundRefresh") {
+            backgroundScheduler.scheduleRefresh()
+            await backgroundScheduler.requestNotificationAuthorization()
         }
     }
 

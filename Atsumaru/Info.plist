@@ -34,6 +34,11 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>dev.atsumaru.app.refresh</string>
+		<string>dev.atsumaru.app.processing</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 </dict>

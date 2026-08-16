@@ -78,6 +78,13 @@
 		D4BFA8C6E2F359BD1A6E0C7F /* LibraryRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3A9B7E5F1D24E8AC0F5A9D3 /* LibraryRepositoryTests.swift */; };
 		F6DC2AE8A4B57F3D9C2A5EB9 /* ContinueReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5CB19D7F3A46E2C8B1F4DA8 /* ContinueReadingView.swift */; };
 		B8FE4CA0D6C79F5EBE3D801B /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7ED3BF9C5B68F4EAD1C7F0A /* LibraryViewModel.swift */; };
+		F761E26ECCD64382828A9E0C /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9E500C8AFC443199E590BF /* AppDatabase.swift */; };
+		65F6348821004D4D9DB381E9 /* DownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 132335A7A2CB4FC1B3FD748B /* DownloadManager.swift */; };
+		B1FD7294A9D64E049C5CFAEE /* BackgroundScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AA803465A004EE892B8B105 /* BackgroundScheduler.swift */; };
+		D306D98FA4C04E59AEACB780 /* DownloadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DD85A91BB04451B7FF15DB /* DownloadManagerTests.swift */; };
+		5187A7ED099941489895BDAE /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66A074430BBD473A90CFB3FC /* DownloadsView.swift */; };
+		3A03C96DF3D34294AC85EBF3 /* DownloadsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0599EB8FD843C5A4C2B0C8 /* DownloadsViewModel.swift */; };
+		77CB276C38954EB98DB7D687 /* DownloadSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174BCB13A37D419789721AF0 /* DownloadSettingsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -201,6 +208,13 @@
 		C3A9B7E5F1D24E8AC0F5A9D3 /* LibraryRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRepositoryTests.swift; sourceTree = "<group>"; };
 		E5CB19D7F3A46E2C8B1F4DA8 /* ContinueReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueReadingView.swift; sourceTree = "<group>"; };
 		A7ED3BF9C5B68F4EAD1C7F0A /* LibraryViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryViewModel.swift; sourceTree = "<group>"; };
+		FD9E500C8AFC443199E590BF /* AppDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDatabase.swift; sourceTree = "<group>"; };
+		132335A7A2CB4FC1B3FD748B /* DownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManager.swift; sourceTree = "<group>"; };
+		2AA803465A004EE892B8B105 /* BackgroundScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundScheduler.swift; sourceTree = "<group>"; };
+		58DD85A91BB04451B7FF15DB /* DownloadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManagerTests.swift; sourceTree = "<group>"; };
+		66A074430BBD473A90CFB3FC /* DownloadsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsView.swift; sourceTree = "<group>"; };
+		DA0599EB8FD843C5A4C2B0C8 /* DownloadsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadsViewModel.swift; sourceTree = "<group>"; };
+		174BCB13A37D419789721AF0 /* DownloadSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadSettingsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -229,8 +243,35 @@
 			isa = PBXGroup;
 			children = (
 				43C9C793DE58DFEB0DA8744E /* KeychainStore.swift */,
+				FD9E500C8AFC443199E590BF /* AppDatabase.swift */,
 			);
 			path = Persistence;
+			sourceTree = "<group>";
+		};
+		32200EAFE069432AB3643D7C /* Background */ = {
+			isa = PBXGroup;
+			children = (
+				2AA803465A004EE892B8B105 /* BackgroundScheduler.swift */,
+			);
+			path = Background;
+			sourceTree = "<group>";
+		};
+		D2DC09B890E1485B91E2E998 /* Downloads */ = {
+			isa = PBXGroup;
+			children = (
+				132335A7A2CB4FC1B3FD748B /* DownloadManager.swift */,
+			);
+			path = Downloads;
+			sourceTree = "<group>";
+		};
+		81A73FBDCA674082BE198646 /* Downloads */ = {
+			isa = PBXGroup;
+			children = (
+				66A074430BBD473A90CFB3FC /* DownloadsView.swift */,
+				DA0599EB8FD843C5A4C2B0C8 /* DownloadsViewModel.swift */,
+				174BCB13A37D419789721AF0 /* DownloadSettingsView.swift */,
+			);
+			path = Downloads;
 			sourceTree = "<group>";
 		};
 		14DC807539AD327116B76483 /* NetworkingTests */ = {
@@ -307,6 +348,7 @@
 				AFD50223D32E7043B2D95E0D /* MangaDetail */,
 				80A9983D2188171C9898AF60 /* Novel */,
 				B13008988A29EA46FDF1199E /* Reader */,
+				81A73FBDCA674082BE198646 /* Downloads */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -320,6 +362,7 @@
 				F06FA5A126B6374456089905 /* SearchQueryTests.swift */,
 				464CE2D07F86493FB395D4A0 /* UserRepositoryTests.swift */,
 				C3A9B7E5F1D24E8AC0F5A9D3 /* LibraryRepositoryTests.swift */,
+				58DD85A91BB04451B7FF15DB /* DownloadManagerTests.swift */,
 				14DC807539AD327116B76483 /* NetworkingTests */,
 			);
 			path = Tests;
@@ -453,6 +496,8 @@
 				1CF64D1052EFC84261CACCCE /* Networking */,
 				04EC92A9A32E11411B4204F2 /* Persistence */,
 				504AE5B47CC7F3B1020D950D /* Repositories */,
+				32200EAFE069432AB3643D7C /* Background */,
+				D2DC09B890E1485B91E2E998 /* Downloads */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -599,10 +644,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				6438329FBDDECA2DD25E0BB3 /* APIClient.swift in Sources */,
+				F761E26ECCD64382828A9E0C /* AppDatabase.swift in Sources */,
 				5BD4E8195139FC97A5BD0F92 /* AuthModels.swift in Sources */,
 				F117D4B3428D3DB01BE3D732 /* AuthRepository.swift in Sources */,
+				B1FD7294A9D64E049C5CFAEE /* BackgroundScheduler.swift in Sources */,
 				CA85022D5B7493891C694B87 /* BrowseRepository.swift in Sources */,
 				991A43A435D0FDB02A16E6CA /* Core.swift in Sources */,
+				65F6348821004D4D9DB381E9 /* DownloadManager.swift in Sources */,
 				8ECAAFD52B12E9710E5C5FF2 /* Endpoint.swift in Sources */,
 				EC29B7E962C9952D7DC75A02 /* FilterModels.swift in Sources */,
 				3F2696091618C2582C630FB0 /* HomeEndpoints.swift in Sources */,
@@ -637,6 +685,9 @@
 				DC8A5394F843D356B0D0123E /* BrowseView.swift in Sources */,
 				F91EC36E681D9239AE6E88A4 /* BrowseViewModel.swift in Sources */,
 				703237D1356FB48E94764BB3 /* Components.swift in Sources */,
+				5187A7ED099941489895BDAE /* DownloadsView.swift in Sources */,
+				3A03C96DF3D34294AC85EBF3 /* DownloadsViewModel.swift in Sources */,
+				77CB276C38954EB98DB7D687 /* DownloadSettingsView.swift in Sources */,
 				27CA23EEB9F4E08B387632C2 /* FilterSheet.swift in Sources */,
 				BF923B3F01E600A95244F24B /* ForgotPasswordView.swift in Sources */,
 				28DFF61776A30845F0963F71 /* ForumView.swift in Sources */,
@@ -669,6 +720,7 @@
 				AC62C1BDFFC0F6C568AAB418 /* APIClientTests.swift in Sources */,
 				40009BB793F321FA13B6C076 /* AuthRepositoryTests.swift in Sources */,
 				7FACA1035CAEDC6C58EEEE4A /* BrowseRepositoryTests.swift in Sources */,
+				D306D98FA4C04E59AEACB780 /* DownloadManagerTests.swift in Sources */,
 				D3CC584F609EAFCA572009B1 /* HomeRepositoryTests.swift in Sources */,
 				E97774E8DD69DD33374802EF /* MangaRepositoryTests.swift in Sources */,
 				4A62A2580996E7F68C0193FD /* NovelRepositoryTests.swift in Sources */,

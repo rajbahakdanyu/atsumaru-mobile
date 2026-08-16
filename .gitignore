@@ -18,8 +18,8 @@ build/
 *.xcconfig.local
 Secrets.plist
 
-# Download caches (runtime)
-Downloads/
+# Download caches (runtime) — only at repo root, never inside app source
+/Downloads/
 
 # Superpowers working files
 /.superpowers/
