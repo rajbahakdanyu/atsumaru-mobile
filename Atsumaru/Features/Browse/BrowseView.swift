@@ -19,12 +19,20 @@ struct BrowseView: View {
                         .padding(.top, 80)
                 } else {
                     LazyVGrid(columns: columns, spacing: 16) {
-                        ForEach(viewModel?.results ?? []) { Poster(item: $0) }
+                        ForEach(viewModel?.results ?? []) { item in
+                            NavigationLink(value: item.id) {
+                                Poster(item: item)
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
                     .padding(.horizontal)
                 }
             }
             .navigationTitle("Browse")
+            .navigationDestination(for: String.self) { id in
+                MangaDetailView(mangaId: id)
+            }
             .searchable(text: $searchText, prompt: "Search manga")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
