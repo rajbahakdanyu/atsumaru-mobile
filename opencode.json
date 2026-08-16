@@ -31,7 +31,7 @@
     },
     "general": {
       "mode": "subagent",
-      "model": "opencode-go/glm-5.2",
+      "model": "opencode-go/deepseek-v4-pro",
       "description": "General-purpose subagent for background execution passes, multi-step subtasks, and SDD task reviews."
     },
     "explore": {
