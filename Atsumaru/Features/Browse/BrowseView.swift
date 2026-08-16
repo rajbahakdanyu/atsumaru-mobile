@@ -20,28 +20,42 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                if !searchText.isEmpty {
-                    searchContent
-                } else {
-                    switch displayMode {
-                    case .recentlyUpdated:
-                        feedContent(items: viewModel?.recentlyUpdated ?? [],
-                                    error: viewModel?.recentlyUpdatedError,
-                                    isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
-                                    loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
-                    case .popular:
-                        feedContent(items: viewModel?.popular ?? [],
-                                    error: viewModel?.popularError,
-                                    isLoading: viewModel?.isLoadingPopular ?? false,
-                                    loadMore: { Task { await viewModel?.loadPopular() } })
+                LazyVStack(alignment: .leading, pinnedViews: [.sectionHeaders]) {
+                    Section {
+                        if !searchText.isEmpty {
+                            searchContent
+                        } else {
+                            switch displayMode {
+                            case .recentlyUpdated:
+                                feedContent(items: viewModel?.recentlyUpdated ?? [],
+                                            error: viewModel?.recentlyUpdatedError,
+                                            isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
+                                            loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
+                            case .popular:
+                                feedContent(items: viewModel?.popular ?? [],
+                                            error: viewModel?.popularError,
+                                            isLoading: viewModel?.isLoadingPopular ?? false,
+                                            loadMore: { Task { await viewModel?.loadPopular() } })
+                            }
+                        }
+                    } header: {
+                        Picker("Display", selection: $displayMode) {
+                            Text("Recently Updated").tag(BrowseDisplayMode.recentlyUpdated)
+                            Text("Popular").tag(BrowseDisplayMode.popular)
+                        }
+                        .pickerStyle(.segmented)
+                        .padding(.horizontal)
+                        .padding(.bottom, 4)
+                        .background(.background)
                     }
                 }
             }
             .navigationTitle("Browse")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: String.self) { id in
                 MangaDetailView(mangaId: id)
             }
-            .searchable(text: $searchText, prompt: "Search manga")
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search manga")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -50,16 +64,6 @@ struct BrowseView: View {
                         Image(systemName: "line.3.horizontal.decrease.circle")
                     }
                 }
-            }
-            .safeAreaInset(edge: .top) {
-                Picker("Display", selection: $displayMode) {
-                    Text("Recently Updated").tag(BrowseDisplayMode.recentlyUpdated)
-                    Text("Popular").tag(BrowseDisplayMode.popular)
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-                .padding(.vertical, 6)
-                .background(.bar)
             }
             .task(id: displayMode) {
                 if viewModel == nil {
@@ -114,7 +118,7 @@ struct BrowseView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(items) { item in
                     NavigationLink(value: item.id) {
-                        Poster(item: item)
+                        Poster(item: item, showsTitle: true)
                     }
                     .buttonStyle(.plain)
                     .onAppear {
@@ -148,7 +152,7 @@ struct BrowseView: View {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(viewModel?.results ?? []) { item in
                     NavigationLink(value: item.id) {
-                        Poster(item: item)
+                        Poster(item: item, showsTitle: true)
                     }
                     .buttonStyle(.plain)
                 }
