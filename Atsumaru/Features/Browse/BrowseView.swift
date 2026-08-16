@@ -12,6 +12,7 @@ struct BrowseView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: BrowseViewModel?
     @State private var searchText = ""
+    @State private var showingFilters = false
     @AppStorage("browseDisplayMode") private var displayMode: BrowseDisplayMode = .recentlyUpdated
 
     private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
@@ -23,6 +24,11 @@ struct BrowseView: View {
                     Section {
                         if !searchText.isEmpty {
                             searchContent
+                        } else if let viewModel, viewModel.hasActiveFilters {
+                            feedContent(items: viewModel.filteredResults,
+                                        error: viewModel.filteredError,
+                                        isLoading: viewModel.isLoadingFiltered,
+                                        loadMore: { Task { await viewModel.loadFiltered() } })
                         } else {
                             switch displayMode {
                             case .recentlyUpdated:
@@ -51,10 +57,28 @@ struct BrowseView: View {
             }
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { showingFilters = true } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                }
+            }
             .navigationDestination(for: String.self) { id in
                 MangaDetailView(mangaId: id)
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search manga")
+            .sheet(isPresented: $showingFilters) {
+                if let viewModel {
+                    FilterSheet(viewModel: viewModel)
+                        .presentationDetents([.large])
+                        .onDisappear {
+                            if viewModel.hasActiveFilters {
+                                Task { await viewModel.loadFiltered(reset: true) }
+                            }
+                        }
+                }
+            }
             .task(id: displayMode) {
                 if viewModel == nil {
                     viewModel = BrowseViewModel(
