@@ -190,7 +190,7 @@ struct MangaDetailView: View {
                 ForEach(manga.chapters) { chapter in
                     NavigationLink(value: chapter) {
                         HStack {
-                            Text("\(chapter.number)")
+                            Text(chapter.numberLabel)
                                 .font(.body.bold())
                                 .frame(width: 44, alignment: .leading)
                             Text(chapter.title)

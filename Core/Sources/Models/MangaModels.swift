@@ -63,7 +63,7 @@ public struct StartReading: Decodable, Sendable {
 public struct Chapter: Codable, Identifiable, Hashable, Sendable {
     public let id: String
     public let title: String
-    public let number: Int
+    public let number: Double
     public let index: Int?
     public let pageCount: Int
     public let scanlationMangaId: String?
@@ -77,9 +77,10 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         title = try c.decode(String.self, forKey: .title)
-        number = try c.decode(Int.self, forKey: .number)
+        // Chapter numbers can be fractional ("Chapter 93.2").
+        number = (try? c.decode(Double.self, forKey: .number)) ?? 0
         index = try c.decodeIfPresent(Int.self, forKey: .index)
-        pageCount = try c.decode(Int.self, forKey: .pageCount)
+        pageCount = (try? c.decode(Int.self, forKey: .pageCount)) ?? 0
         scanlationMangaId = try c.decodeIfPresent(String.self, forKey: .scanlationMangaId)
         if let int = try? c.decodeIfPresent(Int.self, forKey: .createdAt) {
             createdAt = int
@@ -89,6 +90,15 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         } else {
             createdAt = nil
         }
+    }
+
+    /// Chapter number formatted without a trailing `.0` for whole numbers
+    /// (so `97` renders as "97", `93.2` renders as "93.2").
+    public var numberLabel: String {
+        if number.truncatingRemainder(dividingBy: 1) == 0 {
+            return String(Int(number))
+        }
+        return String(number)
     }
 
     private static func epochMs(fromISO8601 s: String) -> Int? {
