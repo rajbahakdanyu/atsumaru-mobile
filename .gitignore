@@ -23,6 +23,7 @@ Secrets.plist
 
 # Superpowers working files
 /.superpowers/
+docs/superpowers/
 
 # Release artifacts
 /dist/
