@@ -10,7 +10,12 @@ struct RailSection: View {
             Text(title).font(.headline).padding(.horizontal)
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 12) {
-                    ForEach(items) { Poster(item: $0) }
+                    ForEach(items) { item in
+                        NavigationLink(value: item.id) {
+                            Poster(item: item)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .padding(.horizontal)
             }

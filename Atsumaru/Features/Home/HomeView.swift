@@ -27,6 +27,9 @@ struct HomeView: View {
                 }
             }
             .navigationTitle("Atsumaru")
+            .navigationDestination(for: String.self) { id in
+                MangaDetailView(mangaId: id)
+            }
             .task {
                 if viewModel == nil {
                     viewModel = HomeViewModel(homeRepository: environment.homeRepository)
