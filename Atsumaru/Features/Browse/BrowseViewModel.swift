@@ -11,10 +11,15 @@ final class BrowseViewModel {
     var isLoading = false
     var error: ApiError?
 
-    private let browseRepository: any BrowseRepository
+    var recentlyUpdated: [HomeItem] = []
+    var recentlyUpdatedError: ApiError?
 
-    init(browseRepository: any BrowseRepository) {
+    private let browseRepository: any BrowseRepository
+    private let homeRepository: any HomeRepository
+
+    init(browseRepository: any BrowseRepository, homeRepository: any HomeRepository) {
         self.browseRepository = browseRepository
+        self.homeRepository = homeRepository
     }
 
     func loadFilters() async {
@@ -24,6 +29,16 @@ final class BrowseViewModel {
             filters = try await browseRepository.availableFilters()
         } catch {
             filtersLoadFailed = true
+        }
+    }
+
+    func loadRecentlyUpdated() async {
+        do {
+            let rail = try await homeRepository.rail(.recentlyUpdated)
+            recentlyUpdated = rail.items
+            recentlyUpdatedError = nil
+        } catch {
+            recentlyUpdatedError = (error as? ApiError) ?? .decoding
         }
     }
 
