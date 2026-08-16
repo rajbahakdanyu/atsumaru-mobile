@@ -87,8 +87,11 @@ final class BrowseViewModel {
     func search() async {
         isLoading = true
         defer { isLoading = false }
+        var q = SearchQuery()
+        q.q = query.q
+        q.sortBy = sort.rawValue
         do {
-            let result = try await browseRepository.search(query)
+            let result = try await browseRepository.search(q)
             results = result.hits.map(\.document)
             totalFound = result.found
             error = nil
