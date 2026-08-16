@@ -57,11 +57,11 @@ struct AccountView: View {
             .padding(.vertical, 20)
         }
         .navigationTitle("Profile")
-        .task {
+        .onAppear {
             if viewModel == nil {
                 viewModel = AccountViewModel(userRepository: environment.userRepository)
             }
-            await viewModel?.load()
+            Task { await viewModel?.load() }
         }
     }
 

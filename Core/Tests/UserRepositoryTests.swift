@@ -65,7 +65,7 @@ import Testing
         #expect(bodyString.contains("\"password\""))
     }
 
-    @Test func changePasswordPostsJSON() async throws {
+@Test func changePasswordPostsJSON() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         let captured = Box<Data?>(nil)
@@ -74,7 +74,7 @@ import Testing
             #expect(request.httpMethod == "POST")
             captured.value = UserRepositoryTests.body(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changePassword")!,
-                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
@@ -83,6 +83,26 @@ import Testing
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString.contains("\"oldPassword\""))
         #expect(bodyString.contains("\"newPassword\""))
+    }
+
+    @Test func changeAvatarPostsJSON() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/settings/changeAvatar")
+            #expect(request.httpMethod == "POST")
+            captured.value = UserRepositoryTests.body(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changeAvatar")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveUserRepository(client: client)
+        try await repo.changeAvatar(shape: "circle", borderColor: "#ff0000")
+        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"shape\""))
+        #expect(bodyString.contains("\"borderColor\""))
     }
 
     @Test func notificationPreferencesDecodes() async throws {

@@ -24,6 +24,11 @@ struct SettingsView: View {
                 viewModel = SettingsViewModel(userRepository: environment.userRepository)
             }
         }
+        .onDisappear {
+            viewModel?.emailPassword = ""
+            viewModel?.oldPassword = ""
+            viewModel?.newPassword = ""
+        }
     }
 
     @ViewBuilder
@@ -37,7 +42,12 @@ struct SettingsView: View {
             .autocorrectionDisabled()
             Button {
                 guard let name = viewModel?.username, !name.isEmpty else { return }
-                Task { await viewModel?.changeUsername(name) }
+                Task {
+                    if await viewModel?.changeUsername(name) ?? false,
+                       let me = try? await environment.authRepository.me() {
+                        environment.currentUser = me
+                    }
+                }
             } label: {
                 HStack {
                     if viewModel?.isSubmittingUsername == true { ProgressView() }
@@ -72,7 +82,12 @@ struct SettingsView: View {
             .textContentType(.password)
             Button {
                 guard let vm = viewModel, !vm.email.isEmpty, !vm.emailPassword.isEmpty else { return }
-                Task { await vm.changeEmail(email: vm.email, password: vm.emailPassword) }
+                Task {
+                    if await vm.changeEmail(email: vm.email, password: vm.emailPassword),
+                       let me = try? await environment.authRepository.me() {
+                        environment.currentUser = me
+                    }
+                }
             } label: {
                 HStack {
                     if viewModel?.isSubmittingEmail == true { ProgressView() }
@@ -148,7 +163,7 @@ final class SettingsViewModel {
         self.userRepository = userRepository
     }
 
-    func changeUsername(_ name: String) async {
+    func changeUsername(_ name: String) async -> Bool {
         isSubmittingUsername = true
         usernameMessage = nil
         defer { isSubmittingUsername = false }
@@ -156,13 +171,15 @@ final class SettingsViewModel {
             try await userRepository.changeUsername(name)
             usernameMessage = "Username updated."
             usernameError = false
+            return true
         } catch {
             usernameMessage = "Could not update username."
             usernameError = true
+            return false
         }
     }
 
-    func changeEmail(email: String, password: String) async {
+    func changeEmail(email: String, password: String) async -> Bool {
         isSubmittingEmail = true
         emailMessage = nil
         defer { isSubmittingEmail = false }
@@ -171,9 +188,11 @@ final class SettingsViewModel {
             emailMessage = "Email updated."
             emailError = false
             emailPassword = ""
+            return true
         } catch {
             emailMessage = "Could not update email. Check your password."
             emailError = true
+            return false
         }
     }
 

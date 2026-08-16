@@ -5,6 +5,7 @@ public protocol UserRepository: Sendable {
     func changeUsername(_ username: String) async throws
     func changeEmail(email: String, password: String) async throws
     func changePassword(oldPassword: String, newPassword: String) async throws
+    func changeAvatar(shape: String, borderColor: String) async throws
     func notificationPreferences() async throws -> NotificationPreferences
     func updateNotificationPreferences(_ prefs: NotificationPreferences) async throws
     func notifications() async throws -> [NotificationItem]
@@ -24,6 +25,7 @@ public struct LiveUserRepository: UserRepository {
     private struct UsernameBody: Encodable { let username: String }
     private struct EmailBody: Encodable { let email: String; let password: String }
     private struct PasswordBody: Encodable { let oldPassword: String; let newPassword: String }
+    private struct AvatarBody: Encodable { let shape: String; let borderColor: String }
     private struct EmptyBody: Encodable {}
 
     public func privateProfile() async throws -> PrivateProfile {
@@ -48,6 +50,13 @@ public struct LiveUserRepository: UserRepository {
         let _: EmptyResponse = try await client.post(
             "/api/user/settings/changePassword",
             json: PasswordBody(oldPassword: oldPassword, newPassword: newPassword)
+        )
+    }
+
+    public func changeAvatar(shape: String, borderColor: String) async throws {
+        let _: EmptyResponse = try await client.post(
+            "/api/user/settings/changeAvatar",
+            json: AvatarBody(shape: shape, borderColor: borderColor)
         )
     }
 
