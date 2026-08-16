@@ -14,6 +14,17 @@ struct FilterSheet: View {
                         filterSection("Tags", items: filters.tags, selection: $viewModel.query.tags)
                         filterSection("Types", items: filters.types, selection: $viewModel.query.types)
                         filterSection("Statuses", items: filters.statuses, selection: $viewModel.query.statuses)
+                    } else if viewModel.filtersLoadFailed {
+                        ContentUnavailableView {
+                            Label("Couldn't load filters", systemImage: "exclamationmark.triangle")
+                        } description: {
+                            Text("Something went wrong. Please try again.")
+                        } actions: {
+                            Button("Retry") {
+                                Task { await viewModel.loadFilters() }
+                            }
+                        }
+                        .padding(.top, 60)
                     } else {
                         ProgressView()
                             .frame(maxWidth: .infinity, alignment: .center)

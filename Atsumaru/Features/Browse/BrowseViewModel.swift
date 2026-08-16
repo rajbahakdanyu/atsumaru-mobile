@@ -5,6 +5,7 @@ import Core
 final class BrowseViewModel {
     var query = SearchQuery()
     var filters: AvailableFilters?
+    var filtersLoadFailed = false
     var results: [HomeItem] = []
     var totalFound = 0
     var isLoading = false
@@ -16,8 +17,12 @@ final class BrowseViewModel {
     }
 
     func loadFilters() async {
-        if filters == nil {
-            filters = try? await browseRepository.availableFilters()
+        guard filters == nil else { return }
+        filtersLoadFailed = false
+        do {
+            filters = try await browseRepository.availableFilters()
+        } catch {
+            filtersLoadFailed = true
         }
     }
 

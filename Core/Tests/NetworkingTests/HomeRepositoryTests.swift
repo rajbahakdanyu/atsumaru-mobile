@@ -23,7 +23,7 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
     override func stopLoading() {}
 }
 
-struct HomeRepositoryTests {
+@Suite(.serialized) struct HomeRepositoryTests {
     @Test func railDecodes() async throws {
         let json = #"{"items":[{"id":"2VgNt","title":"Witch Hat Atelier","image":"posters/a.jpg","smallImage":"posters/a-small.avif","mediumImage":"posters/a-medium.avif","largeImage":"posters/a-large.avif","isAdult":false,"type":"Manga","medium":"Comic","mbRating":8.4,"views":"14.8M"}]}"#
         let config = URLSessionConfiguration.ephemeral
