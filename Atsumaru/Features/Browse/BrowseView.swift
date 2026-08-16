@@ -7,6 +7,14 @@ enum BrowseDisplayMode: String, CaseIterable, Identifiable {
     case filtered
 
     var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .recentlyUpdated: "Recent"
+        case .popular: "Popular"
+        case .filtered: "Filtered"
+        }
+    }
 }
 
 struct BrowseView: View {
@@ -21,45 +29,39 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                LazyVStack(alignment: .leading, pinnedViews: [.sectionHeaders]) {
-                    Section {
-                        switch displayMode {
-                        case .recentlyUpdated:
-                            feedContent(items: viewModel?.recentlyUpdated ?? [],
-                                        error: viewModel?.recentlyUpdatedError,
-                                        isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
-                                        loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
-                        case .popular:
-                            feedContent(items: viewModel?.popular ?? [],
-                                        error: viewModel?.popularError,
-                                        isLoading: viewModel?.isLoadingPopular ?? false,
-                                        loadMore: { Task { await viewModel?.loadPopular() } })
-                        case .filtered:
-                            if let viewModel, viewModel.hasActiveFilters {
-                                feedContent(items: viewModel.filteredResults,
-                                            error: viewModel.filteredError,
-                                            isLoading: viewModel.isLoadingFiltered,
-                                            loadMore: { Task { await viewModel.loadFiltered() } })
-                            } else {
-                                filteredEmptyState
-                            }
-                        }
-                    } header: {
-                        Picker("Display", selection: $displayMode) {
-                            Text("Recently Updated").tag(BrowseDisplayMode.recentlyUpdated)
-                            Text("Popular").tag(BrowseDisplayMode.popular)
-                            Text("Filtered").tag(BrowseDisplayMode.filtered)
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal)
-                        .padding(.bottom, 4)
-                        .background(.background)
+                switch displayMode {
+                case .recentlyUpdated:
+                    feedContent(items: viewModel?.recentlyUpdated ?? [],
+                                error: viewModel?.recentlyUpdatedError,
+                                isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
+                                loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
+                case .popular:
+                    feedContent(items: viewModel?.popular ?? [],
+                                error: viewModel?.popularError,
+                                isLoading: viewModel?.isLoadingPopular ?? false,
+                                loadMore: { Task { await viewModel?.loadPopular() } })
+                case .filtered:
+                    if let viewModel, viewModel.hasActiveFilters {
+                        feedContent(items: viewModel.filteredResults,
+                                    error: viewModel.filteredError,
+                                    isLoading: viewModel.isLoadingFiltered,
+                                    loadMore: { Task { await viewModel.loadFiltered() } })
+                    } else {
+                        filteredEmptyState
                     }
                 }
             }
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Picker("Display", selection: $displayMode) {
+                        ForEach(BrowseDisplayMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showingSearch = true } label: {
                         Image(systemName: "magnifyingglass")
