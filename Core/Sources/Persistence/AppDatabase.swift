@@ -27,11 +27,34 @@ public final class DownloadedChapter {
     }
 }
 
-/// SwiftData `@Model` types are reference types backed by Core Data; field
-/// reads after the model has been inserted/fetched are simple accessor reads
-/// and are safe to read off the context's queue. We mark Sendable so the
-/// DownloadManager actor can hand snapshots back to non-isolated callers.
-extension DownloadedChapter: @unchecked Sendable {}
+/// Sendable value-type snapshot of a `DownloadedChapter` record. The actor
+/// `DownloadManager` and non-isolated callers exchange these instead of the
+/// Core Data-backed `@Model` reference type, which must not cross actor
+/// boundaries.
+public struct DownloadedChapterSnapshot: Sendable {
+    public let chapterId: String
+    public let mangaId: String
+    public let mangaTitle: String
+    public let chapterTitle: String
+    public let kind: String
+    public let pageCount: Int
+    public let totalBytes: Int64
+    public let completedAt: Date
+    public let state: String
+
+    public init(chapterId: String, mangaId: String, mangaTitle: String, chapterTitle: String,
+                kind: String, pageCount: Int, totalBytes: Int64, completedAt: Date, state: String) {
+        self.chapterId = chapterId
+        self.mangaId = mangaId
+        self.mangaTitle = mangaTitle
+        self.chapterTitle = chapterTitle
+        self.kind = kind
+        self.pageCount = pageCount
+        self.totalBytes = totalBytes
+        self.completedAt = completedAt
+        self.state = state
+    }
+}
 
 @MainActor
 public final class DownloadStore {
@@ -48,34 +71,41 @@ public final class DownloadStore {
         }
     }
 
-    public func save(_ chapter: DownloadedChapter) throws {
+    public func save(_ snapshot: DownloadedChapterSnapshot) throws {
         let context = container.mainContext
-        if let existing = try? fetch(chapterId: chapter.chapterId, in: context) {
-            existing.mangaId = chapter.mangaId
-            existing.mangaTitle = chapter.mangaTitle
-            existing.chapterTitle = chapter.chapterTitle
-            existing.kind = chapter.kind
-            existing.pageCount = chapter.pageCount
-            existing.totalBytes = chapter.totalBytes
-            existing.completedAt = chapter.completedAt
-            existing.state = chapter.state
+        if let existing = try? fetch(chapterId: snapshot.chapterId, in: context) {
+            existing.mangaId = snapshot.mangaId
+            existing.mangaTitle = snapshot.mangaTitle
+            existing.chapterTitle = snapshot.chapterTitle
+            existing.kind = snapshot.kind
+            existing.pageCount = snapshot.pageCount
+            existing.totalBytes = snapshot.totalBytes
+            existing.completedAt = snapshot.completedAt
+            existing.state = snapshot.state
         } else {
             context.insert(DownloadedChapter(
-                chapterId: chapter.chapterId, mangaId: chapter.mangaId,
-                mangaTitle: chapter.mangaTitle, chapterTitle: chapter.chapterTitle,
-                kind: chapter.kind, pageCount: chapter.pageCount,
-                totalBytes: chapter.totalBytes, completedAt: chapter.completedAt,
-                state: chapter.state))
+                chapterId: snapshot.chapterId, mangaId: snapshot.mangaId,
+                mangaTitle: snapshot.mangaTitle, chapterTitle: snapshot.chapterTitle,
+                kind: snapshot.kind, pageCount: snapshot.pageCount,
+                totalBytes: snapshot.totalBytes, completedAt: snapshot.completedAt,
+                state: snapshot.state))
         }
         try context.save()
     }
 
-    public func all() -> [DownloadedChapter] {
+    public func all() -> [DownloadedChapterSnapshot] {
         let context = container.mainContext
         let descriptor = FetchDescriptor<DownloadedChapter>(
             sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
         )
-        return (try? context.fetch(descriptor)) ?? []
+        let records = (try? context.fetch(descriptor)) ?? []
+        return records.map {
+            DownloadedChapterSnapshot(
+                chapterId: $0.chapterId, mangaId: $0.mangaId, mangaTitle: $0.mangaTitle,
+                chapterTitle: $0.chapterTitle, kind: $0.kind, pageCount: $0.pageCount,
+                totalBytes: $0.totalBytes, completedAt: $0.completedAt, state: $0.state
+            )
+        }
     }
 
     public func delete(chapterId: String) throws {

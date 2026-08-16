@@ -33,28 +33,28 @@ public struct LiveUserRepository: UserRepository {
     }
 
     public func changeUsername(_ username: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/user/settings/changeUsername",
             json: UsernameBody(username: username)
         )
     }
 
     public func changeEmail(email: String, password: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/user/settings/changeEmail",
             json: EmailBody(email: email, password: password)
         )
     }
 
     public func changePassword(oldPassword: String, newPassword: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/user/settings/changePassword",
             json: PasswordBody(oldPassword: oldPassword, newPassword: newPassword)
         )
     }
 
     public func changeAvatar(shape: String, borderColor: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/user/settings/changeAvatar",
             json: AvatarBody(shape: shape, borderColor: borderColor)
         )
@@ -65,7 +65,7 @@ public struct LiveUserRepository: UserRepository {
     }
 
     public func updateNotificationPreferences(_ prefs: NotificationPreferences) async throws {
-        let _: EmptyResponse = try await client.put(
+        try await client.putVoid(
             "/api/user/notificationPreferences",
             json: prefs
         )
@@ -82,7 +82,7 @@ public struct LiveUserRepository: UserRepository {
     }
 
     public func markAllNotificationsRead() async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/notifications/markAllAsRead",
             json: EmptyBody()
         )

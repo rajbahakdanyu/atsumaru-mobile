@@ -66,6 +66,22 @@ import Testing
         #expect(lists.first?.name == "Favorites")
     }
 
+    @Test func listsThrowsWhenNoEnvelopeDecodes() async throws {
+        let json = #"{"error":"shape drifted"}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getLists")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        await #expect(throws: ApiError.decoding) {
+            _ = try await repo.lists()
+        }
+    }
+
     @Test func createListPostsJSON() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]

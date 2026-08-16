@@ -28,89 +28,95 @@ struct LibraryView: View {
     @ViewBuilder
     private func content(for viewModel: LibraryViewModel) -> some View {
         @Bindable var viewModel = viewModel
-        VStack(spacing: 0) {
-            Picker("Library", selection: $viewModel.segment) {
-                ForEach(LibraryViewModel.Segment.allCases) { segment in
-                    Text(segment.label).tag(segment)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-
-            switch viewModel.segment {
-            case .continueReading:
-                ScrollView {
-                    if viewModel.isLoading && viewModel.continueReading.isEmpty {
-                        LoadingSkeletonView()
-                            .padding(.top, 20)
-                    } else {
-                        ContinueReadingView(items: viewModel.continueReading)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 24)
+        Group {
+            if let error = viewModel.error, !viewModel.isLoading, viewModel.hasNothing {
+                ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+            } else {
+                VStack(spacing: 0) {
+                    Picker("Library", selection: $viewModel.segment) {
+                        ForEach(LibraryViewModel.Segment.allCases) { segment in
+                            Text(segment.label).tag(segment)
+                        }
                     }
-                }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
 
-            case .bookmarks:
-                ScrollView {
-                    if viewModel.bookmarks.isEmpty && !viewModel.isLoading {
-                        EmptyStateView(message: "No bookmarks")
-                            .padding(.top, 20)
-                    } else {
-                        LazyVGrid(columns: columns, spacing: 16) {
-                            ForEach(viewModel.bookmarks) { bookmark in
-                                NavigationLink(value: bookmark.id) {
-                                    bookmarkCell(bookmark)
-                                }
-                                .buttonStyle(.plain)
+                    switch viewModel.segment {
+                    case .continueReading:
+                        ScrollView {
+                            if viewModel.isLoading && viewModel.continueReading.isEmpty {
+                                LoadingSkeletonView()
+                                    .padding(.top, 20)
+                            } else {
+                                ContinueReadingView(items: viewModel.continueReading)
+                                    .padding(.horizontal, 16)
+                                    .padding(.bottom, 24)
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 24)
-                    }
-                }
 
-            case .history:
-                ScrollView {
-                    if viewModel.history.isEmpty && !viewModel.isLoading {
-                        EmptyStateView(message: "No history")
-                            .padding(.top, 20)
-                    } else {
-                        LazyVStack(spacing: 10) {
-                            ForEach(viewModel.history) { entry in
-                                NavigationLink(value: entry.mangaId ?? entry.id) {
-                                    historyRow(entry)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 24)
-                    }
-                }
-
-            case .lists:
-                List {
-                    Section {
-                        ForEach(viewModel.lists) { list in
-                            listRow(list)
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.deleteList(list) }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                    case .bookmarks:
+                        ScrollView {
+                            if viewModel.bookmarks.isEmpty && !viewModel.isLoading {
+                                EmptyStateView(message: "No bookmarks")
+                                    .padding(.top, 20)
+                            } else {
+                                LazyVGrid(columns: columns, spacing: 16) {
+                                    ForEach(viewModel.bookmarks) { bookmark in
+                                        NavigationLink(value: bookmark.id) {
+                                            bookmarkCell(bookmark)
+                                        }
+                                        .buttonStyle(.plain)
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 24)
+                            }
                         }
-                    }
-                    if viewModel.lists.isEmpty && !viewModel.isLoading {
-                        Section {
-                            EmptyStateView(message: "No lists yet")
+
+                    case .history:
+                        ScrollView {
+                            if viewModel.history.isEmpty && !viewModel.isLoading {
+                                EmptyStateView(message: "No history")
+                                    .padding(.top, 20)
+                            } else {
+                                LazyVStack(spacing: 10) {
+                                    ForEach(viewModel.history) { entry in
+                                        NavigationLink(value: entry.mangaId ?? entry.id) {
+                                            historyRow(entry)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 24)
+                            }
                         }
-                        .listRowBackground(Color.clear)
+
+                    case .lists:
+                        List {
+                            Section {
+                                ForEach(viewModel.lists) { list in
+                                    listRow(list)
+                                        .swipeActions(edge: .trailing) {
+                                            Button(role: .destructive) {
+                                                Task { await viewModel.deleteList(list) }
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            }
+                            if viewModel.lists.isEmpty && !viewModel.isLoading {
+                                Section {
+                                    EmptyStateView(message: "No lists yet")
+                                }
+                                .listRowBackground(Color.clear)
+                            }
+                        }
+                        .listStyle(.plain)
                     }
                 }
-                .listStyle(.plain)
             }
         }
         .navigationTitle("Library")

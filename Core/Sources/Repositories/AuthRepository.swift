@@ -37,7 +37,7 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     public func login(email: String, password: String) async throws {
-        let _: EmptyResponse = try await client.postForm(
+        try await client.postFormVoid(
             "/api/auth/login",
             fields: ["email": email, "password": password]
         )
@@ -45,7 +45,7 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     public func signup(email: String, username: String, password: String) async throws {
-        let _: EmptyResponse = try await client.postForm(
+        try await client.postFormVoid(
             "/api/auth/signup",
             fields: ["email": email, "username": username, "password": password]
         )
@@ -53,27 +53,27 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     public func logout() async throws {
-        let _: EmptyResponse = try await client.post("/api/auth/logout/self", json: EmptyBody())
+        try await client.postVoid("/api/auth/logout/self", json: EmptyBody())
         try? keychain.delete(key: Self.storedUserKey)
     }
 
     public func sendVerification() async throws {
-        let _: EmptyResponse = try await client.post("/api/auth/sendVerification", json: EmptyBody())
+        try await client.postVoid("/api/auth/sendVerification", json: EmptyBody())
     }
 
     public func verifyEmail(token: String) async throws {
-        let _: EmptyResponse = try await client.get("/api/auth/verify", query: ["token": token])
+        try await client.getVoid("/api/auth/verify", query: ["token": token])
     }
 
     public func sendPasswordReset(email: String) async throws {
-        let _: EmptyResponse = try await client.postForm(
+        try await client.postFormVoid(
             "/api/auth/sendPasswordReset/sendPasswordReset",
             fields: ["email": email]
         )
     }
 
     public func resetPassword(token: String, newPassword: String, confirmPassword: String) async throws {
-        let _: EmptyResponse = try await client.postForm(
+        try await client.postFormVoid(
             "/api/auth/resetPassword/reset",
             fields: [
                 "token": token,
@@ -89,7 +89,7 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     public func oauthCallback(provider: String, code: String, state: String) async throws {
-        let _: EmptyResponse = try await client.get(
+        try await client.getVoid(
             "/api/auth/oauth/\(provider)/callback",
             query: ["code": code, "state": state]
         )

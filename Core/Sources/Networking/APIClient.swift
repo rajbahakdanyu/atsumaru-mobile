@@ -159,6 +159,66 @@ public struct EmptyResponse: Decodable, Sendable {
 }
 
 extension APIClient {
+    /// POSTs a JSON body and checks the HTTP status, discarding the response body.
+    /// For write endpoints that return 204/no meaningful body; avoids decoding
+    /// failures on empty responses that `EmptyResponse` would otherwise throw.
+    public func postVoid<Body: Encodable & Sendable>(
+        _ path: String, query: [String: String] = [:], json body: Body
+    ) async throws {
+        try await send(method: "POST", path: path, query: query,
+                       contentType: "application/json", body: try JSONEncoder().encode(body))
+    }
+
+    /// PUTs a JSON body and checks the HTTP status, discarding the response body.
+    public func putVoid<Body: Encodable & Sendable>(
+        _ path: String, query: [String: String] = [:], json body: Body
+    ) async throws {
+        try await send(method: "PUT", path: path, query: query,
+                       contentType: "application/json", body: try JSONEncoder().encode(body))
+    }
+
+    /// DELETEs and checks the HTTP status, discarding the response body.
+    public func deleteVoid(_ path: String, query: [String: String] = [:]) async throws {
+        try await send(method: "DELETE", path: path, query: query, contentType: nil, body: nil)
+    }
+
+    /// GETs and checks the HTTP status, discarding the response body.
+    public func getVoid(_ path: String, query: [String: String] = [:]) async throws {
+        try await send(method: "GET", path: path, query: query, contentType: nil, body: nil)
+    }
+
+    /// POSTs form fields and checks the HTTP status, discarding the response body.
+    public func postFormVoid(_ path: String, fields: [String: String]) async throws {
+        try await send(method: "POST", path: path, query: [:],
+                       contentType: "application/x-www-form-urlencoded",
+                       body: Data(Self.formEncode(fields).utf8))
+    }
+
+    private func send(method: String, path: String, query: [String: String],
+                      contentType: String?, body: Data?) async throws {
+        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
+            throw ApiError.invalidURL
+        }
+        components.path = path
+        if !query.isEmpty {
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        guard let url = components.url else { throw ApiError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        if let contentType {
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        }
+        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
+        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        request.httpBody = body
+        let (_, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
+        guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
+    }
+}
+
+extension APIClient {
     public func postForm<T: Decodable & Sendable>(
         _ path: String,
         fields: [String: String]

@@ -38,11 +38,11 @@ public struct LiveCommentsRepository: CommentsRepository {
         if let arr = try? JSONDecoder().decode([Comment].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 
     public func postComment(sectionId: String, parentId: String?, replyingToId: String?, content: String, spoiler: Bool) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/comments/v2/postComment",
             json: PostBody(sectionId: sectionId, parentId: parentId,
                            replyingToId: replyingToId, content: content, spoiler: spoiler)
@@ -50,7 +50,7 @@ public struct LiveCommentsRepository: CommentsRepository {
     }
 
     public func vote(commentId: String, vote: Int) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/comments/v2/vote",
             json: VoteBody(commentId: commentId, vote: vote)
         )

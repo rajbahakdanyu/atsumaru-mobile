@@ -55,17 +55,17 @@ public struct LiveCommunityRepository: CommunityRepository {
     }
 
     public func follow(userId: String) async throws {
-        let _: EmptyResponse = try await client.post("/api/user/follow", json: FollowBody(userId: userId))
+        try await client.postVoid("/api/user/follow", json: FollowBody(userId: userId))
     }
 
     public func followers(slug: String, page: Int) async throws -> [UserSummary] {
         let data = try await client.getData("/api/user/followers", query: ["slug": slug, "page": "\(page)"])
-        return Self.decodeUserList(data)
+        return try Self.decodeUserList(data)
     }
 
     public func following(slug: String, page: Int) async throws -> [UserSummary] {
         let data = try await client.getData("/api/user/following", query: ["slug": slug, "page": "\(page)"])
-        return Self.decodeUserList(data)
+        return try Self.decodeUserList(data)
     }
 
     public func groups(page: Int) async throws -> [CommunityGroup] {
@@ -76,7 +76,7 @@ public struct LiveCommunityRepository: CommunityRepository {
         if let arr = try? JSONDecoder().decode([CommunityGroup].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 
     public func group(id: String) async throws -> CommunityGroup {
@@ -91,15 +91,15 @@ public struct LiveCommunityRepository: CommunityRepository {
     }
 
     public func joinGroup(id: String) async throws {
-        let _: EmptyResponse = try await client.post("/api/groups/join", json: GroupIdBody(groupId: id))
+        try await client.postVoid("/api/groups/join", json: GroupIdBody(groupId: id))
     }
 
     public func leaveGroup(id: String) async throws {
-        let _: EmptyResponse = try await client.post("/api/groups/leave", json: GroupIdBody(groupId: id))
+        try await client.postVoid("/api/groups/leave", json: GroupIdBody(groupId: id))
     }
 
     public func createGroup(name: String, tag: String, type: String, bio: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/groups/create",
             json: CreateGroupBody(name: name, tag: tag, type: type, bio: bio)
         )
@@ -113,17 +113,17 @@ public struct LiveCommunityRepository: CommunityRepository {
         if let arr = try? JSONDecoder().decode([Poll].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 
     public func votePoll(pollId: String, optionIds: [String]) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/polls/vote",
             json: VotePollBody(pollId: pollId, optionIds: optionIds)
         )
     }
 
-    private static func decodeUserList(_ data: Data) -> [UserSummary] {
+    private static func decodeUserList(_ data: Data) throws -> [UserSummary] {
         if let env = try? JSONDecoder().decode(ItemsEnvelope.self, from: data), let items = env.items {
             return items
         }
@@ -136,6 +136,6 @@ public struct LiveCommunityRepository: CommunityRepository {
         if let arr = try? JSONDecoder().decode([UserSummary].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 }

@@ -45,7 +45,6 @@ final class PostDetailViewModel {
         localVote = value
         do {
             try await repository.votePost(postId: postId, vote: value)
-            localVote = 0
         } catch {
             localVote = prev
         }

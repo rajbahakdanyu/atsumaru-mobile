@@ -63,6 +63,22 @@ public actor DownloadManager {
         }
     }
 
+    /// Suspends until every listed chapter reaches a terminal state
+    /// (`.completed` or `.failed`), or until the surrounding task is cancelled.
+    public func awaitCompletion(_ chapterIds: [String]) async {
+        let target = Set(chapterIds)
+        guard !target.isEmpty else { return }
+        while !target.allSatisfy({ id in
+            switch states[id] {
+            case .completed, .failed: return true
+            default: return false
+            }
+        }) {
+            if Task.isCancelled { return }
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+    }
+
     public func storageUsed() -> Int64 {
         var total: Int64 = 0
         if let enumerator = FileManager.default.enumerator(
@@ -106,7 +122,7 @@ public actor DownloadManager {
         }
     }
 
-    public func listChapters() async -> [DownloadedChapter] {
+    public func listChapters() async -> [DownloadedChapterSnapshot] {
         guard let store else { return [] }
         return await store.all()
     }
@@ -189,7 +205,7 @@ public actor DownloadManager {
     private func persist(chapterId: String, manga: HomeItem, chapter: Chapter,
                          pageCount: Int, totalBytes: Int64, state: String) async {
         guard let store else { return }
-        let record = DownloadedChapter(
+        let snapshot = DownloadedChapterSnapshot(
             chapterId: chapterId,
             mangaId: manga.id,
             mangaTitle: manga.title,
@@ -200,10 +216,10 @@ public actor DownloadManager {
             completedAt: Date(),
             state: state
         )
-        try? await store.save(record)
+        try? await store.save(snapshot)
     }
 
-    private func evictChapter(_ record: DownloadedChapter) async {
+    private func evictChapter(_ record: DownloadedChapterSnapshot) async {
         let chapterDir = baseDirectory.appendingPathComponent(record.mangaId, isDirectory: true)
             .appendingPathComponent(record.chapterId, isDirectory: true)
         try? FileManager.default.removeItem(at: chapterDir)
@@ -221,7 +237,7 @@ public actor DownloadManager {
         return medium.contains("novel") ? "novel" : "manga"
     }
 
-    public static func evictionOrder(_ chapters: [DownloadedChapter], cap: Int64) -> [String] {
+    public static func evictionOrder(_ chapters: [DownloadedChapterSnapshot], cap: Int64) -> [String] {
         let sorted = chapters.sorted { $0.completedAt > $1.completedAt }
         var running: Int64 = 0
         var evict: [String] = []

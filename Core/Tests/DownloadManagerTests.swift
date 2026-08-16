@@ -159,18 +159,18 @@ struct DownloadManagerTests {
     }
 
     @Test func evictionOrderEvictsOldestFirst() {
-        let old = DownloadedChapter(chapterId: "old", mangaId: "m1", mangaTitle: "M1",
-                                     chapterTitle: "Old", kind: "manga", pageCount: 2,
-                                     totalBytes: 50, completedAt: Date(timeIntervalSince1970: 100),
-                                     state: "completed")
-        let mid = DownloadedChapter(chapterId: "mid", mangaId: "m1", mangaTitle: "M1",
-                                    chapterTitle: "Mid", kind: "manga", pageCount: 2,
-                                    totalBytes: 50, completedAt: Date(timeIntervalSince1970: 200),
-                                    state: "completed")
-        let newest = DownloadedChapter(chapterId: "new", mangaId: "m1", mangaTitle: "M1",
-                                       chapterTitle: "New", kind: "manga", pageCount: 2,
-                                       totalBytes: 50, completedAt: Date(timeIntervalSince1970: 300),
-                                       state: "completed")
+        let old = DownloadedChapterSnapshot(chapterId: "old", mangaId: "m1", mangaTitle: "M1",
+                                            chapterTitle: "Old", kind: "manga", pageCount: 2,
+                                            totalBytes: 50, completedAt: Date(timeIntervalSince1970: 100),
+                                            state: "completed")
+        let mid = DownloadedChapterSnapshot(chapterId: "mid", mangaId: "m1", mangaTitle: "M1",
+                                            chapterTitle: "Mid", kind: "manga", pageCount: 2,
+                                            totalBytes: 50, completedAt: Date(timeIntervalSince1970: 200),
+                                            state: "completed")
+        let newest = DownloadedChapterSnapshot(chapterId: "new", mangaId: "m1", mangaTitle: "M1",
+                                               chapterTitle: "New", kind: "manga", pageCount: 2,
+                                               totalBytes: 50, completedAt: Date(timeIntervalSince1970: 300),
+                                               state: "completed")
 
         // Cap = 110: keep newest (50) + mid (50 + 50 = 100), evict old (would push to 150)
         #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 110) == ["old"])

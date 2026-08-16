@@ -45,7 +45,7 @@ public struct LiveForumRepository: ForumRepository {
         if let arr = try? JSONDecoder().decode([ForumChannel].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 
     /// Tolerant decode: prefers `{"posts":[...]}` then a bare array `[...]`.
@@ -59,7 +59,7 @@ public struct LiveForumRepository: ForumRepository {
         if let arr = try? JSONDecoder().decode([ForumPost].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 
     /// Tolerant decode: prefers `{"post":{...}}` then a bare object `{...}`.
@@ -75,21 +75,21 @@ public struct LiveForumRepository: ForumRepository {
     }
 
     public func createPost(forumId: String, title: String, content: String) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/forum/createPost",
             json: CreatePostBody(forumId: forumId, title: title, content: content)
         )
     }
 
     public func votePost(postId: String, vote: Int) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/forum/votePost",
             json: VotePostBody(postId: postId, vote: vote)
         )
     }
 
     public func bookmarkPost(postId: String, bookmarked: Bool) async throws {
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/forum/bookmarkPost",
             json: BookmarkBody(postId: postId, bookmarked: bookmarked)
         )
@@ -104,6 +104,6 @@ public struct LiveForumRepository: ForumRepository {
         if let arr = try? JSONDecoder().decode([ForumTag].self, from: data) {
             return arr
         }
-        return []
+        throw ApiError.decoding
     }
 }

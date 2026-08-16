@@ -21,7 +21,7 @@ public struct LiveReadRepository: ReadRepository {
     }
 
     public func updateProgress(_ update: ProgressUpdate) async throws {
-        let _: EmptyResponse = try await client.post("/api/read/updateProgress", json: UpdateProgressBody(progress: update))
+        try await client.postVoid("/api/read/updateProgress", json: UpdateProgressBody(progress: update))
     }
 }
 

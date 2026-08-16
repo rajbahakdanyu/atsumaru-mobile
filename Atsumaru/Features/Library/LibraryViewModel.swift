@@ -24,6 +24,7 @@ final class LibraryViewModel {
     var isLoading = false
     var creatingList = false
     var newListName = ""
+    var error: ApiError?
 
     private let repository: any LibraryRepository
     private var loaded = false
@@ -32,21 +33,27 @@ final class LibraryViewModel {
         self.repository = repository
     }
 
+    var hasNothing: Bool {
+        continueReading.isEmpty && bookmarks.isEmpty && history.isEmpty && lists.isEmpty
+    }
+
     func load(force: Bool = false) async {
         guard !loaded || force else { return }
         loaded = true
         isLoading = true
         defer { isLoading = false }
 
-        async let cr = try? repository.continueReading()
-        async let bm = try? repository.bookmarks(offset: 0, limit: 40)
-        async let hi = try? repository.history()
-        async let li = try? repository.lists()
+        async let cr = repository.continueReading()
+        async let bm = repository.bookmarks(offset: 0, limit: 40)
+        async let hi = repository.history()
+        async let li = repository.lists()
 
-        if let value = await cr { continueReading = value }
-        if let value = await bm { bookmarks = value }
-        if let value = await hi { history = value }
-        if let value = await li { lists = value }
+        var firstError: ApiError?
+        do { continueReading = try await cr } catch { firstError = firstError ?? (error as? ApiError) ?? .decoding }
+        do { bookmarks = try await bm } catch { firstError = firstError ?? (error as? ApiError) ?? .decoding }
+        do { history = try await hi } catch { firstError = firstError ?? (error as? ApiError) ?? .decoding }
+        do { lists = try await li } catch { firstError = firstError ?? (error as? ApiError) ?? .decoding }
+        self.error = firstError
     }
 
     func createList() async {

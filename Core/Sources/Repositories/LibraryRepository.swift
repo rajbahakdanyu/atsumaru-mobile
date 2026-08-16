@@ -37,7 +37,7 @@ public struct LiveLibraryRepository: LibraryRepository {
         struct ListsEnvelope: Decodable { let lists: [UserList] }
         if let env = try? JSONDecoder().decode(ListsEnvelope.self, from: data) { return env.lists }
         if let arr = try? JSONDecoder().decode([UserList].self, from: data) { return arr }
-        return []
+        throw ApiError.decoding
     }
 
     /// Tolerant history decode: prefers `{"items":[...]}` then a bare array.
@@ -46,19 +46,19 @@ public struct LiveLibraryRepository: LibraryRepository {
         struct ItemsEnvelope: Decodable { let items: [HistoryEntry] }
         if let env = try? JSONDecoder().decode(ItemsEnvelope.self, from: data) { return env.items }
         if let arr = try? JSONDecoder().decode([HistoryEntry].self, from: data) { return arr }
-        return []
+        throw ApiError.decoding
     }
 
     public func createList(name: String) async throws {
         struct NameBody: Encodable { let name: String }
-        let _: EmptyResponse = try await client.post(
+        try await client.postVoid(
             "/api/user/userMangaLists/create",
             json: NameBody(name: name)
         )
     }
 
     public func deleteList(id: String) async throws {
-        let _: EmptyResponse = try await client.delete(
+        try await client.deleteVoid(
             "/api/user/userMangaLists/deleteList",
             query: ["id": id]
         )
