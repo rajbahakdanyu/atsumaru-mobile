@@ -12,7 +12,6 @@ struct BrowseView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: BrowseViewModel?
     @State private var searchText = ""
-    @State private var showingFilters = false
     @AppStorage("browseDisplayMode") private var displayMode: BrowseDisplayMode = .recentlyUpdated
 
     private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
@@ -56,15 +55,6 @@ struct BrowseView: View {
                 MangaDetailView(mangaId: id)
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search manga")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showingFilters = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                    }
-                }
-            }
             .task(id: displayMode) {
                 if viewModel == nil {
                     viewModel = BrowseViewModel(
@@ -88,15 +78,6 @@ struct BrowseView: View {
                 guard !searchText.isEmpty, let viewModel else { return }
                 viewModel.query.q = searchText
                 await viewModel.search()
-            }
-            .sheet(isPresented: $showingFilters) {
-                if let viewModel {
-                    FilterSheet(viewModel: viewModel)
-                        .presentationDetents([.large])
-                        .onDisappear {
-                            Task { await viewModel.search() }
-                        }
-                }
             }
         }
     }

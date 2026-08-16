@@ -10,12 +10,10 @@ struct SearchQueryTests {
         #expect(items["per_page"] == "30")
     }
 
-    @Test func buildsFilteredQuery() {
+    @Test func buildsQueryWithSearchText() {
         var q = SearchQuery()
-        q.genres = ["5", "6"]
-        q.sortBy = "mbRating:desc"
+        q.q = "witch hat"
         let items = q.toQueryItems()
-        #expect(items["filter_by"] == "genreIds:=[5,6]")
-        #expect(items["sort_by"] == "mbRating:desc")
+        #expect(items["q"] == "witch hat")
     }
 }

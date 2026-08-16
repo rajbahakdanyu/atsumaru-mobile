@@ -4,8 +4,6 @@ import Core
 @Observable @MainActor
 final class BrowseViewModel {
     var query = SearchQuery()
-    var filters: AvailableFilters?
-    var filtersLoadFailed = false
     var results: [HomeItem] = []
     var totalFound = 0
     var isLoading = false
@@ -27,16 +25,6 @@ final class BrowseViewModel {
     init(browseRepository: any BrowseRepository, homeRepository: any HomeRepository) {
         self.browseRepository = browseRepository
         self.homeRepository = homeRepository
-    }
-
-    func loadFilters() async {
-        guard filters == nil else { return }
-        filtersLoadFailed = false
-        do {
-            filters = try await browseRepository.availableFilters()
-        } catch {
-            filtersLoadFailed = true
-        }
     }
 
     func loadRecentlyUpdated(reset: Bool = false) async {
