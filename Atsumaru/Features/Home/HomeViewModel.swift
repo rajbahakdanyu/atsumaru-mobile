@@ -22,7 +22,9 @@ final class HomeViewModel {
         for endpoint in wanted {
             do {
                 let rail = try await homeRepository.rail(endpoint)
-                result.append((endpoint, rail.items))
+                if !rail.items.isEmpty {
+                    result.append((endpoint, rail.items))
+                }
             } catch {
                 lastError = (error as? ApiError) ?? .decoding
             }
