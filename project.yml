@@ -51,6 +51,8 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: dev.atsumaru.app
         INFOPLIST_FILE: Atsumaru/Info.plist
         CODE_SIGN_ENTITLEMENTS: Atsumaru/Atsumaru.entitlements
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: 29M3656LH6
         TARGETED_DEVICE_FAMILY: "1"
     entitlements:
       path: Atsumaru/Atsumaru.entitlements
