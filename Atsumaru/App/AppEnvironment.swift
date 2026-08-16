@@ -37,6 +37,7 @@ final class AppEnvironment {
             mangaRepository: mangaRepository
         )
         progressStore = try? ProgressStore()
+        backgroundScheduler.registerTasks()
     }
 
     func bootstrap() async {
@@ -53,7 +54,6 @@ final class AppEnvironment {
         } catch {
             // Keep any cached user from the keychain on transient network errors.
         }
-        backgroundScheduler.registerTasks()
         if UserDefaults.standard.object(forKey: "dev.atsumaru.app.backgroundRefresh") == nil
             || UserDefaults.standard.bool(forKey: "dev.atsumaru.app.backgroundRefresh") {
             backgroundScheduler.scheduleRefresh()

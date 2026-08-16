@@ -117,6 +117,7 @@ public final class BackgroundScheduler: Sendable {
         var newChaptersEnqueued = 0
         var chapterTitles: [String] = []
         for bookmark in bookmarks where !bookmark.id.isEmpty {
+            if Task.isCancelled { return false }
             guard let page = try? await mangaRepository.page(id: bookmark.id) else { continue }
             let home = Self.homeItem(from: bookmark)
             for chapter in page.chapters where !downloadedIds.contains(chapter.id) {
@@ -127,6 +128,7 @@ public final class BackgroundScheduler: Sendable {
             }
             if newChaptersEnqueued >= 5 { break }
         }
+        if Task.isCancelled { return false }
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
         if newChaptersEnqueued > 0 {
             let title = newChaptersEnqueued == 1 ? "New chapter downloaded" : "New chapters available"
