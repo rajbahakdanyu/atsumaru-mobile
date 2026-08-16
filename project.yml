@@ -21,6 +21,17 @@ targets:
       base:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: YES
+  CoreTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources: [Core/Tests]
+    dependencies:
+      - target: Core
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
   Atsumaru:
     type: application
     platform: iOS
@@ -42,3 +53,12 @@ targets:
       properties:
         UILaunchScreen: {}
         UIBackgroundModes: [fetch, processing]
+schemes:
+  Core:
+    build:
+      targets:
+        Core: all
+        CoreTests: [test]
+    test:
+      targets:
+        - CoreTests
