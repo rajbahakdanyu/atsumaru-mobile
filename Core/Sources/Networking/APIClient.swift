@@ -28,6 +28,30 @@ public final class APIClient: @unchecked Sendable {
         return URLSession(configuration: config)
     }
 
+    /// Maps connectivity-related `URLError` cases to `ApiError.offline` so
+    /// callers can distinguish "no connection" from other failures. Any other
+    /// error is rethrown unchanged.
+    private static func mapTransportError(_ error: Error) -> ApiError {
+        guard let urlError = error as? URLError else { return .http(0) }
+        switch urlError.code {
+        case .notConnectedToInternet, .networkConnectionLost, .timedOut,
+             .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+             .dataNotAllowed, .internationalRoamingOff:
+            return .offline
+        default:
+            return .http(urlError.code.rawValue)
+        }
+    }
+
+    /// Performs a request, mapping connectivity failures to `ApiError.offline`.
+    private func fetch(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        do {
+            return try await session.data(for: request)
+        } catch {
+            throw Self.mapTransportError(error)
+        }
+    }
+
     public func get<T: Decodable & Sendable>(
         _ path: String, query: [String: String] = [:]
     ) async throws -> T {
@@ -42,7 +66,7 @@ public final class APIClient: @unchecked Sendable {
         var request = URLRequest(url: url)
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         do {
@@ -69,7 +93,7 @@ public final class APIClient: @unchecked Sendable {
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = try JSONEncoder().encode(body)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         do {
@@ -95,7 +119,7 @@ public final class APIClient: @unchecked Sendable {
         var request = URLRequest(url: url)
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         return data
@@ -116,7 +140,7 @@ public final class APIClient: @unchecked Sendable {
         request.httpMethod = "DELETE"
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         do {
@@ -143,7 +167,7 @@ public final class APIClient: @unchecked Sendable {
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = try JSONEncoder().encode(body)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         do {
@@ -212,7 +236,7 @@ extension APIClient {
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = body
-        let (_, response) = try await session.data(for: request)
+        let (_, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
     }
@@ -234,7 +258,7 @@ extension APIClient {
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = Data(Self.formEncode(fields).utf8)
-        let (data, response) = try await session.data(for: request)
+        let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
         do {

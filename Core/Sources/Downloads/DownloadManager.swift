@@ -23,29 +23,55 @@ public actor DownloadManager {
     private var states: [String: DownloadState] = [:]
     private var pageProgress: [String: [Double]] = [:]
     private var subscribers: [UUID: AsyncStream<DownloadEvent>.Continuation] = [:]
+    private var tasks: [String: Task<Void, Never>] = [:]
 
     public static let defaultStorageCapBytes: Int64 = 500 * 1024 * 1024
+
+    /// Maximum number of page-image downloads in flight at once per chapter.
+    private static let pageConcurrency = 4
 
     public init(readRepository: any ReadRepository,
                 store: DownloadStore? = nil,
                 baseDirectory: URL? = nil,
                 sessionConfiguration: URLSessionConfiguration? = nil,
-                storageCapBytes: Int64 = DownloadManager.defaultStorageCapBytes) {
+                storageCapBytes: Int64 = DownloadManager.defaultStorageCapBytes,
+                allowsCellularAccess: Bool = true) {
         self.readRepository = readRepository
         self.store = store
         self.baseDirectory = baseDirectory ?? Self.defaultDownloadsURL()
         self.storageCapBytes = storageCapBytes
         let config = sessionConfiguration ?? Self.makeDefaultSessionConfiguration()
+        config.allowsCellularAccess = allowsCellularAccess
         self.session = URLSession(configuration: config)
     }
 
     public func enqueue(manga: HomeItem, chapter: Chapter) async {
         let chapterId = chapter.id
+        tasks[chapterId]?.cancel()
         states[chapterId] = .queued
         await persist(chapterId: chapterId, manga: manga, chapter: chapter,
                       pageCount: chapter.pageCount, totalBytes: 0, state: "queued")
         emit(.progress(chapterId: chapterId, fraction: 0))
-        Task { await self.runDownload(manga: manga, chapter: chapter) }
+        let task = Task { await self.runDownload(manga: manga, chapter: chapter) }
+        tasks[chapterId] = task
+    }
+
+    /// Cancels a queued or in-progress chapter download, if any. Terminal
+    /// (completed/failed) chapters are left untouched.
+    public func cancel(_ chapterId: String) async {
+        guard let task = tasks[chapterId] else { return }
+        task.cancel()
+        tasks[chapterId] = nil
+        if case .downloading = states[chapterId] {
+            states[chapterId] = .queued
+        }
+        if let store {
+            let records = await store.all()
+            if let record = records.first(where: { $0.chapterId == chapterId }),
+               record.state == "queued" || record.state == "downloading" {
+                await evictChapter(record)
+            }
+        }
     }
 
     public func state(for chapterId: String) -> DownloadState {
@@ -64,18 +90,27 @@ public actor DownloadManager {
     }
 
     /// Suspends until every listed chapter reaches a terminal state
-    /// (`.completed` or `.failed`), or until the surrounding task is cancelled.
+    /// (`.completed` or `.failed`), the stream ends, or the surrounding task
+    /// is cancelled. Listens to the events stream instead of polling.
     public func awaitCompletion(_ chapterIds: [String]) async {
-        let target = Set(chapterIds)
-        guard !target.isEmpty else { return }
-        while !target.allSatisfy({ id in
+        var target = Set(chapterIds)
+        target = target.filter { id in
             switch states[id] {
-            case .completed, .failed: return true
-            default: return false
+            case .completed, .failed: return false
+            default: return true
             }
-        }) {
-            if Task.isCancelled { return }
-            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+        guard !target.isEmpty else { return }
+        let stream = events()
+        for await event in stream {
+            if Task.isCancelled { break }
+            switch event {
+            case .completed(let id), .failed(let id, _):
+                target.remove(id)
+                if target.isEmpty { break }
+            case .progress:
+                continue
+            }
         }
     }
 
@@ -152,11 +187,23 @@ public actor DownloadManager {
             emit(.progress(chapterId: chapterId, fraction: 0))
 
             var totalBytes: Int64 = 0
-            for (index, page) in pages.enumerated() {
-                let bytes = try await downloadPage(manga: manga, chapterId: chapterId,
-                                                   page: page, pageIndex: index, pageCount: pageCount)
-                totalBytes += bytes
-                updatePageProgress(chapterId: chapterId, pageIndex: index, pageCount: pageCount)
+            try await withThrowingTaskGroup(of: (Int, Int64).self) { group in
+                var iterator = pages.enumerated().makeIterator()
+                func addNext() {
+                    if let (index, page) = iterator.next() {
+                        group.addTask {
+                            let bytes = try await self.downloadPage(manga: manga, chapterId: chapterId,
+                                                                    page: page, pageIndex: index, pageCount: pageCount)
+                            return (index, bytes)
+                        }
+                    }
+                }
+                for _ in 0..<min(Self.pageConcurrency, pageCount) { addNext() }
+                for try await (index, bytes) in group {
+                    totalBytes += bytes
+                    updatePageProgress(chapterId: chapterId, pageIndex: index, pageCount: pageCount)
+                    addNext()
+                }
             }
             states[chapterId] = .completed
             await persist(chapterId: chapterId, manga: manga, chapter: chapter,
@@ -173,7 +220,7 @@ public actor DownloadManager {
     }
 
     private func downloadPage(manga: HomeItem, chapterId: String, page: PageImage,
-                             pageIndex: Int, pageCount: Int) async throws -> Int64 {
+                              pageIndex: Int, pageCount: Int) async throws -> Int64 {
         guard let url = ImageURLBuilder.page(page.image) else {
             throw NSError(domain: "dev.atsumaru.DownloadManager", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "Invalid image URL for page \(page.number)"])
@@ -182,7 +229,8 @@ public actor DownloadManager {
         let ext = Self.pathExtension(from: page.image) ?? "webp"
         let dir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
             .appendingPathComponent(chapterId, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Self.excludeFromBackup(dir)
         let dest = dir.appendingPathComponent("\(page.number)", isDirectory: false)
             .appendingPathExtension(ext)
         if FileManager.default.fileExists(atPath: dest.path) {
@@ -190,6 +238,15 @@ public actor DownloadManager {
         }
         try data.write(to: dest)
         return Int64(data.count)
+    }
+
+    /// Marks a directory (and its contents) so iCloud does not back it up.
+    /// Downloaded chapters are re-fetchable, so backing them up wastes quota.
+    private static func excludeFromBackup(_ url: URL) throws {
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        var url = url
+        try url.setResourceValues(values)
     }
 
     private func updatePageProgress(chapterId: String, pageIndex: Int, pageCount: Int) {
@@ -252,9 +309,9 @@ public actor DownloadManager {
     }
 
     public static func defaultDownloadsURL() -> URL {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
-        return docs.appendingPathComponent("Downloads", isDirectory: true)
+        return support.appendingPathComponent("Downloads", isDirectory: true)
     }
 
     /// Inspects a relative image path and returns a lowercase file extension
@@ -269,7 +326,7 @@ public actor DownloadManager {
 
     private static func makeDefaultSessionConfiguration() -> URLSessionConfiguration {
         let config = URLSessionConfiguration.default
-        config.allowsCellularAccess = false
+        config.allowsCellularAccess = true
         return config
     }
 }

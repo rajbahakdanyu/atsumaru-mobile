@@ -84,12 +84,12 @@ struct SettingsView: View {
         Section("Email") {
             TextField("New email", text: Binding(
                 get: { viewModel?.email ?? "" },
-                set: { viewModel?.email = $0 }
+                set: { viewModel?.email = $0.lowercased() }
             ))
             .textContentType(.emailAddress)
             .keyboardType(.emailAddress)
-            .textCase(.lowercase)
-            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled(true)
             SecureField("Current password", text: Binding(
                 get: { viewModel?.emailPassword ?? "" },
                 set: { viewModel?.emailPassword = $0 }

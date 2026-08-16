@@ -182,6 +182,34 @@ struct DownloadManagerTests {
         #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 0) == ["old", "mid", "new"])
     }
 
+    @Test func evictionOrderEdgeCases() {
+        let a = DownloadedChapterSnapshot(chapterId: "a", mangaId: "m1", mangaTitle: "M1",
+                                          chapterTitle: "A", kind: "manga", pageCount: 1,
+                                          totalBytes: 0, completedAt: Date(timeIntervalSince1970: 100),
+                                          state: "completed")
+        let b = DownloadedChapterSnapshot(chapterId: "b", mangaId: "m1", mangaTitle: "M1",
+                                          chapterTitle: "B", kind: "manga", pageCount: 1,
+                                          totalBytes: 10, completedAt: Date(timeIntervalSince1970: 200),
+                                          state: "completed")
+
+        // Exactly at cap: a zero-byte item never forces eviction of a fitting item.
+        #expect(DownloadManager.evictionOrder([b], cap: 10) == [])
+        // A chapter larger than the entire cap is evicted.
+        #expect(DownloadManager.evictionOrder([b], cap: 5) == ["b"])
+        // Zero-size items never evict anything and are kept in place.
+        #expect(DownloadManager.evictionOrder([a, b], cap: 10) == [])
+    }
+
+    @Test func pathExtensionEdgeCases() {
+        #expect(DownloadManager.pathExtension(from: "/static/pages/scan/ch1/0.webp") == "webp")
+        #expect(DownloadManager.pathExtension(from: "/static/pages/x/1.JPEG") == "jpeg")
+        #expect(DownloadManager.pathExtension(from: "/static/pages/x/1.webp?token=abc") == "webp")
+        #expect(DownloadManager.pathExtension(from: "/static/pages/noext") == nil)
+        #expect(DownloadManager.pathExtension(from: "/static/pages/x/1.") == nil)
+        #expect(DownloadManager.pathExtension(from: "/static/pages/x/.git") == "git")
+        #expect(DownloadManager.pathExtension(from: "/static/pages/x/.hidden") == nil)
+    }
+
     @Test func storageEvictionDeletesOldestFilesAndRecord() async throws {
         // cap = 1 byte forces automatic eviction of any completed chapter, since
         // totalBytes always exceeds the cap. The LRU ordering is unit-tested

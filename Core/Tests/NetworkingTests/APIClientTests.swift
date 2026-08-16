@@ -42,4 +42,30 @@ struct APIClientTests {
             try await client.postVoid("/api/read/updateProgress", json: Body(value: 1))
         }
     }
+
+    @Test func formEncodeSortsKeysAndEncodesReservedCharacters() {
+        let encoded = APIClient.formEncode([
+            "password": "a&b=c+d",
+            "email": "user@example.com"
+        ])
+        // `@` is in `urlQueryAllowed`, so it stays literal; `&=+` are encoded.
+        #expect(encoded == "email=user@example.com&password=a%26b%3Dc%2Bd")
+    }
+
+    @Test func formEncodeHandlesEmptyFields() {
+        #expect(APIClient.formEncode([:]) == "")
+        #expect(APIClient.formEncode(["a": ""]) == "a=")
+    }
+
+    @Test func getMapsOfflineURLError() async {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { _ in
+            throw URLError(.notConnectedToInternet)
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        await #expect(throws: ApiError.offline) {
+            let _: EmptyResponse = try await client.get("/api/auth/me")
+        }
+    }
 }
