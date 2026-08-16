@@ -4,7 +4,9 @@ import Testing
 
 struct APIClientTests {
     @Test func imageURLsAreAbsolute() {
-        #expect(ImageURLBuilder.poster("posters/abc.jpg")?.absoluteString == "https://atsu.moe/posters/abc.jpg")
+        #expect(ImageURLBuilder.poster("posters/abc.jpg")?.absoluteString == "https://atsu.moe/static/posters/abc.jpg")
+        #expect(ImageURLBuilder.poster("banners/b.jpg")?.absoluteString == "https://atsu.moe/static/banners/b.jpg")
+        #expect(ImageURLBuilder.poster("/static/posters/c.jpg")?.absoluteString == "https://atsu.moe/static/posters/c.jpg")
         #expect(ImageURLBuilder.page("/static/pages/x/1.webp")?.absoluteString == "https://atsu.moe/static/pages/x/1.webp")
     }
 

@@ -1,9 +1,15 @@
 import Foundation
 
 public enum ImageURLBuilder {
+    /// Builds a poster/banner URL. Paths come in two shapes:
+    /// - `/static/posters/...` or `/static/banners/...` (already rooted)
+    /// - `posters/...` or `banners/...` (bare, need the `/static/` prefix)
     public static func poster(_ path: String) -> URL? {
         var path = path
         if path.hasPrefix("/") { path.removeFirst() }
+        if path.hasPrefix("posters/") || path.hasPrefix("banners/") {
+            path = "static/" + path
+        }
         return URL(string: "https://atsu.moe/\(path)")
     }
     public static func page(_ path: String) -> URL? {
