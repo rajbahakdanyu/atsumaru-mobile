@@ -82,19 +82,43 @@ final class BrowseViewModel {
 
     func search() async {
         query.q = query.q.trimmingCharacters(in: .whitespacesAndNewlines)
-        await loadFiltered(reset: true)
+        await reloadFiltered()
     }
 
-    func loadFiltered(reset: Bool = false) async {
+    /// Synchronously clears the current filtered results and marks the feed as
+    /// loading, so stale results never flash on screen before a reload. Call
+    /// this from the main actor immediately before kicking off `reloadFiltered()`.
+    func prepareFilteredReload() {
+        filteredResults = []
+        filteredHasMore = true
+        filteredError = nil
+        isLoadingFiltered = true
+    }
+
+    /// Clears and reloads the filtered feed from page 1.
+    func reloadFiltered() async {
+        filteredHasMore = true
+        filteredResults = []
+        filteredError = nil
+        isLoadingFiltered = true
+        defer { isLoadingFiltered = false }
+        await fetchFilteredPage(reset: true)
+    }
+
+    /// Loads the next page of filtered results (infinite scroll).
+    func loadMoreFiltered() async {
         guard !isLoadingFiltered else { return }
-        if reset { filteredHasMore = true; filteredResults = [] }
         guard filteredHasMore else { return }
         isLoadingFiltered = true
         defer { isLoadingFiltered = false }
+        await fetchFilteredPage(reset: false)
+    }
+
+    private func fetchFilteredPage(reset: Bool) async {
         var q = query
         if q.q.isEmpty { q.q = "*" }
         q.sortBy = sort.rawValue
-        q.page = (filteredResults.count / pageSize) + 1
+        q.page = reset ? 1 : (filteredResults.count / pageSize) + 1
         q.perPage = pageSize
         do {
             let result = try await browseRepository.search(q)

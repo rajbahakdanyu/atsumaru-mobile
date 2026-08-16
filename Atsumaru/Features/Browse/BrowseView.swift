@@ -45,7 +45,7 @@ struct BrowseView: View {
                         feedContent(items: viewModel.filteredResults,
                                     error: viewModel.filteredError,
                                     isLoading: viewModel.isLoadingFiltered,
-                                    loadMore: { Task { await viewModel.loadFiltered() } })
+                                    loadMore: { Task { await viewModel.loadMoreFiltered() } })
                     } else {
                         filteredEmptyState
                     }
@@ -82,7 +82,8 @@ struct BrowseView: View {
                         .onDisappear {
                             if viewModel.hasActiveFilters {
                                 displayMode = .filtered
-                                Task { await viewModel.loadFiltered(reset: true) }
+                                viewModel.prepareFilteredReload()
+                                Task { await viewModel.reloadFiltered() }
                             }
                         }
                 }
@@ -94,6 +95,7 @@ struct BrowseView: View {
                         .onDisappear {
                             if !viewModel.query.q.isEmpty, viewModel.query.q != "*" {
                                 displayMode = .filtered
+                                viewModel.prepareFilteredReload()
                                 Task { await viewModel.search() }
                             }
                         }
@@ -118,7 +120,7 @@ struct BrowseView: View {
                     }
                 case .filtered:
                     if viewModel.hasActiveFilters && viewModel.filteredResults.isEmpty {
-                        await viewModel.loadFiltered()
+                        await viewModel.reloadFiltered()
                     }
                 }
             }
