@@ -10,14 +10,14 @@ public struct HomeItem: Codable, Identifiable, Hashable, Sendable {
     public let isAdult: Bool
     public let type: String
     public let medium: String
-    public let mbRating: Double
+    public let mbRating: Double?
     public let views: String?
     public let createdAt: Int?
     public let updatedAt: Int?
 
     public init(id: String, title: String, image: String, smallImage: String,
                 mediumImage: String, largeImage: String, isAdult: Bool,
-                type: String, medium_: String, mbRating: Double, views: String?,
+                type: String, medium_: String, mbRating: Double?, views: String?,
                 createdAt: Int?, updatedAt: Int?) {
         self.id = id
         self.title = title

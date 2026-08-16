@@ -39,4 +39,20 @@ final class StubURLProtocol: URLProtocol, @unchecked Sendable {
         #expect(rail.items.first?.title == "Witch Hat Atelier")
         #expect(rail.items.first?.id == "2VgNt")
     }
+
+    @Test func railDecodesWhenRatingIsNull() async throws {
+        let json = #"{"items":[{"id":"a","title":"No Rating","image":"posters/a.jpg","smallImage":"posters/a-small.avif","mediumImage":"posters/a-medium.avif","largeImage":"posters/a-large.avif","isAdult":false,"type":"Manga","medium":"Comic","mbRating":null,"views":"465"}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { _ in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/home2/recentlyUpdated")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveHomeRepository(client: client)
+        let rail = try await repo.rail(.recentlyUpdated)
+        #expect(rail.items.count == 1)
+        #expect(rail.items.first?.mbRating == nil)
+    }
 }
