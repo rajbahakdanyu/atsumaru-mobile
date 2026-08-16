@@ -1,5 +1,5 @@
 import SwiftUI
-import MarkdownUI
+import Textual
 import Kingfisher
 import Core
 
@@ -165,7 +165,7 @@ struct CommentRow: View {
         if let raw = comment.content, !raw.isEmpty {
             if comment.spoiler == true && !spoilerRevealed {
                 ZStack {
-                    Markdown(raw)
+                    InlineText(markdown: raw)
                         .font(.subheadline)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .blur(radius: 10)
@@ -181,7 +181,7 @@ struct CommentRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Markdown(raw)
+                InlineText(markdown: raw)
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

@@ -1,5 +1,5 @@
 import SwiftUI
-import MarkdownUI
+import Textual
 import Core
 
 struct NovelReaderView: View {
@@ -67,9 +67,9 @@ struct NovelReaderView: View {
 
     @ViewBuilder
     private func paragraphRow(index: Int, paragraph: String, count: Int?) -> some View {
-        Markdown(paragraph)
+        InlineText(markdown: paragraph)
             .font(.system(size: fontSize, design: serif ? .serif : .default))
-            .lineSpacing(lineSpacing)
+            .textual.lineSpacing(.fontScaled(lineSpacing / fontSize))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 4)

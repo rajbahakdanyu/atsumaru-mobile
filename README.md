@@ -54,7 +54,7 @@ xcodebuild -project Atsumaru.xcodeproj -scheme Core \
 ## Dependencies
 
 - [Kingfisher](https://github.com/onevcat/Kingfisher) — image loading & caching
-- [MarkdownUI](https://github.com/gonzalezreal/swift-markdown-ui) — novel & forum rendering
+- [Textual](https://github.com/gonzalezreal/textual) — novel & forum rendering (MarkdownUI successor)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen) — project generation
 
 ## License

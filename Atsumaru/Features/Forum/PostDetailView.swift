@@ -1,5 +1,5 @@
 import SwiftUI
-import MarkdownUI
+import Textual
 import Core
 
 @Observable
@@ -100,7 +100,7 @@ struct PostDetailView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     header(viewModel: viewModel)
                     if let raw = viewModel.post.content, !raw.isEmpty {
-                        Markdown(raw)
+                        StructuredText(markdown: raw)
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
