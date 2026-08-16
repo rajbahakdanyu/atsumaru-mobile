@@ -49,13 +49,38 @@ struct FilterSheet: View {
 
     private var sortSection: some View {
         section(title: "Sort") {
-            Picker("Sort by", selection: $viewModel.sort) {
+            menuCapsule(label: viewModel.sort.label) {
                 ForEach(BrowseSort.allCases) { s in
-                    Text(s.label).tag(s)
+                    Button {
+                        viewModel.sort = s
+                    } label: {
+                        if s == viewModel.sort {
+                            Label(s.label, systemImage: "checkmark")
+                        } else {
+                            Text(s.label)
+                        }
+                    }
                 }
             }
-            .pickerStyle(.menu)
+        }
+    }
+
+    private func menuCapsule<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+        Menu {
+            content()
+        } label: {
+            HStack {
+                Text(label)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
             .glassCapsule()
         }
     }
@@ -172,19 +197,34 @@ struct FilterSheet: View {
 
     private var minChaptersSection: some View {
         section(title: "Minimum chapters") {
-            Picker("Min chapters", selection: Binding(
-                get: { viewModel.query.minChapters ?? 0 },
-                set: { viewModel.query.minChapters = $0 == 0 ? nil : $0 }
-            )) {
-                Text("Any").tag(0)
+            menuCapsule(label: minChaptersLabel) {
+                Button {
+                    viewModel.query.minChapters = nil
+                } label: {
+                    if viewModel.query.minChapters == nil {
+                        Label("Any", systemImage: "checkmark")
+                    } else {
+                        Text("Any")
+                    }
+                }
                 ForEach([1, 5, 10, 25, 50, 100, 200, 500], id: \.self) { n in
-                    Text("\(n)+").tag(n)
+                    Button {
+                        viewModel.query.minChapters = n
+                    } label: {
+                        if viewModel.query.minChapters == n {
+                            Label("\(n)+", systemImage: "checkmark")
+                        } else {
+                            Text("\(n)+")
+                        }
+                    }
                 }
             }
-            .pickerStyle(.menu)
-            .frame(maxWidth: .infinity)
-            .glassCapsule()
         }
+    }
+
+    private var minChaptersLabel: String {
+        if let n = viewModel.query.minChapters { return "\(n)+" }
+        return "Any"
     }
 
     private func flowChips(items: [NamedFilter], selection: Binding<[String]>) -> some View {
