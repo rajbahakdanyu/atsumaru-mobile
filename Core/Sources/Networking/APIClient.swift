@@ -79,6 +79,53 @@ public final class APIClient: @unchecked Sendable {
         }
     }
 
+    /// Raw GET returning the response body as `Data`, for endpoints whose JSON
+/// envelope shape is uncertain and must be decoded tolerantly by the caller.
+    public func getData(
+        _ path: String, query: [String: String] = [:]
+    ) async throws -> Data {
+        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
+            throw ApiError.invalidURL
+        }
+        components.path = path
+        if !query.isEmpty {
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        guard let url = components.url else { throw ApiError.invalidURL }
+        var request = URLRequest(url: url)
+        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
+        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
+        guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
+        return data
+    }
+
+    public func delete<T: Decodable & Sendable>(
+        _ path: String, query: [String: String] = [:]
+    ) async throws -> T {
+        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
+            throw ApiError.invalidURL
+        }
+        components.path = path
+        if !query.isEmpty {
+            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
+        }
+        guard let url = components.url else { throw ApiError.invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
+        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
+        guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            throw ApiError.decoding
+        }
+    }
+
     public func put<T: Decodable & Sendable, Body: Encodable & Sendable>(
         _ path: String, query: [String: String] = [:], json body: Body
     ) async throws -> T {

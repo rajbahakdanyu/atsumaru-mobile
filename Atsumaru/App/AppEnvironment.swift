@@ -13,6 +13,7 @@ final class AppEnvironment {
     let novelRepository: any NovelRepository
     let authRepository: any AuthRepository
     let userRepository: any UserRepository
+    let libraryRepository: any LibraryRepository
     var currentUser: AuthUser?
     let progressStore: ProgressStore?
 
@@ -24,6 +25,7 @@ final class AppEnvironment {
         novelRepository = LiveNovelRepository(client: apiClient)
         authRepository = LiveAuthRepository(client: apiClient, keychain: keychainStore)
         userRepository = LiveUserRepository(client: apiClient)
+        libraryRepository = LiveLibraryRepository(client: apiClient)
         progressStore = try? ProgressStore()
     }
 

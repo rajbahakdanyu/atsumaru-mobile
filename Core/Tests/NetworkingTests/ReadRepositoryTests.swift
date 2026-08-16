@@ -9,7 +9,9 @@ import Testing
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/read/chapter")
-            #expect(request.url?.query == "mangaId=m1&chapterId=QFpTs")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "mangaId", value: "m1")))
+            #expect(items.contains(URLQueryItem(name: "chapterId", value: "QFpTs")))
             #expect(request.httpMethod == "GET")
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/read/chapter")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
