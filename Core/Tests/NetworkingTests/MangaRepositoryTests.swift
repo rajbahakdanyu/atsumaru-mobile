@@ -25,7 +25,7 @@ import Testing
     }
 
     @Test func chaptersDecodesISOCreatedAt() async throws {
-        let json = #"{"chapters":[{"id":"QFpTs","title":"Chapter 97","number":97,"index":98,"pageCount":26,"createdAt":"2026-06-10T00:03:06.716Z"}]}"#
+        let json = #"{"chapters":[{"id":"QFpTs","title":"Chapter 97","number":97,"index":98,"pageCount":26,"createdAt":"2026-06-10T00:03:06.716Z"},{"id":"NoFrac","title":"Chapter 96","number":96,"index":97,"pageCount":26,"createdAt":"2026-06-10T00:03:06Z"}]}"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -37,8 +37,10 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveMangaRepository(client: client)
         let chapters = try await repo.chapters(id: "x", page: 1)
-        #expect(chapters.count == 1)
-        #expect(chapters.first?.createdAt != nil)
+        #expect(chapters.count == 2)
         #expect(chapters.first?.id == "QFpTs")
+        #expect(chapters.first?.createdAt == 1781049786716)
+        #expect(chapters.last?.id == "NoFrac")
+        #expect(chapters.last?.createdAt == 1781049786000)
     }
 }
