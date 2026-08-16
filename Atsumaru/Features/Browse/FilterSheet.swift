@@ -121,6 +121,14 @@ struct FilterSheet: View {
 
     private func tagSection(items: [NamedFilter]) -> some View {
         section(title: "Tags") {
+            let selectedTags = items.filter { viewModel.query.tags.contains($0.id) }
+            if !selectedTags.isEmpty {
+                FilterFlowLayout(spacing: 8) {
+                    ForEach(selectedTags) { f in
+                        selectedTagChip(f)
+                    }
+                }
+            }
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
@@ -166,6 +174,24 @@ struct FilterSheet: View {
                 .contentMargins(.vertical, 4, for: .scrollContent)
             }
         }
+    }
+
+    private func selectedTagChip(_ f: NamedFilter) -> some View {
+        Button {
+            viewModel.query.tags.removeAll { $0 == f.id }
+        } label: {
+            HStack(spacing: 4) {
+                Text(f.name)
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.semibold))
+            }
+            .font(.subheadline)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .foregroundStyle(Color.accentColor)
+            .glassCapsule()
+        }
+        .buttonStyle(.plain)
     }
 
     private func tagRow(_ f: NamedFilter) -> some View {
