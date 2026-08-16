@@ -3,7 +3,7 @@ import Core
 
 enum BrowseDisplayMode: String, CaseIterable, Identifiable {
     case recentlyUpdated
-    case search
+    case popular
 
     var id: String { rawValue }
 }
@@ -20,11 +20,21 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                switch displayMode {
-                case .recentlyUpdated:
-                    recentlyUpdatedContent
-                case .search:
+                if !searchText.isEmpty {
                     searchContent
+                } else {
+                    switch displayMode {
+                    case .recentlyUpdated:
+                        feedContent(items: viewModel?.recentlyUpdated ?? [],
+                                    error: viewModel?.recentlyUpdatedError,
+                                    isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
+                                    loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
+                    case .popular:
+                        feedContent(items: viewModel?.popular ?? [],
+                                    error: viewModel?.popularError,
+                                    isLoading: viewModel?.isLoadingPopular ?? false,
+                                    loadMore: { Task { await viewModel?.loadPopular() } })
+                    }
                 }
             }
             .navigationTitle("Browse")
@@ -44,7 +54,7 @@ struct BrowseView: View {
             .safeAreaInset(edge: .top) {
                 Picker("Display", selection: $displayMode) {
                     Text("Recently Updated").tag(BrowseDisplayMode.recentlyUpdated)
-                    Text("Search").tag(BrowseDisplayMode.search)
+                    Text("Popular").tag(BrowseDisplayMode.popular)
                 }
                 .pickerStyle(.segmented)
                 .padding(.horizontal)
@@ -59,16 +69,20 @@ struct BrowseView: View {
                     )
                 }
                 guard let viewModel else { return }
-                if displayMode == .recentlyUpdated && viewModel.recentlyUpdated.isEmpty {
-                    await viewModel.loadRecentlyUpdated()
-                } else if displayMode == .search && viewModel.filters == nil {
-                    await viewModel.loadFilters()
-                    await viewModel.search()
+                switch displayMode {
+                case .recentlyUpdated:
+                    if viewModel.recentlyUpdated.isEmpty {
+                        await viewModel.loadRecentlyUpdated()
+                    }
+                case .popular:
+                    if viewModel.popular.isEmpty {
+                        await viewModel.loadPopular()
+                    }
                 }
             }
             .task(id: searchText) {
-                guard displayMode == .search, let viewModel else { return }
-                viewModel.query.q = searchText.isEmpty ? "*" : searchText
+                guard !searchText.isEmpty, let viewModel else { return }
+                viewModel.query.q = searchText
                 await viewModel.search()
             }
             .sheet(isPresented: $showingFilters) {
@@ -84,28 +98,38 @@ struct BrowseView: View {
     }
 
     @ViewBuilder
-    private var recentlyUpdatedContent: some View {
-        if let viewModel {
-            if viewModel.recentlyUpdated.isEmpty {
-                if viewModel.recentlyUpdatedError != nil {
-                    ErrorStateView(error: viewModel.recentlyUpdatedError ?? .decoding) {
-                        Task { await viewModel.loadRecentlyUpdated() }
-                    }
+    private func feedContent(items: [HomeItem], error: ApiError?, isLoading: Bool,
+                             loadMore: @escaping () -> Void) -> some View {
+        if items.isEmpty {
+            if error != nil {
+                ErrorStateView(error: error ?? .decoding) { loadMore() }
                     .padding(.top, 40)
-                } else {
-                    ProgressView().padding(.top, 40)
-                }
+            } else if isLoading {
+                ProgressView().padding(.top, 40)
             } else {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    ForEach(viewModel.recentlyUpdated) { item in
-                        NavigationLink(value: item.id) {
-                            Poster(item: item)
+                EmptyStateView(message: "Nothing here yet.")
+                    .padding(.top, 40)
+            }
+        } else {
+            LazyVGrid(columns: columns, spacing: 16) {
+                ForEach(items) { item in
+                    NavigationLink(value: item.id) {
+                        Poster(item: item)
+                    }
+                    .buttonStyle(.plain)
+                    .onAppear {
+                        if item.id == items.last?.id {
+                            loadMore()
                         }
-                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal)
+                if isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                }
             }
+            .padding(.horizontal)
         }
     }
 
