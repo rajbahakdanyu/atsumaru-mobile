@@ -4,6 +4,7 @@ import Core
 struct FilterSheet: View {
     @Bindable var viewModel: BrowseViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var tagSearch = ""
 
     var body: some View {
         NavigationStack {
@@ -102,7 +103,61 @@ struct FilterSheet: View {
     }
 
     private func tagSection(items: [NamedFilter]) -> some View {
-        filterSection("Tags", items: items, selection: $viewModel.query.tags)
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Tags").font(.headline).padding(.leading, 4)
+            TextField("Search tags", text: $tagSearch)
+                .textFieldStyle(.roundedBorder)
+                .autocorrectionDisabled()
+            let filtered = tagSearch.isEmpty
+                ? []
+                : items.filter { $0.name.localizedCaseInsensitiveContains(tagSearch) }
+            if tagSearch.isEmpty {
+                Text("\(items.count) tags — search to narrow.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
+            } else {
+                if filtered.isEmpty {
+                    Text("No matching tags.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.leading, 4)
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 6) {
+                            ForEach(filtered) { f in
+                                tagRow(f)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: 320)
+                }
+            }
+        }
+    }
+
+    private func tagRow(_ f: NamedFilter) -> some View {
+        let selected = viewModel.query.tags.contains(f.id)
+        return Button {
+            if selected {
+                viewModel.query.tags.removeAll { $0 == f.id }
+            } else {
+                viewModel.query.tags.append(f.id)
+            }
+        } label: {
+            HStack {
+                Text(f.name)
+                    .foregroundStyle(selected ? Color.accentColor : Color.primary)
+                Spacer()
+                if let group = f.group {
+                    Text(group).font(.caption2).foregroundStyle(.secondary)
+                }
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Color.accentColor : Color.secondary)
+            }
+            .padding(.horizontal, 12).padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
     }
 
     private var minChaptersSection: some View {

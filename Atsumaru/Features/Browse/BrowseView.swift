@@ -4,6 +4,7 @@ import Core
 enum BrowseDisplayMode: String, CaseIterable, Identifiable {
     case recentlyUpdated
     case popular
+    case filtered
 
     var id: String { rawValue }
 }
@@ -24,11 +25,6 @@ struct BrowseView: View {
                     Section {
                         if !searchText.isEmpty {
                             searchContent
-                        } else if let viewModel, viewModel.hasActiveFilters {
-                            feedContent(items: viewModel.filteredResults,
-                                        error: viewModel.filteredError,
-                                        isLoading: viewModel.isLoadingFiltered,
-                                        loadMore: { Task { await viewModel.loadFiltered() } })
                         } else {
                             switch displayMode {
                             case .recentlyUpdated:
@@ -41,12 +37,22 @@ struct BrowseView: View {
                                             error: viewModel?.popularError,
                                             isLoading: viewModel?.isLoadingPopular ?? false,
                                             loadMore: { Task { await viewModel?.loadPopular() } })
+                            case .filtered:
+                                if let viewModel, viewModel.hasActiveFilters {
+                                    feedContent(items: viewModel.filteredResults,
+                                                error: viewModel.filteredError,
+                                                isLoading: viewModel.isLoadingFiltered,
+                                                loadMore: { Task { await viewModel.loadFiltered() } })
+                                } else {
+                                    filteredEmptyState
+                                }
                             }
                         }
                     } header: {
                         Picker("Display", selection: $displayMode) {
                             Text("Recently Updated").tag(BrowseDisplayMode.recentlyUpdated)
                             Text("Popular").tag(BrowseDisplayMode.popular)
+                            Text("Filtered").tag(BrowseDisplayMode.filtered)
                         }
                         .pickerStyle(.segmented)
                         .padding(.horizontal)
@@ -74,6 +80,7 @@ struct BrowseView: View {
                         .presentationDetents([.large])
                         .onDisappear {
                             if viewModel.hasActiveFilters {
+                                displayMode = .filtered
                                 Task { await viewModel.loadFiltered(reset: true) }
                             }
                         }
@@ -96,6 +103,10 @@ struct BrowseView: View {
                     if viewModel.popular.isEmpty {
                         await viewModel.loadPopular()
                     }
+                case .filtered:
+                    if viewModel.hasActiveFilters && viewModel.filteredResults.isEmpty {
+                        await viewModel.loadFiltered()
+                    }
                 }
             }
             .task(id: searchText) {
@@ -104,6 +115,12 @@ struct BrowseView: View {
                 await viewModel.search()
             }
         }
+    }
+
+    @ViewBuilder
+    private var filteredEmptyState: some View {
+        EmptyStateView(message: "No filters applied. Tap the filter button to set up filters.")
+            .padding(.top, 40)
     }
 
     @ViewBuilder
