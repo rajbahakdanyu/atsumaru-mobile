@@ -90,7 +90,7 @@ import Testing
         #expect(bodyString.contains("\"postId\""))
         #expect(bodyString.contains("\"vote\""))
         #expect(bodyString.contains("p1"))
-        #expect(bodyString.contains("1"))
+        #expect(bodyString.contains("\"vote\":1"))
     }
 }
 
