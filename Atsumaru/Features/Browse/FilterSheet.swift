@@ -9,7 +9,7 @@ struct FilterSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 28) {
                     if let filters = viewModel.filters {
                         sortSection
                         filterSection("Genres", items: filters.genres, selection: $viewModel.query.genres)
@@ -29,9 +29,10 @@ struct FilterSheet: View {
                         ProgressView().frame(maxWidth: .infinity).padding(.top, 80)
                     }
                 }
-                .padding(.horizontal)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 32)
             }
+            .background(Color.clear)
             .navigationTitle("Filter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -47,8 +48,7 @@ struct FilterSheet: View {
     }
 
     private var sortSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Sort").font(.headline).padding(.leading, 4)
+        section(title: "Sort") {
             Picker("Sort by", selection: $viewModel.sort) {
                 ForEach(BrowseSort.allCases) { s in
                     Text(s.label).tag(s)
@@ -60,9 +60,19 @@ struct FilterSheet: View {
         }
     }
 
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.leading, 4)
+            content()
+        }
+    }
+
     private func filterSection(_ title: String, items: [NamedFilter], selection: Binding<[String]>) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline).padding(.leading, 4)
+        section(title: title) {
             flowChips(items: items, selection: selection)
         }
     }
@@ -76,38 +86,36 @@ struct FilterSheet: View {
     }
 
     private var mediumSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Medium").font(.headline).padding(.leading, 4)
-            HStack(spacing: 8) {
-                mediumChip("Comic", "Comic")
-                mediumChip("Novel", "Novel")
+        section(title: "Medium") {
+            FilterFlowLayout(spacing: 8) {
+                chip("Comic", id: "Comic", selection: $viewModel.query.mediums)
+                chip("Novel", id: "Novel", selection: $viewModel.query.mediums)
             }
         }
-    }
-
-    private func mediumChip(_ label: String, _ value: String) -> some View {
-        let selected = viewModel.query.mediums.contains(value)
-        return Button {
-            if selected {
-                viewModel.query.mediums.removeAll { $0 == value }
-            } else {
-                viewModel.query.mediums.append(value)
-            }
-        } label: {
-            Text(label)
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .foregroundStyle(selected ? Color.accentColor : Color.primary)
-                .glassCapsule()
-        }
-        .buttonStyle(.plain)
     }
 
     private func tagSection(items: [NamedFilter]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Tags").font(.headline).padding(.leading, 4)
-            TextField("Search tags", text: $tagSearch)
-                .textFieldStyle(.roundedBorder)
-                .autocorrectionDisabled()
+        section(title: "Tags") {
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                TextField("Search tags", text: $tagSearch)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                if !tagSearch.isEmpty {
+                    Button {
+                        tagSearch = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .glassCapsule()
+
             let filtered = tagSearch.isEmpty
                 ? []
                 : items.filter { $0.name.localizedCaseInsensitiveContains(tagSearch) }
@@ -116,22 +124,21 @@ struct FilterSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 4)
+            } else if filtered.isEmpty {
+                Text("No matching tags.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 4)
             } else {
-                if filtered.isEmpty {
-                    Text("No matching tags.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.leading, 4)
-                } else {
-                    ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 6) {
-                            ForEach(filtered) { f in
-                                tagRow(f)
-                            }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 8) {
+                        ForEach(filtered) { f in
+                            tagRow(f)
                         }
                     }
-                    .frame(maxHeight: 320)
                 }
+                .frame(maxHeight: 300)
+                .contentMargins(.vertical, 4, for: .scrollContent)
             }
         }
     }
@@ -147,6 +154,7 @@ struct FilterSheet: View {
         } label: {
             HStack {
                 Text(f.name)
+                    .font(.subheadline)
                     .foregroundStyle(selected ? Color.accentColor : Color.primary)
                 Spacer()
                 if let group = f.group {
@@ -155,14 +163,15 @@ struct FilterSheet: View {
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selected ? Color.accentColor : Color.secondary)
             }
-            .padding(.horizontal, 12).padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .glassCapsule()
         }
         .buttonStyle(.plain)
     }
 
     private var minChaptersSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Minimum chapters").font(.headline).padding(.leading, 4)
+        section(title: "Minimum chapters") {
             Picker("Min chapters", selection: Binding(
                 get: { viewModel.query.minChapters ?? 0 },
                 set: { viewModel.query.minChapters = $0 == 0 ? nil : $0 }
@@ -196,8 +205,9 @@ struct FilterSheet: View {
             }
         } label: {
             Text(label)
-                .font(.footnote)
-                .padding(.horizontal, 12).padding(.vertical, 7)
+                .font(.subheadline)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
                 .foregroundStyle(selected ? Color.accentColor : Color.primary)
                 .glassCapsule()
         }
