@@ -54,6 +54,7 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: 29M3656LH6
         TARGETED_DEVICE_FAMILY: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: Atsumaru/Atsumaru.entitlements
       properties:
