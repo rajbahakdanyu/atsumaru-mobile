@@ -142,6 +142,17 @@ struct AccountView: View {
     private var navigationLinks: some View {
         VStack(spacing: 12) {
             NavigationLink {
+                CommunityView()
+            } label: {
+                Label("Community", systemImage: "person.3.crop.circle")
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 14)
+                    .glassCapsule()
+            }
+            .buttonStyle(.plain)
+
+            NavigationLink {
                 SettingsView()
             } label: {
                 Label("Settings", systemImage: "gearshape")
