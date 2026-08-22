@@ -130,7 +130,7 @@ struct CommentRow: View {
     @State private var localVote = 0
 
     private var score: Int {
-        (comment.upvotes ?? 0) - (comment.downvotes ?? 0) + localVote
+        (comment.score ?? ((comment.upvotes ?? 0) - (comment.downvotes ?? 0))) + localVote
     }
 
     var body: some View {

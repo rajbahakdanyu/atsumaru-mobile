@@ -59,7 +59,7 @@ struct MangaReaderView: View {
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {
-                CommentsView(sectionId: chapter.id)
+                CommentsView(sectionId: "manga:\(mangaId)")
             }
         }
     }
