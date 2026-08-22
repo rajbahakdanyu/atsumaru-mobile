@@ -140,8 +140,8 @@ struct CommentRow: View {
                 HStack(spacing: 8) {
                     Text(comment.user?.username ?? "Unknown")
                         .font(.subheadline.bold())
-                    if let created = comment.createdAt {
-                        Text(formatted(created))
+                    if let created = comment.createdAtDate {
+                        Text(created.formatted(.relative(presentation: .named)))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -223,19 +223,6 @@ struct CommentRow: View {
             }
             .buttonStyle(.plain)
         }
-    }
-
-    private func formatted(_ iso: String) -> String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: iso) {
-            return d.formatted(.relative(presentation: .named))
-        }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: iso) {
-            return d.formatted(.relative(presentation: .named))
-        }
-        return iso
     }
 }
 

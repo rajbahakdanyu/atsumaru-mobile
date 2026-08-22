@@ -11,9 +11,6 @@ public struct LiveCommentsRepository: CommentsRepository {
     private let client: APIClient
     public init(client: APIClient) { self.client = client }
 
-    private struct ThreadsEnvelope: Decodable {
-        let threads: [Comment]?
-    }
     private struct PostBody: Encodable {
         let sectionId: String
         let parentId: String?
@@ -27,13 +24,14 @@ public struct LiveCommentsRepository: CommentsRepository {
     }
 
     public func threads(sectionId: String, parentId: String?, cursor: String?, sort: String?) async throws -> [Comment] {
-        var query: [String: String] = ["sectionId": sectionId]
+        var query: [String: String] = ["sectionId": sectionId, "maxDepth": "3"]
         if let parentId { query["parentId"] = parentId }
         if let cursor { query["cursor"] = cursor }
         if let sort { query["sort"] = sort }
         let data = try await client.getData("/api/comments/v2/threads", query: query)
-        if let env = try? JSONDecoder().decode(ThreadsEnvelope.self, from: data) {
-            return env.threads ?? []
+        struct Envelope: Decodable { let comments: [Comment]? }
+        if let env = try? JSONDecoder().decode(Envelope.self, from: data), let comments = env.comments {
+            return comments
         }
         if let arr = try? JSONDecoder().decode([Comment].self, from: data) {
             return arr

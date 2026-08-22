@@ -5,7 +5,7 @@ import Testing
 @Suite(.serialized) struct CommentsRepositoryTests {
 
     @Test func threadsDecode() async throws {
-        let json = #"{"threads":[{"comment":{"id":"c1","content":"Hello *world*","user":{"id":"u1","username":"alice","usernameSlug":"alice","avatarUrl":"u/a.png"},"createdAt":"2024-01-01T00:00:00.000Z","spoiler":false}}]}"#
+        let json = #"{"comments":[{"id":"cmt1","content":"Mc reminds me of Seo Eun Hyun","createdAt":1787304830269,"score":1,"upVotes":null,"downVotes":null,"spoiler":false,"parentId":null,"user":{"id":"u1","usernameSlug":"hobin001","usernameDisplay":"HOBIN001","pfp":"pfp/abc.webp","verified":true},"replies":[]}]}"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -13,22 +13,26 @@ import Testing
             #expect(request.httpMethod == "GET")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
             #expect(items.contains(URLQueryItem(name: "sectionId", value: "sec1")))
+            #expect(items.contains(URLQueryItem(name: "maxDepth", value: "3")))
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/comments/v2/threads")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data(json.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveCommentsRepository(client: client)
-        let threads = try await repo.threads(sectionId: "sec1", parentId: "p0", cursor: "k", sort: "top")
+        let threads = try await repo.threads(sectionId: "sec1", parentId: nil, cursor: nil, sort: nil)
         #expect(threads.count == 1)
-        #expect(threads.first?.id == "c1")
-        #expect(threads.first?.content == "Hello *world*")
-        #expect(threads.first?.user?.username == "alice")
+        #expect(threads.first?.id == "cmt1")
+        #expect(threads.first?.user?.username == "HOBIN001")
+        #expect(threads.first?.user?.avatarUrl == "pfp/abc.webp")
+        #expect(threads.first?.createdAt == 1787304830269)
+        #expect(threads.first?.createdAtDate == Date(timeIntervalSince1970: 1787304830.269))
+        #expect(threads.first?.score == 1)
         #expect(threads.first?.spoiler == false)
     }
 
-    @Test func threadsDecodeBareArray() async throws {
-        let json = #"[{"id":"c2","content":"plain array","user":{"id":"u2","username":"bob"},"spoiler":true}]"#
+    @Test func threadsDecodeBareArrayToleratesLegacyFields() async throws {
+        let json = #"[{"id":"c2","content":"plain array","user":{"id":"u2","username":"bob"},"createdAt":"2024-01-01T00:00:00.000Z","upvotes":2,"downvotes":1,"spoiler":true}]"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -43,6 +47,8 @@ import Testing
         #expect(threads.count == 1)
         #expect(threads.first?.id == "c2")
         #expect(threads.first?.spoiler == true)
+        #expect(threads.first?.user?.username == "bob")
+        #expect(threads.first?.upvotes == 2)
     }
 
     @Test func postCommentPostsJSON() async throws {
