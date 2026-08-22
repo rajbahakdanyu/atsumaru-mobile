@@ -12,7 +12,7 @@ public struct MangaPage: Decodable, Sendable {
     public let released: Int?
     public let avgRating: Double?
     public let mbRating: Double?
-    public let totalChapterCount: Int?
+    public let totalChapterCount: Double?
     public let hasReadHistory: Bool?
     public let poster: PosterImages?
     public let banner: Banner?
