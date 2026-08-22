@@ -3,7 +3,6 @@ import Core
 
 struct AuthFlowView: View {
     let onSuccess: () -> Void
-    static let providers = ["discord", "google", "anilist", "mangabaka"]
 
     var body: some View {
         NavigationStack {
@@ -52,9 +51,6 @@ struct LoginView: View {
                     ForgotPasswordView()
                 }
             }
-            Section("Continue with") {
-                OAuthButtons(onSuccess: onSuccess)
-            }
             if let errorMessage {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
@@ -71,48 +67,6 @@ struct LoginView: View {
             dismiss()
         } catch {
             errorMessage = "Sign in failed. Check your credentials."
-        }
-    }
-}
-
-struct OAuthButtons: View {
-    let onSuccess: () -> Void
-    @Environment(AppEnvironment.self) private var environment
-    @State private var coordinator: AuthCoordinator?
-    @State private var status: String?
-    @State private var isLoading = false
-
-    var body: some View {
-        ForEach(AuthFlowView.providers, id: \.self) { provider in
-            Button("Continue with \(provider.capitalized)") {
-                Task { await authenticate(provider: provider) }
-            }
-            .disabled(isLoading)
-        }
-        if let status {
-            Text(status).font(.footnote).foregroundStyle(.secondary)
-        }
-    }
-
-    private func authenticate(provider: String) async {
-        isLoading = true
-        defer { isLoading = false }
-        if coordinator == nil {
-            coordinator = AuthCoordinator(authRepository: environment.authRepository)
-        }
-        guard let coordinator else { return }
-        do {
-            try await coordinator.authenticate(provider: provider)
-            // Best-effort: no documented token-exchange endpoint was provided,
-            // so rely on shared session cookies and re-fetch identity.
-            if let me = try? await environment.authRepository.me() {
-                environment.currentUser = me
-                onSuccess()
-            } else {
-                status = "OAuth did not complete sign-in."
-            }
-        } catch {
-            status = "OAuth cancelled or failed."
         }
     }
 }
