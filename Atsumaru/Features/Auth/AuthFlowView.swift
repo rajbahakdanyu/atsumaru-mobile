@@ -18,10 +18,13 @@ struct LoginView: View {
     let onSuccess: () -> Void
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
-    @State private var email = ""
+    @Environment(\.openURL) private var openURL
+    @State private var identifier = ""
     @State private var password = ""
     @State private var isLoading = false
     @State private var errorMessage: String?
+
+    private static let signupURL = URL(string: "https://atsu.moe/auth/signup")!
 
     var body: some View {
         VStack(spacing: 18) {
@@ -31,12 +34,11 @@ struct LoginView: View {
 
             VStack(spacing: 10) {
                 HStack(spacing: 8) {
-                    Image(systemName: "envelope")
+                    Image(systemName: "person")
                         .foregroundStyle(.secondary)
-                    TextField("Email", text: $email)
-                        .textContentType(.emailAddress)
-                        .keyboardType(.emailAddress)
-                        .textCase(.lowercase)
+                    TextField("Username or email", text: $identifier)
+                        .textContentType(.username)
+                        .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                 }
                 .padding(.horizontal, 14)
@@ -72,11 +74,11 @@ struct LoginView: View {
                 .padding(.vertical, 4)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(isLoading || email.isEmpty || password.isEmpty)
+            .disabled(isLoading || identifier.isEmpty || password.isEmpty)
 
             HStack(spacing: 12) {
-                NavigationLink("Create account") {
-                    SignupView(onSuccess: onSuccess)
+                Button("Create account") {
+                    openURL(Self.signupURL)
                 }
                 Spacer()
                 NavigationLink("Forgot password?") {
@@ -94,7 +96,7 @@ struct LoginView: View {
         isLoading = true
         defer { isLoading = false }
         do {
-            try await environment.login(email: email, password: password)
+            try await environment.login(identifier: identifier, password: password)
             onSuccess()
             dismiss()
         } catch {

@@ -2,11 +2,8 @@ import Foundation
 
 public protocol AuthRepository: Sendable {
     func me() async throws -> AuthUser?
-    func login(email: String, password: String) async throws
-    func signup(email: String, username: String, password: String) async throws
+    func login(identifier: String, password: String) async throws -> AuthUser
     func logout() async throws
-    func sendVerification() async throws
-    func verifyEmail(token: String) async throws
     func sendPasswordReset(email: String) async throws
     func resetPassword(token: String, newPassword: String, confirmPassword: String) async throws
     func oauthURL(provider: String) async throws -> String
@@ -25,6 +22,7 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     private struct MeResponse: Decodable { let me: AuthUser? }
+    private struct LoginResponse: Decodable { let status: String?; let error: String?; let me: AuthUser? }
     private struct EmptyBody: Encodable {}
     private struct OAuthURLResponse: Decodable { let url: String }
 
@@ -36,33 +34,26 @@ public struct LiveAuthRepository: AuthRepository {
         return resp.me
     }
 
-    public func login(email: String, password: String) async throws {
-        try await client.postFormVoid(
+    public func login(identifier: String, password: String) async throws -> AuthUser {
+        let resp: LoginResponse = try await client.postForm(
             "/api/auth/login",
-            fields: ["email": email, "password": password]
+            fields: ["username": identifier, "password": password]
         )
-        _ = try? await me()
-    }
-
-    public func signup(email: String, username: String, password: String) async throws {
-        try await client.postFormVoid(
-            "/api/auth/signup",
-            fields: ["email": email, "username": username, "password": password]
-        )
-        _ = try? await me()
+        if resp.status == "success", let user = resp.me {
+            if let data = try? JSONEncoder().encode(user) {
+                try? keychain.save(data, key: Self.storedUserKey)
+            }
+            return user
+        }
+        if resp.status == "error", let message = resp.error, !message.isEmpty {
+            throw ApiError.server(message)
+        }
+        throw ApiError.server("Invalid username or password")
     }
 
     public func logout() async throws {
         try await client.postVoid("/api/auth/logout/self", json: EmptyBody())
         try? keychain.delete(key: Self.storedUserKey)
-    }
-
-    public func sendVerification() async throws {
-        try await client.postVoid("/api/auth/sendVerification", json: EmptyBody())
-    }
-
-    public func verifyEmail(token: String) async throws {
-        try await client.getVoid("/api/auth/verify", query: ["token": token])
     }
 
     public func sendPasswordReset(email: String) async throws {

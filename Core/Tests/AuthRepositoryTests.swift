@@ -96,11 +96,7 @@ import Testing
                 captured.value = AuthRepositoryTests.body(of: request)
                 let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/auth/login")!,
                                            statusCode: 200, httpVersion: nil, headerFields: nil)!
-                return (resp, Data("{}".utf8))
-            case "/api/auth/me":
-                let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/auth/me")!,
-                                           statusCode: 200, httpVersion: nil, headerFields: nil)!
-                return (resp, Data(#"{"me":null}"#.utf8))
+                return (resp, Data(#"{"status":"success","me":{"id":"u1","username":"dan"}}"#.utf8))
             default:
                 let resp = HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
                 return (resp, Data())
@@ -108,14 +104,32 @@ import Testing
         }
         let client = APIClient(session: URLSession(configuration: config))
         let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        defer { try? keychain.delete(key: "auth-user") }
         let repo = LiveAuthRepository(client: client, keychain: keychain)
-        try await repo.login(email: "user@example.com", password: "p@ss&word=1")
+        let user = try await repo.login(identifier: "user@example.com", password: "p@ss&word=1")
 
+        #expect(user.id == "u1")
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("email="))
+        #expect(bodyString.contains("username="))
         #expect(bodyString.contains("password="))
         #expect(bodyString.contains("user@example.com"))
         #expect(bodyString.contains("p@ss%26word%3D1"))
+    }
+
+    @Test func loginThrowsOnInvalidCredentials() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/auth/login")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"status":"error","error":"Invalid username or password","me":null}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let repo = LiveAuthRepository(client: client, keychain: keychain)
+        await #expect(throws: ApiError.self) {
+            _ = try await repo.login(identifier: "bad", password: "wrong")
+        }
     }
 
     @Test func postFormPercentEncodesAmpersandAndEqualsInValues() async throws {

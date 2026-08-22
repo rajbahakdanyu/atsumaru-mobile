@@ -67,14 +67,8 @@ final class AppEnvironment {
         }
     }
 
-    func login(email: String, password: String) async throws {
-        try await authRepository.login(email: email, password: password)
-        if let me = try? await authRepository.me() { currentUser = me }
-    }
-
-    func signup(email: String, username: String, password: String) async throws {
-        try await authRepository.signup(email: email, username: username, password: password)
-        if let me = try? await authRepository.me() { currentUser = me }
+    func login(identifier: String, password: String) async throws {
+        currentUser = try await authRepository.login(identifier: identifier, password: password)
     }
 
     func logout() async throws {
