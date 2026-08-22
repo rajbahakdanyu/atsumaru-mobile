@@ -6,6 +6,7 @@ struct MangaDetailView: View {
     let mangaId: String
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: MangaDetailViewModel?
+    @State private var detailsExpanded = false
 
     var body: some View {
         Group {
@@ -51,16 +52,8 @@ struct MangaDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(manga)
-                tagSection(manga)
-                if let synopsis = manga.synopsis, !synopsis.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Summary")
-                            .font(.headline)
-                        Text(synopsis)
-                            .font(.body)
-                    }
-                    .padding(.horizontal, 16)
-                }
+                detailsSection(manga)
+                continueReadingButton(for: manga)
                 chapterSection(manga)
             }
             .padding(.bottom, 24)
@@ -84,10 +77,6 @@ struct MangaDetailView: View {
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(manga.title)
-                    .font(.title3.bold())
-                    .fixedSize(horizontal: false, vertical: true)
-
                 if let status = manga.status, !status.isEmpty {
                     labeledRow("Status", status)
                 }
@@ -109,6 +98,78 @@ struct MangaDetailView: View {
     }
 
     @ViewBuilder
+    private func detailsSection(_ manga: MangaPage) -> some View {
+        let genres = manga.genres.map(\.name)
+        let tags = manga.tags.map(\.name)
+        let hasSynopsis = !(manga.synopsis?.isEmpty ?? true)
+        if hasSynopsis || !genres.isEmpty || !tags.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Button {
+                    withAnimation(.snappy) { detailsExpanded.toggle() }
+                } label: {
+                    HStack {
+                        Text("Details")
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: detailsExpanded ? "chevron.up" : "chevron.down")
+                            .foregroundStyle(.secondary)
+                            .font(.caption)
+                    }
+                }
+                .buttonStyle(.plain)
+
+                if hasSynopsis {
+                    Text(manga.synopsis ?? "")
+                        .font(.body)
+                        .lineLimit(detailsExpanded ? nil : 2)
+                }
+
+                if !genres.isEmpty {
+                    if detailsExpanded {
+                        FlowLayout(spacing: 8) {
+                            ForEach(genres, id: \.self) { chip($0) }
+                        }
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(genres, id: \.self) { chip($0) }
+                            }
+                        }
+                    }
+                }
+
+                if detailsExpanded, !tags.isEmpty {
+                    FlowLayout(spacing: 8) {
+                        ForEach(tags, id: \.self) { chip($0) }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    @ViewBuilder
+    private func continueReadingButton(for manga: MangaPage) -> some View {
+        if let chapter = startReadingChapter(in: manga) {
+            NavigationLink(value: chapter) {
+                Label("Continue Reading", systemImage: "book.fill")
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glassProminent)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private func startReadingChapter(in manga: MangaPage) -> Chapter? {
+        if let sr = manga.startReading, let ch = manga.chapters.first(where: { $0.id == sr.chapterId }) {
+            return ch
+        }
+        if manga.chapters.isEmpty { return nil }
+        return manga.chapters.max { ($0.index ?? Int.min, $0.number) < ($1.index ?? Int.min, $1.number) }
+    }
+
+    @ViewBuilder
     private func labeledRow(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
             Text(label)
@@ -117,35 +178,6 @@ struct MangaDetailView: View {
             Text(value)
                 .font(.subheadline)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    @ViewBuilder
-    private func tagSection(_ manga: MangaPage) -> some View {
-        let genres = manga.genres
-        let tags = manga.tags
-        if !genres.isEmpty || !tags.isEmpty {
-            VStack(alignment: .leading, spacing: 12) {
-                if !genres.isEmpty {
-                    chipRow(title: "Genres", tags: genres.map(\.name))
-                }
-                if !tags.isEmpty {
-                    chipRow(title: "Tags", tags: tags.map(\.name))
-                }
-            }
-            .padding(.horizontal, 16)
-        }
-    }
-
-    @ViewBuilder
-    private func chipRow(title: String, tags: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.subheadline.bold())
-                .foregroundStyle(.secondary)
-            FlowLayout(spacing: 8) {
-                ForEach(tags, id: \.self) { chip($0) }
-            }
         }
     }
 
