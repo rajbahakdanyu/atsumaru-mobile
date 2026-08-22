@@ -7,6 +7,7 @@ struct MangaDetailView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: MangaDetailViewModel?
     @State private var detailsExpanded = false
+    @State private var selectedScanlatorId: String?
 
     var body: some View {
         Group {
@@ -206,49 +207,106 @@ struct MangaDetailView: View {
     private func chapterSection(_ manga: MangaPage) -> some View {
         if !manga.chapters.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Chapters")
-                    .font(.headline)
-                ForEach(manga.chapters) { chapter in
-                    NavigationLink(value: chapter) {
-                        HStack(alignment: .top, spacing: 10) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(chapter.title)
-                                    .font(.body)
-                                    .lineLimit(1)
-                                HStack(spacing: 6) {
-                                    if let created = chapter.createdAt {
-                                        Text(relative(created))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    if let translator = manga.translatorName(for: chapter) {
-                                        Text("·")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                        Text(translator)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .lineLimit(1)
-                                    }
-                                }
-                            }
-                            Spacer()
-                            if chapter.progress != nil {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.tint)
-                                    .padding(.top, 2)
-                            }
-                        }
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+                HStack {
+                    Text("Chapters")
+                        .font(.headline)
+                    Spacer()
+                    scanlatorMenu(manga)
+                }
+                let visible = manga.chapters.filter { chapter in
+                    guard let sid = selectedScanlatorId else { return true }
+                    return chapter.scanlationMangaId == sid
+                }
+                if visible.isEmpty {
+                    Text("No chapters for this group.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.vertical, 12)
+                } else {
+                    ForEach(visible) { chapter in
+                        chapterRow(chapter, manga: manga)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
         }
+    }
+
+    @ViewBuilder
+    private func scanlatorMenu(_ manga: MangaPage) -> some View {
+        let groups = manga.scanlators ?? []
+        if groups.count > 1 {
+            Menu {
+                Button {
+                    selectedScanlatorId = nil
+                } label: {
+                    if selectedScanlatorId == nil {
+                        Label("All groups", systemImage: "checkmark")
+                    } else {
+                        Text("All groups")
+                    }
+                }
+                ForEach(groups) { group in
+                    Button {
+                        selectedScanlatorId = group.id
+                    } label: {
+                        if selectedScanlatorId == group.id {
+                            Label(group.name, systemImage: "checkmark")
+                        } else {
+                            Text(group.name)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(selectedScanlatorId.flatMap { id in groups.first(where: { $0.id == id })?.name } ?? "All groups")
+                        .font(.caption)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func chapterRow(_ chapter: Chapter, manga: MangaPage) -> some View {
+        NavigationLink(value: chapter) {
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(chapter.title)
+                        .font(.body)
+                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        if let created = chapter.createdAt {
+                            Text(relative(created))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let translator = manga.translatorName(for: chapter) {
+                            Text("·")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(translator)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                Spacer()
+                if chapter.progress != nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.tint)
+                        .padding(.top, 2)
+                }
+            }
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
