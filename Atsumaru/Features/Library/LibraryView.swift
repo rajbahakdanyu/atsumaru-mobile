@@ -6,6 +6,7 @@ struct LibraryView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: LibraryViewModel?
     @State private var showingNewList = false
+    @State private var showAuth = false
 
     private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
 
@@ -23,13 +24,19 @@ struct LibraryView: View {
             }
             await viewModel?.load()
         }
+        .sheet(isPresented: $showAuth) {
+            AuthFlowView(onSuccess: { showAuth = false })
+                .environment(environment)
+        }
     }
 
     @ViewBuilder
     private func content(for viewModel: LibraryViewModel) -> some View {
         @Bindable var viewModel = viewModel
         Group {
-            if let error = viewModel.error, !viewModel.isLoading, viewModel.hasNothing {
+            if environment.currentUser == nil {
+                signedOutContent
+            } else if let error = viewModel.error, !viewModel.isLoading, viewModel.hasNothing {
                 ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
             } else {
                 VStack(spacing: 0) {
@@ -142,6 +149,19 @@ struct LibraryView: View {
             Button("Cancel", role: .cancel) {
                 viewModel.newListName = ""
             }
+        }
+    }
+
+    @ViewBuilder
+    private var signedOutContent: some View {
+        VStack(spacing: 16) {
+            ContentUnavailableView(
+                "Please sign in",
+                systemImage: "person.crop.circle.badge.questionmark",
+                description: Text("Sign in to view your library and reading progress.")
+            )
+            Button("Sign in") { showAuth = true }
+                .buttonStyle(.borderedProminent)
         }
     }
 
