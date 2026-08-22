@@ -50,97 +50,73 @@ struct MangaDetailView: View {
     private func content(for manga: MangaPage) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                hero(manga)
-                titleSection(manga)
-                startReadingButton(for: manga)
-                metaChips(manga)
-                if let synopsis = manga.synopsis, !synopsis.isEmpty {
-                    Text(synopsis)
-                        .font(.body)
-                        .padding(.horizontal, 16)
-                }
-                tagSection(manga)
+                header(manga)
                 chapterSection(manga)
-                relatedSection(manga)
+                tagSection(manga)
+                if let synopsis = manga.synopsis, !synopsis.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Summary")
+                            .font(.headline)
+                        Text(synopsis)
+                            .font(.body)
+                    }
+                    .padding(.horizontal, 16)
+                }
             }
             .padding(.bottom, 24)
         }
     }
 
     @ViewBuilder
-    private func hero(_ manga: MangaPage) -> some View {
-        ZStack {
-            if let banner = manga.banner, let url = ImageURLBuilder.poster(banner.url) {
-                Color.clear
-                    .aspectRatio(CGFloat(banner.aspectRatio), contentMode: .fit)
-                    .frame(maxWidth: .infinity)
-                    .overlay {
-                        KFImage(url)
-                            .resizable()
-                            .scaledToFill()
-                    }
-                    .clipped()
-            } else if let path = manga.poster?.image, let url = ImageURLBuilder.poster(path) {
+    private func header(_ manga: MangaPage) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            if let path = manga.poster?.image, let url = ImageURLBuilder.poster(path) {
                 KFImage(url)
                     .resizable()
                     .scaledToFill()
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 240)
-                    .clipped()
+                    .frame(width: 110, height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             } else {
                 Rectangle()
                     .fill(.thinMaterial)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 240)
+                    .frame(width: 110, height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
-        }
-        .overlay(alignment: .bottomLeading) {
-            Text(manga.title)
-                .font(.title2.bold())
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .glassEffect(.regular, in: .rect)
-        }
-    }
 
-    @ViewBuilder
-    private func titleSection(_ manga: MangaPage) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(manga.title)
-                .font(.title2.bold())
-            if let alt = manga.englishTitle, !alt.isEmpty {
-                Text(alt)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 8) {
+                Text(manga.title)
+                    .font(.title3.bold())
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let status = manga.status, !status.isEmpty {
+                    labeledRow("Status", status)
+                }
+                if let rating = manga.avgRating {
+                    labeledRow("Rating", rating.formatted(.number.precision(.fractionLength(1))))
+                }
+                let authors = manga.authors.filter { $0.type?.lowercased() != "artist" }
+                if !authors.isEmpty {
+                    labeledRow("Author", authors.map(\.name).joined(separator: ", "))
+                }
+                let artists = manga.authors.filter { $0.type?.lowercased() == "artist" }
+                if !artists.isEmpty {
+                    labeledRow("Artist", artists.map(\.name).joined(separator: ", "))
+                }
             }
-            if !manga.authors.isEmpty {
-                Text(manga.authors.map(authorLabel).joined(separator: ", "))
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 16)
     }
 
-    private func authorLabel(_ author: Author) -> String {
-        if let type = author.type, !type.isEmpty {
-            return "\(author.name) · \(type)"
-        }
-        return author.name
-    }
-
     @ViewBuilder
-    private func metaChips(_ manga: MangaPage) -> some View {
-        let labels = [manga.status, manga.type, manga.medium]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-        if !labels.isEmpty {
-            FlowLayout(spacing: 8) {
-                ForEach(labels, id: \.self) { chip($0) }
-            }
-            .padding(.horizontal, 16)
+    private func labeledRow(_ label: String, _ value: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -210,45 +186,6 @@ struct MangaDetailView: View {
             }
             .padding(.horizontal, 16)
         }
-    }
-
-    @ViewBuilder
-    private func relatedSection(_ manga: MangaPage) -> some View {
-        let recs = manga.recommendations
-        if !recs.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Recommended")
-                    .font(.headline)
-                    .padding(.horizontal, 16)
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 12) {
-                        ForEach(recs) { Poster(item: $0) }
-                    }
-                    .padding(.horizontal, 16)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func startReadingButton(for manga: MangaPage) -> some View {
-        if let chapter = startReadingChapter(in: manga) {
-            NavigationLink(value: chapter) {
-                Label("Start Reading", systemImage: "book.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-            }
-            .buttonStyle(.glassProminent)
-            .padding(.horizontal, 16)
-        }
-    }
-
-    private func startReadingChapter(in manga: MangaPage) -> Chapter? {
-        if let sr = manga.startReading, let ch = manga.chapters.first(where: { $0.id == sr.chapterId }) {
-            return ch
-        }
-        if manga.chapters.isEmpty { return nil }
-        return manga.chapters.min { ($0.index ?? Int.max, $0.number) < ($1.index ?? Int.max, $1.number) }
     }
 }
 
