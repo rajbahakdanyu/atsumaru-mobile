@@ -7,7 +7,6 @@ struct MangaReaderView: View {
     let chapter: Chapter
 
     @Environment(AppEnvironment.self) private var environment
-    @Environment(\.dismiss) private var dismiss
 
     @AppStorage("readerMode") private var storedMode: ReaderMode = .paged
     @AppStorage("readingDirection") private var readingDirection: String = "ltr"
@@ -38,6 +37,7 @@ struct MangaReaderView: View {
         .toolbar { toolbarContent }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             if viewModel == nil {
                 let vm = ReaderViewModel(
@@ -215,9 +215,6 @@ struct MangaReaderView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button { dismiss() } label: { Image(systemName: "xmark") }
-        }
         ToolbarItem(placement: .principal) {
             Text(viewModel?.readChapter?.title ?? chapter.title)
                 .font(.subheadline.bold())
@@ -229,11 +226,12 @@ struct MangaReaderView: View {
             }
         }
         ToolbarItem(placement: .topBarTrailing) {
-            Picker("Reader Mode", selection: $storedMode) {
-                Label("Paged", systemImage: "book").tag(ReaderMode.paged)
-                Label("Strip", systemImage: "list").tag(ReaderMode.strip)
+            Menu {
+                Button { storedMode = .paged } label: { Label("Paged", systemImage: "book") }
+                Button { storedMode = .strip } label: { Label("Webtoon", systemImage: "rectangle.split.1x2") }
+            } label: {
+                Image(systemName: storedMode == .strip ? "rectangle.split.1x2" : "book")
             }
-            .pickerStyle(.segmented)
         }
     }
 }

@@ -7,7 +7,6 @@ struct NovelReaderView: View {
     let chapter: Chapter
 
     @Environment(AppEnvironment.self) private var environment
-    @Environment(\.dismiss) private var dismiss
 
     @AppStorage("novelFontSize") private var fontSize: Double = 17
     @AppStorage("novelLineSpacing") private var lineSpacing: Double = 6
@@ -38,6 +37,7 @@ struct NovelReaderView: View {
         .toolbar { toolbarContent }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .task {
             if viewModel == nil {
                 viewModel = NovelReaderViewModel(
@@ -90,9 +90,6 @@ struct NovelReaderView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .topBarLeading) {
-            Button { dismiss() } label: { Image(systemName: "xmark") }
-        }
         ToolbarItem(placement: .principal) {
             Text(viewModel?.novel?.title ?? chapter.title)
                 .font(.subheadline.bold())
