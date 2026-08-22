@@ -51,7 +51,6 @@ struct MangaDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(manga)
-                chapterSection(manga)
                 tagSection(manga)
                 if let synopsis = manga.synopsis, !synopsis.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
@@ -62,6 +61,7 @@ struct MangaDetailView: View {
                     }
                     .padding(.horizontal, 16)
                 }
+                chapterSection(manga)
             }
             .padding(.bottom, 24)
         }
