@@ -210,25 +210,34 @@ struct MangaDetailView: View {
                     .font(.headline)
                 ForEach(manga.chapters) { chapter in
                     NavigationLink(value: chapter) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(chapter.title)
-                                .font(.body)
-                                .lineLimit(1)
-                            HStack(spacing: 6) {
-                                if let created = chapter.createdAt {
-                                    Text(relative(created))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                        HStack(alignment: .top, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(chapter.title)
+                                    .font(.body)
+                                    .lineLimit(1)
+                                HStack(spacing: 6) {
+                                    if let created = chapter.createdAt {
+                                        Text(relative(created))
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let translator = manga.translatorName(for: chapter) {
+                                        Text("·")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Text(translator)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
                                 }
-                                if let translator = manga.translatorName(for: chapter) {
-                                    Text("·")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Text(translator)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
+                            }
+                            Spacer()
+                            if chapter.progress != nil {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.tint)
+                                    .padding(.top, 2)
                             }
                         }
                         .padding(.vertical, 6)

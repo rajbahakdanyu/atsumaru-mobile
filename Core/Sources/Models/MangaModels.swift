@@ -79,9 +79,10 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
     public let pageCount: Int
     public let scanlationMangaId: String?
     public let createdAt: Int?
+    public let progress: ChapterProgress?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, number, index, pageCount, scanlationMangaId, createdAt
+        case id, title, number, index, pageCount, scanlationMangaId, createdAt, progress
     }
 
     public init(from decoder: Decoder) throws {
@@ -101,6 +102,7 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         } else {
             createdAt = nil
         }
+        progress = try c.decodeIfPresent(ChapterProgress.self, forKey: .progress)
     }
 
     /// Chapter number formatted without a trailing `.0` for whole numbers
@@ -119,5 +121,26 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         f.formatOptions = [.withInternetDateTime]
         if let d = f.date(from: s) { return Int(d.timeIntervalSince1970 * 1000) }
         return nil
+    }
+}
+
+/// Server-side reading progress for a chapter (present when the user has
+/// read at least part of it). `page`/`pages` are 1-based; `frac` is 0...1.
+public struct ChapterProgress: Codable, Hashable, Sendable {
+    public let mangaId: String?
+    public let page: Int?
+    public let pages: Int?
+    public let ts: Int?
+    public let strip: Bool?
+    public let frac: Double?
+
+    public init(mangaId: String? = nil, page: Int? = nil, pages: Int? = nil,
+                ts: Int? = nil, strip: Bool? = nil, frac: Double? = nil) {
+        self.mangaId = mangaId
+        self.page = page
+        self.pages = pages
+        self.ts = ts
+        self.strip = strip
+        self.frac = frac
     }
 }
