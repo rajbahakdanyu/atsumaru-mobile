@@ -162,9 +162,17 @@ struct MangaDetailView: View {
     }
 
     private func startReadingChapter(in manga: MangaPage) -> Chapter? {
+        // 1. Most recently read chapter from local progress (source of truth
+        //    for where the user left off, including logged-out users).
+        if let local = environment.progressStore?.latestProgress(mangaId: manga.id),
+           let ch = manga.chapters.first(where: { $0.id == local.chapterId }) {
+            return ch
+        }
+        // 2. Server-provided continue point.
         if let sr = manga.startReading, let ch = manga.chapters.first(where: { $0.id == sr.chapterId }) {
             return ch
         }
+        // 3. Fall back to the latest chapter.
         if manga.chapters.isEmpty { return nil }
         return manga.chapters.max { ($0.index ?? Int.min, $0.number) < ($1.index ?? Int.min, $1.number) }
     }

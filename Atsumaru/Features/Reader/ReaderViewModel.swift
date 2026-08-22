@@ -77,7 +77,7 @@ final class ReaderViewModel {
             nextChapterId: nil,
             readMs: 0
         )
-        try? await readRepository.updateProgress(update)
         try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: readChapter.id, pageIndex: page, updatedAt: Date()))
+        try? await readRepository.updateProgress(update)
     }
 }

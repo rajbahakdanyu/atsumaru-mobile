@@ -52,6 +52,18 @@ public final class ProgressStore {
         return ProgressState(mangaId: record.mangaId, chapterId: record.chapterId, pageIndex: record.pageIndex, updatedAt: record.updatedAt)
     }
 
+    /// Returns the most recently updated reading progress for a manga, if any.
+    public func latestProgress(mangaId: String) -> ProgressState? {
+        let context = container.mainContext
+        var descriptor = FetchDescriptor<ProgressRecord>(
+            predicate: #Predicate { $0.mangaId == mangaId },
+            sortBy: [SortDescriptor(\.updatedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        guard let record = try? context.fetch(descriptor).first else { return nil }
+        return ProgressState(mangaId: record.mangaId, chapterId: record.chapterId, pageIndex: record.pageIndex, updatedAt: record.updatedAt)
+    }
+
     private func fetch(mangaId: String, chapterId: String, in context: ModelContext) throws -> ProgressRecord? {
         var descriptor = FetchDescriptor<ProgressRecord>(
             predicate: #Predicate { $0.mangaId == mangaId && $0.chapterId == chapterId }
