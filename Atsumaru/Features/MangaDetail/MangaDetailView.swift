@@ -197,6 +197,11 @@ struct MangaDetailView: View {
             .glassCapsule()
     }
 
+    private func relative(_ epochMs: Int) -> String {
+        Date(timeIntervalSince1970: TimeInterval(epochMs) / 1000)
+            .formatted(.relative(presentation: .named))
+    }
+
     @ViewBuilder
     private func chapterSection(_ manga: MangaPage) -> some View {
         if !manga.chapters.isEmpty {
@@ -205,20 +210,30 @@ struct MangaDetailView: View {
                     .font(.headline)
                 ForEach(manga.chapters) { chapter in
                     NavigationLink(value: chapter) {
-                        HStack {
-                            Text(chapter.numberLabel)
-                                .font(.body.bold())
-                                .frame(width: 44, alignment: .leading)
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(chapter.title)
                                 .font(.body)
                                 .lineLimit(1)
-                            Spacer()
-                            Text("\(chapter.pageCount) pp")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                if let created = chapter.createdAt {
+                                    Text(relative(created))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let translator = manga.translatorName(for: chapter) {
+                                    Text("·")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Text(translator)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
                         }
                         .padding(.horizontal, 12)
                         .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .glassCapsule()
                     }
                     .buttonStyle(.plain)

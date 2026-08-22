@@ -19,11 +19,17 @@ public struct MangaPage: Decodable, Sendable {
     public let genres: [Tag]
     public let tags: [Tag]
     public let authors: [Author]
+    public let scanlators: [Scanlator]?
     public let chapters: [Chapter]
     public let recommendations: [HomeItem]
     public let similarManga: [HomeItem]
     public let relations: [Relation]
     public let startReading: StartReading?
+
+    public func translatorName(for chapter: Chapter) -> String? {
+        guard let sid = chapter.scanlationMangaId else { return nil }
+        return scanlators?.first { $0.id == sid }?.name
+    }
 }
 
 public struct PosterImages: Decodable, Sendable {
@@ -48,6 +54,11 @@ public struct Author: Decodable, Identifiable, Hashable, Sendable {
     public let name: String
     public let slug: String?
     public let type: String?
+}
+
+public struct Scanlator: Decodable, Identifiable, Hashable, Sendable {
+    public let id: String
+    public let name: String
 }
 
 public struct Relation: Decodable, Sendable {
