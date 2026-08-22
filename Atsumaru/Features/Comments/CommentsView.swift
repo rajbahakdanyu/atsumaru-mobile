@@ -82,7 +82,11 @@ struct CommentsView: View {
             .padding(.vertical, 12)
         }
         .refreshable { await viewModel.refresh() }
-        .safeAreaInset(edge: .bottom) { composeBar(viewModel: viewModel) }
+        .safeAreaInset(edge: .bottom) {
+            if environment.currentUser != nil {
+                composeBar(viewModel: viewModel)
+            }
+        }
     }
 
     @ViewBuilder

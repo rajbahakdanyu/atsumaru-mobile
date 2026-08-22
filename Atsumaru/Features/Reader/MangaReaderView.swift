@@ -111,7 +111,7 @@ struct MangaReaderView: View {
     private func stripReader(viewModel: ReaderViewModel, pages: [PageImage]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: 4) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
                         fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
                             .frame(maxWidth: .infinity)
