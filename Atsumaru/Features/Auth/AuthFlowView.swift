@@ -8,6 +8,9 @@ struct AuthFlowView: View {
         NavigationStack {
             LoginView(onSuccess: onSuccess)
         }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(28)
     }
 }
 
@@ -21,41 +24,70 @@ struct LoginView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        Form {
-            Section {
-                TextField("Email", text: $email)
-                    .textContentType(.emailAddress)
-                    .keyboardType(.emailAddress)
-                    .textCase(.lowercase)
-                    .autocorrectionDisabled()
-                SecureField("Password", text: $password)
-                    .textContentType(.password)
-            }
-            Section {
-                Button {
-                    Task { await signIn() }
-                } label: {
-                    HStack {
-                        if isLoading { ProgressView() }
-                        Text(isLoading ? "Signing in…" : "Log in")
-                    }
-                    .frame(maxWidth: .infinity)
+        VStack(spacing: 18) {
+            Text("Sign in")
+                .font(.title2.bold())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "envelope")
+                        .foregroundStyle(.secondary)
+                    TextField("Email", text: $email)
+                        .textContentType(.emailAddress)
+                        .keyboardType(.emailAddress)
+                        .textCase(.lowercase)
+                        .autocorrectionDisabled()
                 }
-                .disabled(isLoading || email.isEmpty || password.isEmpty)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .glassCapsule()
+
+                HStack(spacing: 8) {
+                    Image(systemName: "lock")
+                        .foregroundStyle(.secondary)
+                    SecureField("Password", text: $password)
+                        .textContentType(.password)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .glassCapsule()
             }
-            Section {
-                NavigationLink("Create an account") {
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Button {
+                Task { await signIn() }
+            } label: {
+                HStack {
+                    if isLoading { ProgressView() }
+                    Text(isLoading ? "Signing in…" : "Log in")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(isLoading || email.isEmpty || password.isEmpty)
+
+            HStack(spacing: 12) {
+                NavigationLink("Create account") {
                     SignupView(onSuccess: onSuccess)
                 }
+                Spacer()
                 NavigationLink("Forgot password?") {
                     ForgotPasswordView()
                 }
             }
-            if let errorMessage {
-                Section { Text(errorMessage).foregroundStyle(.red) }
-            }
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
         }
-        .navigationTitle("Sign in")
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private func signIn() async {
