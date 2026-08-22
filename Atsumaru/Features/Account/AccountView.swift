@@ -138,6 +138,7 @@ struct AccountView: View {
             } label: {
                 Label("Community", systemImage: "person.3.crop.circle")
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                     .padding(.vertical, 10)
                     .padding(.horizontal, 14)
                     .glassCapsule()
@@ -149,6 +150,7 @@ struct AccountView: View {
             } label: {
                 Label("Settings", systemImage: "gearshape")
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                     .padding(.vertical, 10)
                     .padding(.horizontal, 14)
                     .glassCapsule()
@@ -170,6 +172,7 @@ struct AccountView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
                 .padding(.vertical, 10)
                 .padding(.horizontal, 14)
                 .glassCapsule()
