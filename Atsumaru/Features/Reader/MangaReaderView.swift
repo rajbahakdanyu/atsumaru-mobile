@@ -15,6 +15,7 @@ struct MangaReaderView: View {
     @State private var viewModel: ReaderViewModel?
     @State private var zoomScale: CGFloat = 1.0
     @State private var showComments = false
+    @State private var stripScrollTarget: Int?
 
     var body: some View {
         Group {
@@ -111,22 +112,23 @@ struct MangaReaderView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 4) {
-                    ForEach(pages) { page in
+                    ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
                         fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
                             .frame(maxWidth: .infinity)
                             .clipped()
                             .id(page.id)
                             .onAppear {
-                                viewModel.currentPage = page.number
+                                viewModel.currentPage = index
                                 viewModel.scheduleProgressSave()
                             }
                     }
                 }
                 .padding(.top, 4)
             }
-            .onChange(of: viewModel.currentPage) { _, newPage in
-                guard pages.indices.contains(newPage) else { return }
-                withAnimation { proxy.scrollTo(pages[newPage].id, anchor: .top) }
+            .onChange(of: stripScrollTarget) { _, target in
+                guard let target, pages.indices.contains(target) else { return }
+                withAnimation { proxy.scrollTo(pages[target].id, anchor: .top) }
+                stripScrollTarget = nil
             }
         }
     }
@@ -201,7 +203,13 @@ struct MangaReaderView: View {
                 .frame(width: 36, alignment: .trailing)
             Slider(value: Binding(
                 get: { Double(viewModel.currentPage) },
-                set: { viewModel.currentPage = Int($0.rounded()) }
+                set: { newValue in
+                    let page = Int(newValue.rounded())
+                    viewModel.currentPage = page
+                    if viewModel.mode == .strip {
+                        stripScrollTarget = page
+                    }
+                }
             ), in: 0...Double(max(0, total - 1)))
             Text("\(total)")
                 .font(.body.monospacedDigit())
