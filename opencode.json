@@ -32,7 +32,16 @@
     "general": {
       "mode": "subagent",
       "model": "opencode-go/deepseek-v4-pro",
-      "description": "General-purpose subagent for background execution passes, multi-step subtasks, and SDD task reviews."
+      "description": "General implementation subagent for code modifications, feature building, and multi-step execution passes."
+    },
+    "reviewer": {
+      "mode": "subagent",
+      "model": "opencode-go/glm-5.2",
+      "description": "Code review and specification verification subagent. Analyzes diffs, checks test coverage, enforces security, and validates SDD compliance without editing files directly.",
+      "permission": {
+        "edit": "deny",
+        "bash": "deny"
+      }
     },
     "explore": {
       "mode": "subagent",
