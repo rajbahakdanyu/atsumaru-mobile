@@ -52,6 +52,19 @@ struct BrowseView: View {
                 }
             }
             .id(displayMode)
+            .refreshable {
+                guard let viewModel else { return }
+                switch displayMode {
+                case .recentlyUpdated:
+                    await viewModel.loadRecentlyUpdated(reset: true)
+                case .popular:
+                    await viewModel.loadPopular(reset: true)
+                case .filtered:
+                    if viewModel.hasActiveFilters {
+                        await viewModel.reloadFiltered()
+                    }
+                }
+            }
             .navigationTitle("Browse")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
