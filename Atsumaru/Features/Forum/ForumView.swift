@@ -226,26 +226,17 @@ struct ChannelPostsView: View {
                 Text(post.user?.username ?? "Unknown")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let created = post.createdAt {
-                    Text(formatted(created))
+                if let date = post.createdAtDate {
+                    Text(date.formatted(.relative(presentation: .named)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\((post.upvotes ?? 0) - (post.downvotes ?? 0))")
+                Text("\(post.score ?? ((post.upvotes ?? 0) - (post.downvotes ?? 0)))")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private func formatted(_ iso: String) -> String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: iso) { return d.formatted(.relative(presentation: .named)) }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: iso) { return d.formatted(.relative(presentation: .named)) }
-        return iso
     }
 }

@@ -48,6 +48,30 @@ import Testing
         #expect(post.upvotes == 5)
     }
 
+    @Test func postsDecodeLiveShape() async throws {
+        let json = #"{"posts":[{"id":"p9","forumId":"cms0","type":"discussion","title":"UXORIOUS","content":"body","createdAt":1787336992131,"score":12,"upVotes":15,"downVotes":3,"pinned":false,"locked":false,"commentCount":4,"author":{"id":"a1","usernameSlug":"lazyreader","usernameDisplay":"LazyReader","pfp":"pfp/x.webp"}}],"hasMore":false}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/posts")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/posts")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let posts = try await repo.posts(forumId: "cms0", sort: nil, page: 0)
+        #expect(posts.count == 1)
+        #expect(posts.first?.user?.username == "LazyReader")
+        #expect(posts.first?.user?.avatarUrl == "pfp/x.webp")
+        #expect(posts.first?.createdAt == 1787336992131)
+        #expect(posts.first?.createdAtDate == Date(timeIntervalSince1970: 1787336992.131))
+        #expect(posts.first?.score == 12)
+        #expect(posts.first?.upvotes == 15)
+        #expect(posts.first?.downvotes == 3)
+        #expect(posts.first?.commentCount == 4)
+    }
+
     @Test func createPostPostsJSON() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]

@@ -22,7 +22,7 @@ final class PostDetailViewModel {
     }
 
     var score: Int {
-        (post.upvotes ?? 0) - (post.downvotes ?? 0) + localVote
+        (post.score ?? ((post.upvotes ?? 0) - (post.downvotes ?? 0))) + localVote
     }
 
     func load() async {
@@ -124,8 +124,8 @@ struct PostDetailView: View {
                 Text(viewModel.post.user?.username ?? "Unknown")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if let created = viewModel.post.createdAt {
-                    Text(formatted(created))
+                if let created = viewModel.post.createdAtDate {
+                    Text(created.formatted(.relative(presentation: .named)))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -190,15 +190,6 @@ struct PostDetailView: View {
                 .foregroundStyle(active ? color : .secondary)
         }
         .buttonStyle(.plain)
-    }
-
-    private func formatted(_ iso: String) -> String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: iso) { return d.formatted(.relative(presentation: .named)) }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: iso) { return d.formatted(.relative(presentation: .named)) }
-        return iso
     }
 }
 
