@@ -42,7 +42,7 @@ struct AccountView: View {
                     } else if let error = viewModel?.error {
                         ErrorStateView(error: error) { Task { await viewModel?.load() } }
                     }
-                    navigationLinks
+                    manageAccountButton
                     signOutButton
                 }
             }
@@ -131,12 +131,10 @@ struct AccountView: View {
     }
 
     @ViewBuilder
-    private var navigationLinks: some View {
-        VStack(spacing: 12) {
-            NavigationLink {
-                CommunityView()
-            } label: {
-                Label("Community", systemImage: "person.3.crop.circle")
+    private var manageAccountButton: some View {
+        if let url = URL(string: "https://atsu.moe/profile/settings") {
+            Link(destination: url) {
+                Label("Manage account on atsu.moe", systemImage: "safari")
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .padding(.vertical, 10)
@@ -144,42 +142,8 @@ struct AccountView: View {
                     .glassCapsule()
             }
             .buttonStyle(.plain)
-
-            NavigationLink {
-                SettingsView()
-            } label: {
-                Label("Settings", systemImage: "gearshape")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 14)
-                    .glassCapsule()
-            }
-            .buttonStyle(.plain)
-
-            NavigationLink {
-                NotificationsView()
-            } label: {
-                HStack {
-                    Label("Notifications", systemImage: "bell")
-                    Spacer()
-                    if let unread = viewModel?.unreadCount, unread > 0 {
-                        Text("\(unread)")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .glassCapsule()
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .padding(.vertical, 10)
-                .padding(.horizontal, 14)
-                .glassCapsule()
-            }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
         }
-        .padding(.horizontal, 16)
     }
 
     @ViewBuilder
@@ -206,7 +170,6 @@ struct AccountView: View {
 @Observable @MainActor
 final class AccountViewModel {
     var profile: PrivateProfile?
-    var unreadCount: Int?
     var isLoading = false
     var error: ApiError?
 
@@ -220,15 +183,11 @@ final class AccountViewModel {
         isLoading = true
         defer { isLoading = false }
 
-        async let profileTask = userRepository.privateProfile()
-        async let countTask = userRepository.notificationCount()
-
         do {
-            profile = try await profileTask
+            profile = try await userRepository.privateProfile()
             error = nil
         } catch {
             self.error = (error as? ApiError) ?? .decoding
         }
-        unreadCount = try? await countTask
     }
 }
