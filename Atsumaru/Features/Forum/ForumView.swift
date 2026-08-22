@@ -33,6 +33,7 @@ final class ForumViewModel {
 struct ForumView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ForumViewModel?
+    @State private var showAuth = false
 
     var body: some View {
         NavigationStack {
@@ -48,11 +49,17 @@ struct ForumView: View {
             }
             await viewModel?.load()
         }
+        .sheet(isPresented: $showAuth) {
+            AuthFlowView(onSuccess: { showAuth = false })
+                .environment(environment)
+        }
     }
 
     @ViewBuilder
     private func content(viewModel: ForumViewModel) -> some View {
-        if viewModel.isLoading && viewModel.channels.isEmpty {
+        if environment.currentUser == nil {
+            signedOutContent
+        } else if viewModel.isLoading && viewModel.channels.isEmpty {
             LoadingSkeletonView()
         } else if let error = viewModel.error, viewModel.channels.isEmpty {
             ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
@@ -79,6 +86,14 @@ struct ForumView: View {
             }
             .refreshable { await viewModel.load(force: true) }
         }
+    }
+
+    @ViewBuilder
+    private var signedOutContent: some View {
+        SignedOutView(message: "Sign in to browse the forum.") {
+            showAuth = true
+        }
+        .navigationTitle("Forum")
     }
 
     @ViewBuilder

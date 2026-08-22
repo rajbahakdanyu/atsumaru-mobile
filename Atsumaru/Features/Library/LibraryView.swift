@@ -154,14 +154,8 @@ struct LibraryView: View {
 
     @ViewBuilder
     private var signedOutContent: some View {
-        VStack(spacing: 16) {
-            ContentUnavailableView(
-                "Please sign in",
-                systemImage: "person.crop.circle.badge.questionmark",
-                description: Text("Sign in to view your library and reading progress.")
-            )
-            Button("Sign in") { showAuth = true }
-                .buttonStyle(.borderedProminent)
+        SignedOutView(message: "Sign in to view your library and reading progress.") {
+            showAuth = true
         }
     }
 

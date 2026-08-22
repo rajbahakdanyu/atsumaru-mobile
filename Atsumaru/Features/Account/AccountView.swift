@@ -23,14 +23,8 @@ struct AccountView: View {
 
     @ViewBuilder
     private var signedOutContent: some View {
-        VStack(spacing: 16) {
-            ContentUnavailableView(
-                "Not signed in",
-                systemImage: "person.crop.circle.badge.questionmark",
-                description: Text("Sign in to sync your library and progress.")
-            )
-            Button("Sign in") { showAuth = true }
-                .buttonStyle(.borderedProminent)
+        SignedOutView(message: "Sign in to sync your library and progress.") {
+            showAuth = true
         }
         .navigationTitle("Profile")
     }

@@ -17,6 +17,7 @@
 		10ED766E319097C830D44269 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B63E54986F0D069FF0CC15 /* ComposeView.swift */; };
 		187DEF3B41EDF36023E28DCD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F5476F1B7906FB1F6562EFE /* Assets.xcassets */; };
 		22A849BE9C6CC416B0261047 /* ForumRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F229D9516A577866A7CF78 /* ForumRepositoryTests.swift */; };
+		254FBF6EC653BCE3A1A71FDF /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1229A33D05017FF7623500 /* SignedOutView.swift */; };
 		25EF4B3A4B004BAE0095E825 /* AuthCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5B37AA8D7F5CBDA896E08B7 /* AuthCoordinator.swift */; };
 		27CA23EEB9F4E08B387632C2 /* FilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D923882712828D16B6B24168 /* FilterSheet.swift */; };
 		28DFF61776A30845F0963F71 /* ForumView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A4759BDF4CA11232CB5D0FC /* ForumView.swift */; };
@@ -200,6 +201,7 @@
 		599DB2BDBA027CAC400A55FB /* ContinueReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueReadingView.swift; sourceTree = "<group>"; };
 		5B7D63CF357121BD09BE213D /* LibraryRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRepositoryTests.swift; sourceTree = "<group>"; };
 		5D36F940F7785AEC1EA19BDE /* UserRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRepositoryTests.swift; sourceTree = "<group>"; };
+		5E1229A33D05017FF7623500 /* SignedOutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignedOutView.swift; sourceTree = "<group>"; };
 		64BE55CE9A3D8D461DEED4B3 /* CoreTests.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CoreTests.entitlements; sourceTree = "<group>"; };
 		6A9510F3C6282B50064A3B64 /* ForumRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumRepository.swift; sourceTree = "<group>"; };
 		6B321C21E5FDAE3631E3F406 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -451,6 +453,7 @@
 				C81B97BCED8E057D67859F6F /* Glass.swift */,
 				F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */,
 				16FC2E6CF7CE4F3442B1BF2C /* Poster.swift */,
+				5E1229A33D05017FF7623500 /* SignedOutView.swift */,
 				A6D2B7C40469046CF32FA058 /* Theme.swift */,
 			);
 			path = DesignSystem;
@@ -827,6 +830,7 @@
 				016B518353D45CFA36CC5BC5 /* RootView.swift in Sources */,
 				40756789AAB4FF9F7857D8D1 /* SearchSheet.swift in Sources */,
 				B4D5F7F7DC6A591E7C6CE10D /* SettingsView.swift in Sources */,
+				254FBF6EC653BCE3A1A71FDF /* SignedOutView.swift in Sources */,
 				99E448D32D91F35CF10F1D4B /* SignupView.swift in Sources */,
 				729E4BF393C6B6025AEEFFB9 /* Theme.swift in Sources */,
 				AECB929DC43299DE616CD4BF /* VerifyEmailView.swift in Sources */,
