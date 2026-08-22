@@ -105,10 +105,10 @@ struct AccountView: View {
     @ViewBuilder
     private func statsGrid(_ profile: PrivateProfile) -> some View {
         let stats: [(String, Int?)] = [
-            ("Manga read", profile.countMangaRead),
+            ("Comics read", profile.countMangaRead),
             ("Chapters read", profile.countChaptersRead),
-            ("Following", profile.countFollowing),
-            ("Followers", profile.countFollowers),
+            ("Bookmarks", profile.countBookmarks),
+            ("Comments", profile.countComments),
         ]
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             ForEach(stats.indices, id: \.self) { index in

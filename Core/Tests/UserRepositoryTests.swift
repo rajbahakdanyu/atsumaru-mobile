@@ -4,7 +4,7 @@ import Testing
 
 @Suite(.serialized) struct UserRepositoryTests {
     @Test func privateProfileDecodes() async throws {
-        let json = #"{"id":"u1","username":"dan","usernameSlug":"dan","email":"dan@e.x","premium":true,"rep":5,"avatarUrl":"/avatars/dan.png","countMangaRead":42,"countChaptersRead":900,"countFollowing":13,"countFollowers":87}"#
+        let json = #"{"profilePage":{"user":{"id":"u1","username":"dan","usernameSlug":"dan","reputation":5,"pfp":"pfp/dan.webp","mangaRead":42,"chaptersRead":900,"bookmarkCount":13,"commentCount":87}}}"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -19,9 +19,12 @@ import Testing
         let profile = try await repo.privateProfile()
         #expect(profile.id == "u1")
         #expect(profile.username == "dan")
-        #expect(profile.premium == true)
         #expect(profile.rep == 5)
+        #expect(profile.avatarUrl == "pfp/dan.webp")
         #expect(profile.countMangaRead == 42)
+        #expect(profile.countChaptersRead == 900)
+        #expect(profile.countBookmarks == 13)
+        #expect(profile.countComments == 87)
     }
 
     @Test func changeUsernamePostsJSON() async throws {
@@ -35,14 +38,30 @@ import Testing
             captured.value = UserRepositoryTests.body(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changeUsername")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (resp, Data("{}".utf8))
+            return (resp, Data(#"{"success":true}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveUserRepository(client: client)
-        try await repo.changeUsername("newname")
+        try await repo.changeUsername("newname", password: "secret")
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString.contains("\"username\""))
         #expect(bodyString.contains("newname"))
+        #expect(bodyString.contains("\"password\""))
+    }
+
+    @Test func changeUsernameThrowsOnFailure() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changeUsername")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"error":"Too small","success":false}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveUserRepository(client: client)
+        await #expect(throws: ApiError.self) {
+            try await repo.changeUsername("x", password: "y")
+        }
     }
 
     @Test func changeEmailPostsJSON() async throws {
@@ -55,7 +74,7 @@ import Testing
             captured.value = UserRepositoryTests.body(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changeEmail")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (resp, Data("{}".utf8))
+            return (resp, Data(#"{"success":true}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveUserRepository(client: client)
@@ -75,14 +94,15 @@ import Testing
             captured.value = UserRepositoryTests.body(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/settings/changePassword")!,
                                         statusCode: 200, httpVersion: nil, headerFields: nil)!
-            return (resp, Data("{}".utf8))
+            return (resp, Data(#"{"success":true}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveUserRepository(client: client)
-        try await repo.changePassword(oldPassword: "old", newPassword: "new")
+        try await repo.changePassword(oldPassword: "old", newPassword: "new", confirmPassword: "new")
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString.contains("\"oldPassword\""))
         #expect(bodyString.contains("\"newPassword\""))
+        #expect(bodyString.contains("\"confirmPassword\""))
     }
 
     @Test func changeAvatarPostsJSON() async throws {

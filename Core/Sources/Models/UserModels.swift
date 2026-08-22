@@ -1,8 +1,11 @@
 import Foundation
 
-/// Tolerant private-profile model. All fields optional except where the server
-/// is documented to provide them; unknown keys are ignored by the decoder so
-/// shape drift won't break decoding.
+/// Tolerant private-profile model. The live endpoint returns
+/// `{"profilePage":{"user":{...}}}`, where `user` uses `username`,
+/// `reputation`, `mangaRead`, `chaptersRead`, `bookmarkCount`, `commentCount`,
+/// `followingCount` and `followersCount`. This model maps those onto the
+/// app-facing field names; unknown keys are ignored so shape drift won't break
+/// decoding.
 public struct PrivateProfile: Decodable, Sendable, Equatable {
     public let id: String?
     public let username: String?
@@ -15,11 +18,77 @@ public struct PrivateProfile: Decodable, Sendable, Equatable {
     public let anilistUsername: String?
     public let countMangaRead: Int?
     public let countChaptersRead: Int?
-    /// UNVERIFIED key name: following/followers counts were noted in the brief
-    /// but the exact field names could not be confirmed from the site client.
     public let countFollowing: Int?
-    /// UNVERIFIED key name (see countFollowing).
     public let countFollowers: Int?
+    public let countBookmarks: Int?
+    public let countComments: Int?
+
+    private struct Envelope: Decodable {
+        let profilePage: Page?
+        struct Page: Decodable {
+            let user: User?
+        }
+        struct User: Decodable {
+            let id: String?
+            let username: String?
+            let usernameSlug: String?
+            let email: String?
+            let premium: Bool?
+            let reputation: Int?
+            let pfp: String?
+            let mangaRead: Int?
+            let chaptersRead: Int?
+            let followingCount: Int?
+            let followersCount: Int?
+            let bookmarkCount: Int?
+            let commentCount: Int?
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        if let env = try? Envelope(from: decoder), let u = env.profilePage?.user {
+            id = u.id
+            username = u.username
+            usernameSlug = u.usernameSlug
+            email = u.email
+            premium = u.premium
+            rep = u.reputation
+            avatarUrl = u.pfp
+            countMangaRead = u.mangaRead
+            countChaptersRead = u.chaptersRead
+            countFollowing = u.followingCount
+            countFollowers = u.followersCount
+            countBookmarks = u.bookmarkCount
+            countComments = u.commentCount
+            discordUsername = nil
+            anilistUsername = nil
+            return
+        }
+
+        // Legacy flat shape (used by earlier tests / callers).
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(String.self, forKey: .id)
+        username = try c.decodeIfPresent(String.self, forKey: .username)
+        usernameSlug = try c.decodeIfPresent(String.self, forKey: .usernameSlug)
+        email = try c.decodeIfPresent(String.self, forKey: .email)
+        premium = try c.decodeIfPresent(Bool.self, forKey: .premium)
+        rep = try c.decodeIfPresent(Int.self, forKey: .rep)
+        avatarUrl = try c.decodeIfPresent(String.self, forKey: .avatarUrl)
+        discordUsername = try c.decodeIfPresent(String.self, forKey: .discordUsername)
+        anilistUsername = try c.decodeIfPresent(String.self, forKey: .anilistUsername)
+        countMangaRead = try c.decodeIfPresent(Int.self, forKey: .countMangaRead)
+        countChaptersRead = try c.decodeIfPresent(Int.self, forKey: .countChaptersRead)
+        countFollowing = try c.decodeIfPresent(Int.self, forKey: .countFollowing)
+        countFollowers = try c.decodeIfPresent(Int.self, forKey: .countFollowers)
+        countBookmarks = nil
+        countComments = nil
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, username, usernameSlug, email, premium, rep, avatarUrl
+        case discordUsername, anilistUsername
+        case countMangaRead, countChaptersRead, countFollowing, countFollowers
+    }
 
     public init(
         id: String? = nil,
@@ -34,7 +103,9 @@ public struct PrivateProfile: Decodable, Sendable, Equatable {
         countMangaRead: Int? = nil,
         countChaptersRead: Int? = nil,
         countFollowing: Int? = nil,
-        countFollowers: Int? = nil
+        countFollowers: Int? = nil,
+        countBookmarks: Int? = nil,
+        countComments: Int? = nil
     ) {
         self.id = id
         self.username = username
@@ -49,6 +120,8 @@ public struct PrivateProfile: Decodable, Sendable, Equatable {
         self.countChaptersRead = countChaptersRead
         self.countFollowing = countFollowing
         self.countFollowers = countFollowers
+        self.countBookmarks = countBookmarks
+        self.countComments = countComments
     }
 }
 
@@ -99,14 +172,15 @@ public struct NotificationItem: Decodable, Sendable, Identifiable, Equatable {
     /// styling. Absent on the server → nil (no special styling).
     public let read: Bool?
 
-    enum CodingKeys: String, CodingKey { case id, type, title, body, createdAt, read }
+    enum CodingKeys: String, CodingKey { case id, type, title, body, message, createdAt, read }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
         type = try c.decodeIfPresent(String.self, forKey: .type)
         title = try c.decodeIfPresent(String.self, forKey: .title)
-        body = try c.decodeIfPresent(String.self, forKey: .body)
+        body = (try? c.decodeIfPresent(String.self, forKey: .message))
+            ?? (try? c.decodeIfPresent(String.self, forKey: .body))
         read = try c.decodeIfPresent(Bool.self, forKey: .read)
         if let int = try? c.decodeIfPresent(Int.self, forKey: .createdAt) {
             createdAt = int

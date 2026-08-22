@@ -55,10 +55,15 @@ struct SettingsView: View {
             ))
             .textContentType(.username)
             .autocorrectionDisabled()
+            SecureField("Current password", text: Binding(
+                get: { viewModel?.usernamePassword ?? "" },
+                set: { viewModel?.usernamePassword = $0 }
+            ))
+            .textContentType(.password)
             Button {
-                guard let name = viewModel?.username, !name.isEmpty else { return }
+                guard let vm = viewModel, !vm.username.isEmpty, !vm.usernamePassword.isEmpty else { return }
                 Task {
-                    if await viewModel?.changeUsername(name) ?? false,
+                    if await vm.changeUsername(vm.username, password: vm.usernamePassword),
                        let me = try? await environment.authRepository.me() {
                         environment.currentUser = me
                     }
@@ -70,7 +75,7 @@ struct SettingsView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .disabled(viewModel?.isSubmittingUsername == true || (viewModel?.username ?? "").isEmpty)
+            .disabled(viewModel?.isSubmittingUsername == true || (viewModel?.username ?? "").isEmpty || (viewModel?.usernamePassword ?? "").isEmpty)
             if let msg = viewModel?.usernameMessage {
                 Text(msg)
                     .font(.footnote)
@@ -132,9 +137,14 @@ struct SettingsView: View {
                 set: { viewModel?.newPassword = $0 }
             ))
             .textContentType(.newPassword)
+            SecureField("Confirm new password", text: Binding(
+                get: { viewModel?.confirmPassword ?? "" },
+                set: { viewModel?.confirmPassword = $0 }
+            ))
+            .textContentType(.newPassword)
             Button {
-                guard let vm = viewModel, !vm.oldPassword.isEmpty, !vm.newPassword.isEmpty else { return }
-                Task { await vm.changePassword(oldPassword: vm.oldPassword, newPassword: vm.newPassword) }
+                guard let vm = viewModel, !vm.oldPassword.isEmpty, !vm.newPassword.isEmpty, !vm.confirmPassword.isEmpty else { return }
+                Task { await vm.changePassword(oldPassword: vm.oldPassword, newPassword: vm.newPassword, confirmPassword: vm.confirmPassword) }
             } label: {
                 HStack {
                     if viewModel?.isSubmittingPassword == true { ProgressView() }
@@ -142,7 +152,7 @@ struct SettingsView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
-            .disabled(viewModel?.isSubmittingPassword == true || (viewModel?.oldPassword ?? "").isEmpty || (viewModel?.newPassword ?? "").isEmpty)
+            .disabled(viewModel?.isSubmittingPassword == true || (viewModel?.oldPassword ?? "").isEmpty || (viewModel?.newPassword ?? "").isEmpty || (viewModel?.confirmPassword ?? "").isEmpty)
             if let msg = viewModel?.passwordMessage {
                 Text(msg)
                     .font(.footnote)
@@ -155,10 +165,12 @@ struct SettingsView: View {
 @Observable @MainActor
 final class SettingsViewModel {
     var username = ""
+    var usernamePassword = ""
     var email = ""
     var emailPassword = ""
     var oldPassword = ""
     var newPassword = ""
+    var confirmPassword = ""
 
     var isSubmittingUsername = false
     var usernameMessage: String?
@@ -178,17 +190,19 @@ final class SettingsViewModel {
         self.userRepository = userRepository
     }
 
-    func changeUsername(_ name: String) async -> Bool {
+    func changeUsername(_ name: String, password: String) async -> Bool {
         isSubmittingUsername = true
         usernameMessage = nil
         defer { isSubmittingUsername = false }
         do {
-            try await userRepository.changeUsername(name)
+            try await userRepository.changeUsername(name, password: password)
             usernameMessage = "Username updated."
             usernameError = false
+            self.username = ""
+            self.usernamePassword = ""
             return true
         } catch {
-            usernameMessage = "Could not update username."
+            usernameMessage = "Could not update username. Check your password."
             usernameError = true
             return false
         }
@@ -211,16 +225,17 @@ final class SettingsViewModel {
         }
     }
 
-    func changePassword(oldPassword: String, newPassword: String) async {
+    func changePassword(oldPassword: String, newPassword: String, confirmPassword: String) async {
         isSubmittingPassword = true
         passwordMessage = nil
         defer { isSubmittingPassword = false }
         do {
-            try await userRepository.changePassword(oldPassword: oldPassword, newPassword: newPassword)
+            try await userRepository.changePassword(oldPassword: oldPassword, newPassword: newPassword, confirmPassword: confirmPassword)
             passwordMessage = "Password updated."
             passwordError = false
             self.oldPassword = ""
             self.newPassword = ""
+            self.confirmPassword = ""
         } catch {
             passwordMessage = "Could not update password. Check your current password."
             passwordError = true

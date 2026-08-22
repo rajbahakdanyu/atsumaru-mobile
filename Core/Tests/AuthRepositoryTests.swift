@@ -62,7 +62,7 @@ import Testing
     }
 
     @Test func mePersistsUserWhenAuthed() async throws {
-        let json = #"{"me":{"id":"u1","username":"dan","usernameSlug":"dan","email":"dan@e.x","premium":true,"rep":5}}"#
+        let json = #"{"me":{"id":"u1","usernameDisplay":"dan","usernameSlug":"dan","email":"dan@e.x","premium":true,"rep":5,"pfp":"pfp/abc.webp"}}"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -76,6 +76,8 @@ import Testing
         let repo = LiveAuthRepository(client: client, keychain: keychain)
         let me = try await repo.me()
         #expect(me?.id == "u1")
+        #expect(me?.username == "dan")
+        #expect(me?.avatarUrl == "pfp/abc.webp")
         #expect(me?.premium == true)
         #expect(me?.rep == 5)
         let stored = keychain.load(key: "auth-user")
