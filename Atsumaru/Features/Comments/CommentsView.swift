@@ -248,9 +248,6 @@ struct CommentAvatar: View {
     }
 
     static func url(from path: String?) -> URL? {
-        guard let path, !path.isEmpty else { return nil }
-        if let url = URL(string: path), url.scheme != nil { return url }
-        let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        return URL(string: "https://atsu.moe/" + trimmed)
+        ImageURLBuilder.avatar(path)
     }
 }
