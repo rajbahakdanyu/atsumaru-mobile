@@ -102,12 +102,12 @@ public actor DownloadManager {
         }
         guard !target.isEmpty else { return }
         let stream = events()
-        for await event in stream {
-            if Task.isCancelled { break }
+        outer: for await event in stream {
+            if Task.isCancelled { break outer }
             switch event {
             case .completed(let id), .failed(let id, _):
                 target.remove(id)
-                if target.isEmpty { break }
+                if target.isEmpty { break outer }
             case .progress:
                 continue
             }
@@ -211,6 +211,10 @@ public actor DownloadManager {
             await storageEviction()
             emit(.completed(chapterId: chapterId))
         } catch {
+            if Task.isCancelled { return }
+            let chapterDir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
+                .appendingPathComponent(chapterId, isDirectory: true)
+            try? FileManager.default.removeItem(at: chapterDir)
             let message = error.localizedDescription
             states[chapterId] = .failed(message)
             await persist(chapterId: chapterId, manga: manga, chapter: chapter,
@@ -225,7 +229,12 @@ public actor DownloadManager {
             throw NSError(domain: "dev.atsumaru.DownloadManager", code: 2,
                           userInfo: [NSLocalizedDescriptionKey: "Invalid image URL for page \(page.number)"])
         }
-        let (data, _) = try await session.data(for: URLRequest(url: url))
+        let (data, response) = try await session.data(for: URLRequest(url: url))
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            throw NSError(domain: "dev.atsumaru.DownloadManager", code: 3,
+                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(status) for page \(page.number)"])
+        }
         let ext = Self.pathExtension(from: page.image) ?? "webp"
         let dir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
             .appendingPathComponent(chapterId, isDirectory: true)

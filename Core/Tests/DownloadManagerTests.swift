@@ -33,6 +33,23 @@ struct DownloadManagerTests {
                  medium_: "Comic", mbRating: 8.0, views: nil, createdAt: nil, updatedAt: nil)
     }
 
+    /// Runs `operation`, throwing if it does not finish within `seconds` so a
+    /// hang surfaces as a test failure instead of stalling the suite.
+    private static func withTimeout<T: Sendable>(seconds: UInt64,
+                                                 _ operation: @escaping @Sendable () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: seconds * 1_000_000_000)
+                throw NSError(domain: "test", code: -100,
+                              userInfo: [NSLocalizedDescriptionKey: "Timed out after \(seconds)s"])
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
     @Test func enqueueTransitionsToCompleted() async throws {
         let json = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696},{"id":"ch1-1","image":"/static/pages/scan/ch1/1.webp","number":1,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
         Self.makeStubURLProtocol(json: json)
@@ -156,6 +173,42 @@ struct DownloadManagerTests {
             Issue.record("Expected failed state, got: \(state)")
             return
         }
+    }
+
+    @Test func awaitCompletionReturnsAfterTargetsComplete() async throws {
+        // Regression: `awaitCompletion` used to `break` out of the switch
+        // instead of the event loop, so it never returned. It must return
+        // once the target chapter reaches a terminal state.
+        let json = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
+        Self.makeStubURLProtocol(json: json)
+        let config = makeBetaURLConfiguration()
+        let repo = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let store = try await DownloadStore.makeInMemory()
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+
+        let manager = DownloadManager(readRepository: repo, store: store,
+                                      baseDirectory: tmpDir, sessionConfiguration: config)
+
+        let manga = makeManga()
+        let chapter = try JSONDecoder().decode(Chapter.self,
+                                               from: Data(#"{"id":"ch1","title":"Chapter 1","number":1,"pageCount":1}"#.utf8))
+
+        // The waiter starts BEFORE enqueueing, so the chapter is not yet in a
+        // terminal state when awaitCompletion begins and it must exit via the
+        // completion event. Before the labeled-loop fix this would hang
+        // forever; the timeout turns such a hang into a failing test rather
+        // than a stalled suite. (async let, not Task: cancelling the group
+        // after timeout must propagate into the stream iteration.)
+        try await Self.withTimeout(seconds: 10) {
+            async let completion: Void = manager.awaitCompletion(["ch1"])
+            await manager.enqueue(manga: manga, chapter: chapter)
+            await completion
+        }
+
+        let state = await manager.state(for: "ch1")
+        #expect(state == .completed)
     }
 
     @Test func evictionOrderEvictsOldestFirst() {
