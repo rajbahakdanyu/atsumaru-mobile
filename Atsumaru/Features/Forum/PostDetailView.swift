@@ -100,7 +100,7 @@ struct PostDetailView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     header(viewModel: viewModel)
                     if let raw = viewModel.post.content, !raw.isEmpty {
-                        StructuredText(markdown: raw)
+                        StructuredText(markdown: MarkdownSanitizer.sanitizeImages(raw))
                             .font(.body)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }

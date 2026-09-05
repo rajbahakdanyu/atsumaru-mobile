@@ -169,7 +169,7 @@ struct CommentRow: View {
         if let raw = comment.content, !raw.isEmpty {
             if comment.spoiler == true && !spoilerRevealed {
                 ZStack {
-                    InlineText(markdown: raw)
+                    InlineText(markdown: MarkdownSanitizer.sanitizeImages(raw))
                         .font(.subheadline)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .blur(radius: 10)
@@ -185,7 +185,7 @@ struct CommentRow: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                InlineText(markdown: raw)
+                InlineText(markdown: MarkdownSanitizer.sanitizeImages(raw))
                     .font(.subheadline)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

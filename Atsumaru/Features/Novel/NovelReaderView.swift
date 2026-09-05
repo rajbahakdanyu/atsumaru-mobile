@@ -92,7 +92,7 @@ struct NovelReaderView: View {
 
     @ViewBuilder
     private func paragraphRow(index: Int, paragraph: String, count: Int?) -> some View {
-        InlineText(markdown: paragraph)
+        InlineText(markdown: MarkdownSanitizer.sanitizeImages(paragraph))
             .font(.system(size: fontSize, design: serif ? .serif : .default))
             .textual.lineSpacing(.fontScaled(lineSpacing / fontSize))
             .frame(maxWidth: .infinity, alignment: .leading)
