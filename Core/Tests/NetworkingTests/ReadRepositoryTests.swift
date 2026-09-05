@@ -36,7 +36,7 @@ import Testing
             #expect(request.url?.path == "/api/read/updateProgress")
             #expect(request.httpMethod == "POST")
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/json")
-            let body = try #require(Self.body(of: request))
+            let body = try #require(requestBody(of: request))
             let payload = try JSONDecoder().decode(ProgressBodyPayload.self, from: body)
             let p = payload.progress
             #expect(p.mangaScanlationId == "cmrs_1")
@@ -75,25 +75,4 @@ private struct ProgressPayload: Decodable {
     let strip: Bool
     let nextChapterId: String?
     let readMs: Int
-}
-
-private extension ReadRepositoryTests {
-    static func body(of request: URLRequest) -> Data? {
-        if let data = request.httpBody { return data }
-        guard let stream = request.httpBodyStream else { return nil }
-        var data = Data()
-        stream.open()
-        let capacity = 4096
-        var buffer = [UInt8](repeating: 0, count: capacity)
-        while stream.hasBytesAvailable {
-            let read = stream.read(&buffer, maxLength: capacity)
-            if read > 0 {
-                data.append(&buffer, count: read)
-            } else {
-                break
-            }
-        }
-        stream.close()
-        return data
-    }
 }

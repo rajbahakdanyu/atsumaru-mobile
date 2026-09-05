@@ -89,7 +89,7 @@ import Testing
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/user/userMangaLists/create")
             #expect(request.httpMethod == "POST")
-            captured.value = LibraryRepositoryTests.body(of: request)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/create")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -119,31 +119,5 @@ import Testing
         let repo = LiveLibraryRepository(client: client)
         try await repo.deleteList(id: "list1")
         #expect(capturedMethod.value == "DELETE")
-    }
-}
-
-private final class Box<T>: @unchecked Sendable {
-    var value: T
-    init(_ value: T) { self.value = value }
-}
-
-private extension LibraryRepositoryTests {
-    static func body(of request: URLRequest) -> Data? {
-        if let data = request.httpBody { return data }
-        guard let stream = request.httpBodyStream else { return nil }
-        var data = Data()
-        stream.open()
-        let capacity = 4096
-        var buffer = [UInt8](repeating: 0, count: capacity)
-        while stream.hasBytesAvailable {
-            let read = stream.read(&buffer, maxLength: capacity)
-            if read > 0 {
-                data.append(&buffer, count: read)
-            } else {
-                break
-            }
-        }
-        stream.close()
-        return data
     }
 }

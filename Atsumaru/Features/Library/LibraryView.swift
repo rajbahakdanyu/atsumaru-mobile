@@ -8,7 +8,7 @@ struct LibraryView: View {
     @State private var showingNewList = false
     @State private var showAuth = false
 
-    private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
+    private let columns = PosterGrid.columns
 
     var body: some View {
         NavigationStack {
@@ -24,10 +24,7 @@ struct LibraryView: View {
             }
             await viewModel?.load()
         }
-        .sheet(isPresented: $showAuth) {
-            AuthFlowView(onSuccess: { showAuth = false })
-                .environment(environment)
-        }
+        .authSheet(isPresented: $showAuth, environment: environment)
     }
 
     @ViewBuilder

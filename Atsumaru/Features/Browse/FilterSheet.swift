@@ -117,7 +117,7 @@ struct FilterSheet: View {
 
     private var mediumSection: some View {
         section(title: "Medium") {
-            FilterFlowLayout(spacing: 8) {
+            FlowLayout(spacing: 8) {
                 chip("Comic", id: "Comic", selection: $viewModel.query.mediums)
                 chip("Novel", id: "Novel", selection: $viewModel.query.mediums)
             }
@@ -128,7 +128,7 @@ struct FilterSheet: View {
         section(title: "Tags") {
             let selectedTags = items.filter { viewModel.query.tags.contains($0.id) }
             if !selectedTags.isEmpty {
-                FilterFlowLayout(spacing: 8) {
+                FlowLayout(spacing: 8) {
                     ForEach(selectedTags) { f in
                         selectedTagChip(f)
                     }
@@ -259,7 +259,7 @@ struct FilterSheet: View {
     }
 
     private func flowChips(items: [NamedFilter], selection: Binding<[String]>) -> some View {
-        FilterFlowLayout(spacing: 8) {
+        FlowLayout(spacing: 8) {
             ForEach(items) { f in
                 chip(f.name, id: f.id, selection: selection)
             }
@@ -286,27 +286,3 @@ struct FilterSheet: View {
     }
 }
 
-struct FilterFlowLayout: Layout {
-    var spacing: CGFloat = 8
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let maxWidth = proposal.width ?? .infinity
-        var x: CGFloat = 0, y: CGFloat = 0, rowHeight: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x + size.width > maxWidth, x > 0 { x = 0; y += rowHeight + spacing; rowHeight = 0 }
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        return CGSize(width: maxWidth, height: y + rowHeight)
-    }
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        var x = bounds.minX, y = bounds.minY, rowHeight: CGFloat = 0
-        for sub in subviews {
-            let size = sub.sizeThatFits(.unspecified)
-            if x + size.width > bounds.maxX, x > bounds.minX { x = bounds.minX; y += rowHeight + spacing; rowHeight = 0 }
-            sub.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
-            x += size.width + spacing
-            rowHeight = max(rowHeight, size.height)
-        }
-    }
-}

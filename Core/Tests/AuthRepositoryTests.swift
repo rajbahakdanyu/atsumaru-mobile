@@ -117,7 +117,7 @@ import Testing
             case "/api/auth/login":
                 #expect(request.httpMethod == "POST")
                 #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/x-www-form-urlencoded")
-                captured.value = AuthRepositoryTests.body(of: request)
+                captured.value = requestBody(of: request)
                 let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/auth/login")!,
                                            statusCode: 200, httpVersion: nil, headerFields: nil)!
                 return (resp, Data(#"{"status":"success","me":{"id":"u1","username":"dan"}}"#.utf8))
@@ -162,7 +162,7 @@ import Testing
         let captured = Box<Data?>(nil)
         StubURLProtocol.handler = { request in
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/x-www-form-urlencoded")
-            captured.value = AuthRepositoryTests.body(of: request)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/x")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -171,31 +171,5 @@ import Testing
         let _: EmptyResponse = try await client.postForm("/x", fields: ["b": "2", "a": "1&x=y"])
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString == "a=1%26x%3Dy&b=2")
-    }
-}
-
-private final class Box<T>: @unchecked Sendable {
-    var value: T
-    init(_ value: T) { self.value = value }
-}
-
-private extension AuthRepositoryTests {
-    static func body(of request: URLRequest) -> Data? {
-        if let data = request.httpBody { return data }
-        guard let stream = request.httpBodyStream else { return nil }
-        var data = Data()
-        stream.open()
-        let capacity = 4096
-        var buffer = [UInt8](repeating: 0, count: capacity)
-        while stream.hasBytesAvailable {
-            let read = stream.read(&buffer, maxLength: capacity)
-            if read > 0 {
-                data.append(&buffer, count: read)
-            } else {
-                break
-            }
-        }
-        stream.close()
-        return data
     }
 }

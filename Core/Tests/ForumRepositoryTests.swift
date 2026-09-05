@@ -79,7 +79,7 @@ import Testing
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/forum/createPost")
             #expect(request.httpMethod == "POST")
-            captured.value = ForumRepositoryTests.body(of: request)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/createPost")!,
                                         statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -102,7 +102,7 @@ import Testing
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/forum/votePost")
             #expect(request.httpMethod == "POST")
-            captured.value = ForumRepositoryTests.body(of: request)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/votePost")!,
                                         statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -115,31 +115,5 @@ import Testing
         #expect(bodyString.contains("\"vote\""))
         #expect(bodyString.contains("p1"))
         #expect(bodyString.contains("\"vote\":1"))
-    }
-}
-
-private final class Box<T>: @unchecked Sendable {
-    var value: T
-    init(_ value: T) { self.value = value }
-}
-
-private extension ForumRepositoryTests {
-    static func body(of request: URLRequest) -> Data? {
-        if let data = request.httpBody { return data }
-        guard let stream = request.httpBodyStream else { return nil }
-        var data = Data()
-        stream.open()
-        let capacity = 4096
-        var buffer = [UInt8](repeating: 0, count: capacity)
-        while stream.hasBytesAvailable {
-            let read = stream.read(&buffer, maxLength: capacity)
-            if read > 0 {
-                data.append(&buffer, count: read)
-            } else {
-                break
-            }
-        }
-        stream.close()
-        return data
     }
 }

@@ -24,7 +24,7 @@ struct BrowseView: View {
     @State private var showingSearch = false
     @AppStorage("browseDisplayMode") private var displayMode: BrowseDisplayMode = .recentlyUpdated
 
-    private let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
+    private let columns = PosterGrid.columns
 
     var body: some View {
         NavigationStack {

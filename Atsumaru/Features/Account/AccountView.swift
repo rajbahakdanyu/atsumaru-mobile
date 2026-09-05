@@ -15,10 +15,7 @@ struct AccountView: View {
                 signedOutContent
             }
         }
-        .sheet(isPresented: $showAuth) {
-            AuthFlowView(onSuccess: { showAuth = false })
-                .environment(environment)
-        }
+        .authSheet(isPresented: $showAuth, environment: environment)
     }
 
     @ViewBuilder

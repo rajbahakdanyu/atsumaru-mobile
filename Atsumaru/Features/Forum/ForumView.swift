@@ -49,10 +49,7 @@ struct ForumView: View {
             }
             await viewModel?.load()
         }
-        .sheet(isPresented: $showAuth) {
-            AuthFlowView(onSuccess: { showAuth = false })
-                .environment(environment)
-        }
+        .authSheet(isPresented: $showAuth, environment: environment)
     }
 
     @ViewBuilder
