@@ -3,17 +3,11 @@ import Foundation
 public struct MangaPage: Decodable, Sendable {
     public let id: String
     public let title: String
-    public let englishTitle: String?
     public let type: String?
     public let medium: String?
     public let status: String?
     public let synopsis: String?
-    public let views: String?
-    public let released: Int?
     public let avgRating: Double?
-    public let mbRating: Double?
-    public let totalChapterCount: Double?
-    public let hasReadHistory: Bool?
     public let poster: PosterImages?
     public let banner: Banner?
     public let genres: [Tag]
@@ -22,7 +16,6 @@ public struct MangaPage: Decodable, Sendable {
     public let scanlators: [Scanlator]?
     public let chapters: [Chapter]
     public let recommendations: [HomeItem]
-    public let similarManga: [HomeItem]
     public let relations: [Relation]
     public let startReading: StartReading?
 
@@ -34,9 +27,6 @@ public struct MangaPage: Decodable, Sendable {
 
 public struct PosterImages: Decodable, Sendable {
     public let image: String
-    public let smallImage: String?
-    public let mediumImage: String?
-    public let largeImage: String?
 }
 
 public struct Banner: Decodable, Sendable {
@@ -68,7 +58,6 @@ public struct Relation: Decodable, Sendable {
 
 public struct StartReading: Decodable, Sendable {
     public let chapterId: String
-    public let pageIndex: Int?
 }
 
 public struct Chapter: Codable, Identifiable, Hashable, Sendable {
@@ -103,15 +92,6 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
             createdAt = nil
         }
         progress = try c.decodeIfPresent(ChapterProgress.self, forKey: .progress)
-    }
-
-    /// Chapter number formatted without a trailing `.0` for whole numbers
-    /// (so `97` renders as "97", `93.2` renders as "93.2").
-    public var numberLabel: String {
-        if number.truncatingRemainder(dividingBy: 1) == 0 {
-            return String(Int(number))
-        }
-        return String(number)
     }
 
     private static func epochMs(fromISO8601 s: String) -> Int? {

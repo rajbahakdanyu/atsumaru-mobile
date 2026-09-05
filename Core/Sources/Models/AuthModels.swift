@@ -11,34 +11,10 @@ public struct AuthUser: Codable, Sendable, Identifiable, Equatable {
     public let premium: Bool?
     public let rep: Int?
     public let avatarUrl: String?
-    public let discordUsername: String?
-    public let anilistUsername: String?
 
     enum CodingKeys: String, CodingKey {
         case id, username, usernameSlug, email, premium, rep, avatarUrl
-        case usernameDisplay, pfp, discordUsername, anilistUsername
-    }
-
-    public init(
-        id: String,
-        username: String? = nil,
-        usernameSlug: String? = nil,
-        email: String? = nil,
-        premium: Bool? = nil,
-        rep: Int? = nil,
-        avatarUrl: String? = nil,
-        discordUsername: String? = nil,
-        anilistUsername: String? = nil
-    ) {
-        self.id = id
-        self.username = username
-        self.email = email
-        self.usernameSlug = usernameSlug
-        self.premium = premium
-        self.rep = rep
-        self.avatarUrl = avatarUrl
-        self.discordUsername = discordUsername
-        self.anilistUsername = anilistUsername
+        case usernameDisplay, pfp
     }
 
     public init(from decoder: Decoder) throws {
@@ -52,8 +28,6 @@ public struct AuthUser: Codable, Sendable, Identifiable, Equatable {
         rep = try? c.decodeIfPresent(Int.self, forKey: .rep)
         avatarUrl = (try? c.decodeIfPresent(String.self, forKey: .pfp))
             ?? (try? c.decodeIfPresent(String.self, forKey: .avatarUrl))
-        discordUsername = try? c.decodeIfPresent(String.self, forKey: .discordUsername)
-        anilistUsername = try? c.decodeIfPresent(String.self, forKey: .anilistUsername)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -65,7 +39,5 @@ public struct AuthUser: Codable, Sendable, Identifiable, Equatable {
         try c.encodeIfPresent(premium, forKey: .premium)
         try c.encodeIfPresent(rep, forKey: .rep)
         try c.encodeIfPresent(avatarUrl, forKey: .avatarUrl)
-        try c.encodeIfPresent(discordUsername, forKey: .discordUsername)
-        try c.encodeIfPresent(anilistUsername, forKey: .anilistUsername)
     }
 }

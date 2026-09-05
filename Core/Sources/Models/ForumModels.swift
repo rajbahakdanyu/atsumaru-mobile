@@ -10,7 +10,6 @@ public struct ForumChannel: Codable, Identifiable, Sendable, Hashable {
 public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     public let id: String
     public let forumId: String?
-    public let type: String?
     public let title: String?
     public let content: String?
     public let user: ForumUser?
@@ -21,7 +20,6 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     public let pinned: Bool?
     public let locked: Bool?
     public let commentCount: Int?
-    public let tagIds: [String]?
 
     public var createdAtDate: Date? {
         guard let createdAt else { return nil }
@@ -58,7 +56,7 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, forumId, type, title, content, createdAt, score, pinned, locked, commentCount, tagIds
+        case id, forumId, title, content, createdAt, score, pinned, locked, commentCount
         case author, user
         case upVotes, upvotes, downVotes, downvotes
     }
@@ -67,7 +65,6 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)
         forumId = try? c.decodeIfPresent(String.self, forKey: .forumId)
-        type = try? c.decodeIfPresent(String.self, forKey: .type)
         title = try? c.decodeIfPresent(String.self, forKey: .title)
         content = try? c.decodeIfPresent(String.self, forKey: .content)
         user = (try? c.decodeIfPresent(ForumUser.self, forKey: .author))
@@ -76,7 +73,6 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         pinned = try? c.decodeIfPresent(Bool.self, forKey: .pinned)
         locked = try? c.decodeIfPresent(Bool.self, forKey: .locked)
         commentCount = try? c.decodeIfPresent(Int.self, forKey: .commentCount)
-        tagIds = try? c.decodeIfPresent([String].self, forKey: .tagIds)
         upvotes = (try? c.decodeIfPresent(Int.self, forKey: .upVotes))
             ?? (try? c.decodeIfPresent(Int.self, forKey: .upvotes))
         downvotes = (try? c.decodeIfPresent(Int.self, forKey: .downVotes))
@@ -94,7 +90,6 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(id, forKey: .id)
         try? c.encodeIfPresent(forumId, forKey: .forumId)
-        try? c.encodeIfPresent(type, forKey: .type)
         try? c.encodeIfPresent(title, forKey: .title)
         try? c.encodeIfPresent(content, forKey: .content)
         try? c.encodeIfPresent(user, forKey: .author)
@@ -105,7 +100,6 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         try? c.encodeIfPresent(pinned, forKey: .pinned)
         try? c.encodeIfPresent(locked, forKey: .locked)
         try? c.encodeIfPresent(commentCount, forKey: .commentCount)
-        try? c.encodeIfPresent(tagIds, forKey: .tagIds)
     }
 }
 

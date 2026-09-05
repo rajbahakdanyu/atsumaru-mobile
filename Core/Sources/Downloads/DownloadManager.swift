@@ -64,24 +64,6 @@ public actor DownloadManager {
         tasks[chapterId] = task
     }
 
-    /// Cancels a queued or in-progress chapter download, if any. Terminal
-    /// (completed/failed) chapters are left untouched.
-    public func cancel(_ chapterId: String) async {
-        guard let task = tasks[chapterId] else { return }
-        task.cancel()
-        tasks[chapterId] = nil
-        if case .downloading = states[chapterId] {
-            states[chapterId] = .queued
-        }
-        if let store {
-            let records = await store.all()
-            if let record = records.first(where: { $0.chapterId == chapterId }),
-               record.state == "queued" || record.state == "downloading" {
-                await evictChapter(record)
-            }
-        }
-    }
-
     public func state(for chapterId: String) -> DownloadState {
         states[chapterId] ?? .queued
     }

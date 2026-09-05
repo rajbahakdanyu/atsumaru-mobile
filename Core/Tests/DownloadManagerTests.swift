@@ -28,9 +28,7 @@ struct DownloadManagerTests {
     }
 
     private func makeManga() -> HomeItem {
-        HomeItem(id: "m1", title: "Test Manga", image: "", smallImage: "",
-                 mediumImage: "", largeImage: "", isAdult: false, type: "Manga",
-                 medium_: "Comic", mbRating: 8.0, views: nil, createdAt: nil, updatedAt: nil)
+        HomeItem(id: "m1", title: "Test Manga", image: "", medium: "Comic")
     }
 
     /// Runs `operation`, throwing if it does not finish within `seconds` so a

@@ -116,19 +116,6 @@ public final class DownloadStore {
         }
     }
 
-    public func deleteAll() throws {
-        let context = container.mainContext
-        let descriptor = FetchDescriptor<DownloadedChapter>()
-        if let records = try? context.fetch(descriptor) {
-            for record in records { context.delete(record) }
-        }
-        try context.save()
-    }
-
-    public func totalBytes() -> Int64 {
-        all().reduce(0) { $0 + $1.totalBytes }
-    }
-
     private func fetch(chapterId: String, in context: ModelContext) throws -> DownloadedChapter? {
         var descriptor = FetchDescriptor<DownloadedChapter>(
             predicate: #Predicate { $0.chapterId == chapterId }

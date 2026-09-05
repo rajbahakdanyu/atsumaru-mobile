@@ -56,7 +56,6 @@
 		856B130DBAD1CC74B85A1B99 /* ParagraphCommentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92341C477A82E9D68F8DAC9C /* ParagraphCommentsSheet.swift */; };
 		890632CD552396D3294D713A /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C9C793DE58DFEB0DA8744E /* KeychainStore.swift */; };
 		8C7964A5882275EFB26C384E /* SearchQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855791840DD799AC99FB099 /* SearchQuery.swift */; };
-		8ECAAFD52B12E9710E5C5FF2 /* Endpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEFE55EE1CC177AB394A3DDA /* Endpoint.swift */; };
 		919E29D27E639A7ED861EB47 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8941E5D9382A040AC85FAC3F /* HomeModels.swift */; };
 		995BC3118B53B2C3319E9770 /* MangaDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473FEE07EB0BA195928182A2 /* MangaDetailViewModel.swift */; };
 		9D6D3C53948F9D0E1351C616 /* MangaReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 537EEB3893BEA4FC7FF72EA0 /* MangaReaderView.swift */; };
@@ -227,7 +226,6 @@
 		D56783B4504D2E645F341B44 /* SearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSheet.swift; sourceTree = "<group>"; };
 		D923882712828D16B6B24168 /* FilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheet.swift; sourceTree = "<group>"; };
 		D944EB4282821C2A4BC1A508 /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
-		DEFE55EE1CC177AB394A3DDA /* Endpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Endpoint.swift; sourceTree = "<group>"; };
 		F06FA5A126B6374456089905 /* SearchQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchQueryTests.swift; sourceTree = "<group>"; };
 		F23BE2DD845902C0F23C5EB1 /* CommentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsViewModel.swift; sourceTree = "<group>"; };
 		F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingSkeletonView.swift; sourceTree = "<group>"; };
@@ -283,7 +281,6 @@
 			isa = PBXGroup;
 			children = (
 				A48D71299CD13B1164BA58CB /* APIClient.swift */,
-				DEFE55EE1CC177AB394A3DDA /* Endpoint.swift */,
 				BCBDB45BD660672A175CB860 /* ImageURLBuilder.swift */,
 				4A2141DF722D8CC032ED3D28 /* MarkdownSanitizer.swift */,
 				9855791840DD799AC99FB099 /* SearchQuery.swift */,
@@ -695,7 +692,6 @@
 				C6E5A91002B7B61A0BDB7E31 /* CommentModels.swift in Sources */,
 				76C0DFC05A7D190C069D00EB /* CommentsRepository.swift in Sources */,
 				DA5E95A8ECCC623E3A9ED841 /* DownloadManager.swift in Sources */,
-				8ECAAFD52B12E9710E5C5FF2 /* Endpoint.swift in Sources */,
 				EC29B7E962C9952D7DC75A02 /* FilterModels.swift in Sources */,
 				036CC8FF429F7AD3F4E85BD8 /* ForumModels.swift in Sources */,
 				560CB6CDF6387974E0912155 /* ForumRepository.swift in Sources */,

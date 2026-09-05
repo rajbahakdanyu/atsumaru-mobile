@@ -12,7 +12,6 @@ private struct UnsafeSendableBox<T>: @unchecked Sendable {
 
 public final class BackgroundScheduler: Sendable {
     public static let refreshIdentifier = "dev.atsumaru.app.refresh"
-    public static let processingIdentifier = "dev.atsumaru.app.processing"
     public static let backgroundRefreshKey = "dev.atsumaru.app.backgroundRefresh"
     public static let notificationsKey = "dev.atsumaru.app.newChapterNotifications"
 
@@ -54,19 +53,7 @@ public final class BackgroundScheduler: Sendable {
             let box = UnsafeSendableBox(value: refreshTask)
             Task { await self.handleRefresh(task: box.value) }
         }
-        let processingOK = BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: Self.processingIdentifier,
-            using: nil
-        ) { [weak self] task in
-            guard let self,
-                  let processingTask = task as? BGProcessingTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            let box = UnsafeSendableBox(value: processingTask)
-            Task { await self.handleProcessing(task: box.value) }
-        }
-        return refreshOK && processingOK
+        return refreshOK
     }
 
     public func scheduleRefresh() {
@@ -84,18 +71,6 @@ public final class BackgroundScheduler: Sendable {
         BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshIdentifier)
     }
 
-    public func scheduleProcessing() {
-        let request = BGProcessingTaskRequest(identifier: Self.processingIdentifier)
-        request.requiresNetworkConnectivity = true
-        request.requiresExternalPower = true
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 60 * 60)
-        do {
-            try BGTaskScheduler.shared.submit(request)
-        } catch {
-            // best-effort.
-        }
-    }
-
     public func requestNotificationAuthorization() async {
         let center = UNUserNotificationCenter.current()
         _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -109,13 +84,6 @@ public final class BackgroundScheduler: Sendable {
         // Reschedule regardless of success so one failure doesn't kill the
         // background cycle; scheduleRefresh() no-ops when the pref is off.
         self.scheduleRefresh()
-    }
-
-    public func handleProcessing(task: BGProcessingTask) async {
-        let work = Task { await self.refreshAndDownload() }
-        task.expirationHandler = { work.cancel() }
-        let success = await work.value
-        task.setTaskCompleted(success: success)
     }
 
     @discardableResult
@@ -183,9 +151,6 @@ public final class BackgroundScheduler: Sendable {
 
     private static func homeItem(from bookmark: Bookmark) -> HomeItem {
         HomeItem(id: bookmark.id, title: bookmark.title, image: bookmark.image ?? "",
-                 smallImage: bookmark.smallImage ?? "", mediumImage: bookmark.mediumImage ?? "",
-                 largeImage: bookmark.largeImage ?? "", isAdult: bookmark.isAdult ?? false,
-                 type: bookmark.type ?? "Manga", medium_: bookmark.medium ?? "Comic",
-                 mbRating: 0.0, views: nil, createdAt: nil, updatedAt: nil)
+                 medium: bookmark.medium ?? "Comic")
     }
 }
