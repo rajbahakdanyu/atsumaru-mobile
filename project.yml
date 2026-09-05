@@ -64,13 +64,9 @@ targets:
       path: Atsumaru/Info.plist
       properties:
         UILaunchScreen: {}
-        UIBackgroundModes: [fetch, processing]
+        UIBackgroundModes: [fetch]
         BGTaskSchedulerPermittedIdentifiers:
           - dev.atsumaru.app.refresh
-          - dev.atsumaru.app.processing
-        CFBundleURLTypes:
-          - CFBundleURLName: dev.atsumaru.app
-            CFBundleURLSchemes: [atsumaru]
 schemes:
   Core:
     build:
