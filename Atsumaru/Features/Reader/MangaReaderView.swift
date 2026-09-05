@@ -144,25 +144,39 @@ struct MangaReaderView: View {
                 updateStripPage(frames: frames, viewModel: viewModel)
             }
             .onChange(of: stripScrollTarget) { _, target in
-                guard let target, pages.indices.contains(target) else { return }
+                guard let target, pages.indices.contains(target) else {
+                    stripScrollTarget = nil
+                    return
+                }
                 viewModel.currentPage = target
                 withAnimation { proxy.scrollTo(pages[target].id, anchor: .top) }
                 stripSeekGateResetTask?.cancel()
                 stripSeekGateResetTask = Task {
-                    try? await Task.sleep(for: .seconds(2))
+                    try? await Task.sleep(for: .seconds(4))
                     guard !Task.isCancelled else { return }
                     if stripScrollTarget == target { stripScrollTarget = nil }
                 }
             }
             .onScrollPhaseChange { _, newPhase in
-                stripScrollActive = newPhase != .idle
-                if newPhase == .idle {
+                switch newPhase {
+                case .tracking, .interacting:
+                    // The user has seized the scroll view — hand control back so
+                    // their manual scroll updates the page immediately.
                     stripScrollTarget = nil
+                    stripScrollActive = true
+                case .idle:
+                    stripScrollActive = false
+                    stripScrollTarget = nil
+                default:
+                    stripScrollActive = true
                 }
             }
             .onAppear {
                 stripScrollActive = false
                 stripScrollTarget = nil
+                stripSeekGateResetTask?.cancel()
+            }
+            .onDisappear {
                 stripSeekGateResetTask?.cancel()
             }
         }
