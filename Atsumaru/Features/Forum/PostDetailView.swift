@@ -35,6 +35,10 @@ final class PostDetailViewModel {
             if let forumId = fresh.forumId {
                 tags = (try? await repository.tags(forumId: forumId)) ?? []
             }
+        } catch is CancellationError {
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
             loadFailed = true
         }

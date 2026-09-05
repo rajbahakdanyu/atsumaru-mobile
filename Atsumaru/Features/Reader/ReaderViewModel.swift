@@ -39,6 +39,10 @@ final class ReaderViewModel {
                 currentPage = 0
             }
             loadFailed = false
+        } catch is CancellationError {
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
             loadFailed = true
         }

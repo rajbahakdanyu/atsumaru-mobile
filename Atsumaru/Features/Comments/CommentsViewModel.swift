@@ -28,6 +28,10 @@ final class CommentsViewModel {
                 sectionId: sectionId, parentId: nil, cursor: nil, sort: nil
             )
             loadFailed = false
+        } catch is CancellationError {
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
             loadFailed = true
         }
@@ -39,6 +43,10 @@ final class CommentsViewModel {
                 sectionId: sectionId, parentId: nil, cursor: nil, sort: nil
             )
             loadFailed = false
+        } catch is CancellationError {
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
             loadFailed = true
         }

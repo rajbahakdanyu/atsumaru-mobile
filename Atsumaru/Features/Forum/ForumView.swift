@@ -47,7 +47,14 @@ struct ForumView: View {
             if viewModel == nil {
                 viewModel = ForumViewModel(repository: environment.forumRepository)
             }
-            await viewModel?.load()
+            if environment.currentUser != nil {
+                await viewModel?.load()
+            }
+        }
+        .onChange(of: environment.currentUser) { _, user in
+            if user != nil {
+                Task { await viewModel?.load(force: true) }
+            }
         }
         .authSheet(isPresented: $showAuth, environment: environment)
     }

@@ -28,6 +28,9 @@ struct DownloadsView: View {
             }
             await viewModel?.load()
         }
+        .onDisappear {
+            viewModel?.stopEventStream()
+        }
     }
 
     @ViewBuilder

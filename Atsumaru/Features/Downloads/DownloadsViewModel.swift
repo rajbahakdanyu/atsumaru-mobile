@@ -37,6 +37,7 @@ final class DownloadsViewModel {
     private let backgroundScheduler: BackgroundScheduler
     private var eventTask: Task<Void, Never>?
     private var loaded = false
+    private var isRefreshing = false
 
     init(downloadManager: DownloadManager, backgroundScheduler: BackgroundScheduler) {
         self.downloadManager = downloadManager
@@ -50,7 +51,15 @@ final class DownloadsViewModel {
         startEventStream()
     }
 
+    func stopEventStream() {
+        eventTask?.cancel()
+        eventTask = nil
+    }
+
     func refresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         let snapshots = await downloadManager.listChapters()
         var updated: [DownloadRow] = []
         for record in snapshots {
@@ -135,6 +144,8 @@ final class DownloadsViewModel {
 
     private func updateRow(chapterId: String, _ updater: (inout DownloadRow) -> Void) {
         guard let index = rows.firstIndex(where: { $0.chapterId == chapterId }) else {
+            // Row not loaded yet (e.g. a fresh enqueue); coalesce a refresh.
+            guard !isRefreshing else { return }
             Task { await refresh() }
             return
         }

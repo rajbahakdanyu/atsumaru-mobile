@@ -22,7 +22,14 @@ struct LibraryView: View {
             if viewModel == nil {
                 viewModel = LibraryViewModel(repository: environment.libraryRepository)
             }
-            await viewModel?.load()
+            if environment.currentUser != nil {
+                await viewModel?.load()
+            }
+        }
+        .onChange(of: environment.currentUser) { _, user in
+            if user != nil {
+                Task { await viewModel?.load(force: true) }
+            }
         }
         .authSheet(isPresented: $showAuth, environment: environment)
     }
@@ -86,10 +93,16 @@ struct LibraryView: View {
                             } else {
                                 LazyVStack(spacing: 10) {
                                     ForEach(viewModel.history) { entry in
-                                        NavigationLink(value: entry.mangaId ?? entry.id) {
-                                            historyRow(entry)
+                                        Group {
+                                            if let mangaId = entry.mangaId {
+                                                NavigationLink(value: mangaId) {
+                                                    historyRow(entry)
+                                                }
+                                                .buttonStyle(.plain)
+                                            } else {
+                                                historyRow(entry)
+                                            }
                                         }
-                                        .buttonStyle(.plain)
                                     }
                                 }
                                 .padding(.horizontal, 16)

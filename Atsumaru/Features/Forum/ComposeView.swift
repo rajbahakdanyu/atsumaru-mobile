@@ -9,6 +9,7 @@ final class ComposeViewModel {
     var content = ""
     var isSubmitting = false
     var didSubmit = false
+    var errorMessage: String?
 
     private let repository: any ForumRepository
 
@@ -33,6 +34,7 @@ final class ComposeViewModel {
             try await repository.createPost(forumId: channel.id, title: t, content: c)
             didSubmit = true
         } catch {
+            errorMessage = "Couldn't post. Please try again."
         }
     }
 }
@@ -93,6 +95,12 @@ struct ComposeView: View {
                 Text(channel.name ?? "Forum")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 TextField("Title", text: $viewModel.title, axis: .vertical)
                     .lineLimit(1...2)
                     .textFieldStyle(.plain)

@@ -104,6 +104,12 @@ struct CommentsView: View {
                     }
                 }
             }
+            if viewModel.postError {
+                Text("Couldn't post. Please try again.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField("Add a comment", text: $viewModel.composing, axis: .vertical)
                     .lineLimit(1...4)
