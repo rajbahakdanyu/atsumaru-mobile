@@ -48,9 +48,8 @@ public final class APIClient: @unchecked Sendable {
         }
     }
 
-    public func get<T: Decodable & Sendable>(
-        _ path: String, query: [String: String] = [:]
-    ) async throws -> T {
+    /// Builds a request against `Self.baseURL` with the shared header set.
+    private func buildRequest(method: String, path: String, query: [String: String]) throws -> URLRequest {
         guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
             throw ApiError.invalidURL
         }
@@ -60,8 +59,16 @@ public final class APIClient: @unchecked Sendable {
         }
         guard let url = components.url else { throw ApiError.invalidURL }
         var request = URLRequest(url: url)
+        request.httpMethod = method
         request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
         request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        return request
+    }
+
+    public func get<T: Decodable & Sendable>(
+        _ path: String, query: [String: String] = [:]
+    ) async throws -> T {
+        let request = try buildRequest(method: "GET", path: path, query: query)
         let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
@@ -75,19 +82,8 @@ public final class APIClient: @unchecked Sendable {
     public func post<T: Decodable & Sendable, Body: Encodable & Sendable>(
         _ path: String, query: [String: String] = [:], json body: Body
     ) async throws -> T {
-        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
-            throw ApiError.invalidURL
-        }
-        components.path = path
-        if !query.isEmpty {
-            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
-        }
-        guard let url = components.url else { throw ApiError.invalidURL }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        var request = try buildRequest(method: "POST", path: path, query: query)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
-        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
@@ -104,17 +100,7 @@ public final class APIClient: @unchecked Sendable {
     public func getData(
         _ path: String, query: [String: String] = [:]
     ) async throws -> Data {
-        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
-            throw ApiError.invalidURL
-        }
-        components.path = path
-        if !query.isEmpty {
-            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
-        }
-        guard let url = components.url else { throw ApiError.invalidURL }
-        var request = URLRequest(url: url)
-        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
-        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
+        let request = try buildRequest(method: "GET", path: path, query: query)
         let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
         guard (200..<300).contains(http.statusCode) else { throw ApiError.http(http.statusCode) }
@@ -157,21 +143,10 @@ extension APIClient {
 
     private func send(method: String, path: String, query: [String: String],
                       contentType: String?, body: Data?) async throws {
-        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
-            throw ApiError.invalidURL
-        }
-        components.path = path
-        if !query.isEmpty {
-            components.queryItems = query.map { URLQueryItem(name: $0.key, value: $0.value) }
-        }
-        guard let url = components.url else { throw ApiError.invalidURL }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
+        var request = try buildRequest(method: method, path: path, query: query)
         if let contentType {
             request.setValue(contentType, forHTTPHeaderField: "Content-Type")
         }
-        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
-        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = body
         let (_, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }
@@ -184,16 +159,8 @@ extension APIClient {
         _ path: String,
         fields: [String: String]
     ) async throws -> T {
-        guard var components = URLComponents(url: Self.baseURL, resolvingAgainstBaseURL: false) else {
-            throw ApiError.invalidURL
-        }
-        components.path = path
-        guard let url = components.url else { throw ApiError.invalidURL }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        var request = try buildRequest(method: "POST", path: path, query: [:])
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("atsumaru-ios", forHTTPHeaderField: "User-Agent")
-        request.setValue("fetch", forHTTPHeaderField: "X-Requested-With")
         request.httpBody = Data(Self.formEncode(fields).utf8)
         let (data, response) = try await fetch(request)
         guard let http = response as? HTTPURLResponse else { throw ApiError.decoding }

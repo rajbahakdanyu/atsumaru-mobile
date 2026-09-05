@@ -198,11 +198,6 @@ struct MangaDetailView: View {
             .glassCapsule()
     }
 
-    private func relative(_ epochMs: Int) -> String {
-        Date(timeIntervalSince1970: TimeInterval(epochMs) / 1000)
-            .formatted(.relative(presentation: .named))
-    }
-
     @ViewBuilder
     private func chapterSection(_ manga: MangaPage) -> some View {
         if !manga.chapters.isEmpty {
@@ -278,8 +273,8 @@ struct MangaDetailView: View {
                         .font(.body)
                         .lineLimit(1)
                     HStack(spacing: 6) {
-                        if let created = chapter.createdAt {
-                            Text(relative(created))
+                        if let created = chapter.createdAt?.dateFromEpochMs {
+                            Text(created.relativeLabel)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

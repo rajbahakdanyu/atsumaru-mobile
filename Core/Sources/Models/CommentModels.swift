@@ -39,10 +39,9 @@ public struct Comment: Codable, Identifiable, Sendable {
         }
     }
 
-    public var createdAtDate: Date? {
-        guard let createdAt else { return nil }
-        return Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000)
-    }
+    public var createdAtDate: Date? { createdAt?.dateFromEpochMs }
+
+    public var displayScore: Int { score ?? ((upvotes ?? 0) - (downvotes ?? 0)) }
 
     private enum CodingKeys: String, CodingKey {
         case id, content, user, createdAt, spoiler, score
@@ -69,13 +68,7 @@ public struct Comment: Codable, Identifiable, Sendable {
             ?? (try? c.decodeIfPresent(Int.self, forKey: .upvotes))
         downvotes = (try? c.decodeIfPresent(Int.self, forKey: .downVotes))
             ?? (try? c.decodeIfPresent(Int.self, forKey: .downvotes))
-        if let ms = try? c.decodeIfPresent(Int.self, forKey: .createdAt) {
-            createdAt = ms
-        } else if let str = try? c.decodeIfPresent(String.self, forKey: .createdAt) {
-            createdAt = Self.epochMs(fromISO8601: str)
-        } else {
-            createdAt = nil
-        }
+        createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -88,15 +81,6 @@ public struct Comment: Codable, Identifiable, Sendable {
         try? c.encodeIfPresent(score, forKey: .score)
         try? c.encodeIfPresent(upvotes, forKey: .upvotes)
         try? c.encodeIfPresent(downvotes, forKey: .downvotes)
-    }
-
-    public static func epochMs(fromISO8601: String) -> Int? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: fromISO8601) { return Int(d.timeIntervalSince1970 * 1000) }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: fromISO8601) { return Int(d.timeIntervalSince1970 * 1000) }
-        return nil
     }
 
     public init(id: String, content: String?, user: CommentUser?, createdAt: Int? = nil,

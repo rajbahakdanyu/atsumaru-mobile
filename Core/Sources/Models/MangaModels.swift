@@ -83,24 +83,8 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         index = try c.decodeIfPresent(Int.self, forKey: .index)
         pageCount = (try? c.decode(Int.self, forKey: .pageCount)) ?? 0
         scanlationMangaId = try c.decodeIfPresent(String.self, forKey: .scanlationMangaId)
-        if let int = try? c.decodeIfPresent(Int.self, forKey: .createdAt) {
-            createdAt = int
-        } else if let str = try c.decodeIfPresent(String.self, forKey: .createdAt),
-                  let ms = Self.epochMs(fromISO8601: str) {
-            createdAt = ms
-        } else {
-            createdAt = nil
-        }
+        createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
         progress = try c.decodeIfPresent(ChapterProgress.self, forKey: .progress)
-    }
-
-    private static func epochMs(fromISO8601 s: String) -> Int? {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: s) { return Int(d.timeIntervalSince1970 * 1000) }
-        f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: s) { return Int(d.timeIntervalSince1970 * 1000) }
-        return nil
     }
 }
 

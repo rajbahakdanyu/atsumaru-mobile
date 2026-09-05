@@ -22,7 +22,7 @@ final class PostDetailViewModel {
     }
 
     var score: Int {
-        (post.score ?? ((post.upvotes ?? 0) - (post.downvotes ?? 0))) + localVote
+        post.displayScore + localVote
     }
 
     func load() async {
@@ -125,7 +125,7 @@ struct PostDetailView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let created = viewModel.post.createdAtDate {
-                    Text(created.formatted(.relative(presentation: .named)))
+                    Text(created.relativeLabel)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

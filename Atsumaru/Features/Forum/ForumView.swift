@@ -227,12 +227,12 @@ struct ChannelPostsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let date = post.createdAtDate {
-                    Text(date.formatted(.relative(presentation: .named)))
+                    Text(date.relativeLabel)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Text("\(post.score ?? ((post.upvotes ?? 0) - (post.downvotes ?? 0)))")
+                Text("\(post.displayScore)")
                     .font(.caption.monospacedDigit())
                     .foregroundStyle(.secondary)
             }

@@ -37,6 +37,7 @@
 		4A62A2580996E7F68C0193FD /* NovelRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B553432E7083E203925428A /* NovelRepositoryTests.swift */; };
 		4BFF41223F5AB3075035436D /* MangaDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 828AA7FEE97ABAE13AE543DD /* MangaDetailView.swift */; };
 		4D76306D6F161490DE6A5395 /* LoadingSkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */; };
+		4F0AB5626B5F56342A000C28 /* DateParsing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 551D75AFC3111037B2D711D9 /* DateParsing.swift */; };
 		536DE12D0F74660B3E12ABCB /* BackgroundScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80E99FC2EC2588ECC293EE4D /* BackgroundScheduler.swift */; };
 		560CB6CDF6387974E0912155 /* ForumRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A9510F3C6282B50064A3B64 /* ForumRepository.swift */; };
 		57EAF653380968A4C9F54C17 /* DownloadManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87E551E77A8B22CF69541F84 /* DownloadManagerTests.swift */; };
@@ -55,6 +56,7 @@
 		82C5BB7222182E366551546B /* SearchModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08303682ECF8B1EA60E03CB3 /* SearchModels.swift */; };
 		856B130DBAD1CC74B85A1B99 /* ParagraphCommentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92341C477A82E9D68F8DAC9C /* ParagraphCommentsSheet.swift */; };
 		890632CD552396D3294D713A /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C9C793DE58DFEB0DA8744E /* KeychainStore.swift */; };
+		8B2D73FF9F1C1B8819F41A7F /* TolerantDecoding.swift in Sources */ = {isa = PBXBuildFile; fileRef = E291A92383B4B53C14B6F664 /* TolerantDecoding.swift */; };
 		8C7964A5882275EFB26C384E /* SearchQuery.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9855791840DD799AC99FB099 /* SearchQuery.swift */; };
 		919E29D27E639A7ED861EB47 /* HomeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8941E5D9382A040AC85FAC3F /* HomeModels.swift */; };
 		995BC3118B53B2C3319E9770 /* MangaDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 473FEE07EB0BA195928182A2 /* MangaDetailViewModel.swift */; };
@@ -176,6 +178,7 @@
 		52F229D9516A577866A7CF78 /* ForumRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumRepositoryTests.swift; sourceTree = "<group>"; };
 		537EEB3893BEA4FC7FF72EA0 /* MangaReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaReaderView.swift; sourceTree = "<group>"; };
 		5426A3501C10E280B75DB63A /* APIClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClientTests.swift; sourceTree = "<group>"; };
+		551D75AFC3111037B2D711D9 /* DateParsing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateParsing.swift; sourceTree = "<group>"; };
 		599DB2BDBA027CAC400A55FB /* ContinueReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContinueReadingView.swift; sourceTree = "<group>"; };
 		5B7D63CF357121BD09BE213D /* LibraryRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryRepositoryTests.swift; sourceTree = "<group>"; };
 		5D36F940F7785AEC1EA19BDE /* UserRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserRepositoryTests.swift; sourceTree = "<group>"; };
@@ -226,6 +229,7 @@
 		D56783B4504D2E645F341B44 /* SearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchSheet.swift; sourceTree = "<group>"; };
 		D923882712828D16B6B24168 /* FilterSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterSheet.swift; sourceTree = "<group>"; };
 		D944EB4282821C2A4BC1A508 /* BrowseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseView.swift; sourceTree = "<group>"; };
+		E291A92383B4B53C14B6F664 /* TolerantDecoding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TolerantDecoding.swift; sourceTree = "<group>"; };
 		F06FA5A126B6374456089905 /* SearchQueryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchQueryTests.swift; sourceTree = "<group>"; };
 		F23BE2DD845902C0F23C5EB1 /* CommentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsViewModel.swift; sourceTree = "<group>"; };
 		F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingSkeletonView.swift; sourceTree = "<group>"; };
@@ -281,9 +285,11 @@
 			isa = PBXGroup;
 			children = (
 				A48D71299CD13B1164BA58CB /* APIClient.swift */,
+				551D75AFC3111037B2D711D9 /* DateParsing.swift */,
 				BCBDB45BD660672A175CB860 /* ImageURLBuilder.swift */,
 				4A2141DF722D8CC032ED3D28 /* MarkdownSanitizer.swift */,
 				9855791840DD799AC99FB099 /* SearchQuery.swift */,
+				E291A92383B4B53C14B6F664 /* TolerantDecoding.swift */,
 				BE614833C1D6C0BF9D132F03 /* Endpoints */,
 			);
 			path = Networking;
@@ -691,6 +697,7 @@
 				CA85022D5B7493891C694B87 /* BrowseRepository.swift in Sources */,
 				C6E5A91002B7B61A0BDB7E31 /* CommentModels.swift in Sources */,
 				76C0DFC05A7D190C069D00EB /* CommentsRepository.swift in Sources */,
+				4F0AB5626B5F56342A000C28 /* DateParsing.swift in Sources */,
 				DA5E95A8ECCC623E3A9ED841 /* DownloadManager.swift in Sources */,
 				EC29B7E962C9952D7DC75A02 /* FilterModels.swift in Sources */,
 				036CC8FF429F7AD3F4E85BD8 /* ForumModels.swift in Sources */,
@@ -710,6 +717,7 @@
 				2D2915369D3E3AF37BA4554B /* ReadRepository.swift in Sources */,
 				82C5BB7222182E366551546B /* SearchModels.swift in Sources */,
 				8C7964A5882275EFB26C384E /* SearchQuery.swift in Sources */,
+				8B2D73FF9F1C1B8819F41A7F /* TolerantDecoding.swift in Sources */,
 				B18F8FB142C12D8DE8D7C98B /* UserModels.swift in Sources */,
 				F8E2043D0EE24FB336AF0F4E /* UserRepository.swift in Sources */,
 			);

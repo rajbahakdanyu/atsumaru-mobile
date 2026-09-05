@@ -34,19 +34,13 @@ public struct LiveLibraryRepository: LibraryRepository {
     /// Tolerant list decode: prefers `{"lists":[...]}` then a bare array `[...]`.
     public func lists() async throws -> [UserList] {
         let data = try await client.getData("/api/user/userMangaLists/getLists")
-        struct ListsEnvelope: Decodable { let lists: [UserList] }
-        if let env = try? JSONDecoder().decode(ListsEnvelope.self, from: data) { return env.lists }
-        if let arr = try? JSONDecoder().decode([UserList].self, from: data) { return arr }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(UserList.self, from: data, key: "lists")
     }
 
     /// Tolerant history decode: prefers `{"items":[...]}` then a bare array.
     public func history() async throws -> [HistoryEntry] {
         let data = try await client.getData("/api/user/history")
-        struct ItemsEnvelope: Decodable { let items: [HistoryEntry] }
-        if let env = try? JSONDecoder().decode(ItemsEnvelope.self, from: data) { return env.items }
-        if let arr = try? JSONDecoder().decode([HistoryEntry].self, from: data) { return arr }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(HistoryEntry.self, from: data, key: "items")
     }
 
     public func createList(name: String) async throws {

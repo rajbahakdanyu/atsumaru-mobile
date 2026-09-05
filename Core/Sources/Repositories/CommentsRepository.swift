@@ -29,14 +29,7 @@ public struct LiveCommentsRepository: CommentsRepository {
         if let cursor { query["cursor"] = cursor }
         if let sort { query["sort"] = sort }
         let data = try await client.getData("/api/comments/v2/threads", query: query)
-        struct Envelope: Decodable { let comments: [Comment]? }
-        if let env = try? JSONDecoder().decode(Envelope.self, from: data), let comments = env.comments {
-            return comments
-        }
-        if let arr = try? JSONDecoder().decode([Comment].self, from: data) {
-            return arr
-        }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(Comment.self, from: data, key: "comments")
     }
 
     public func postComment(sectionId: String, parentId: String?, replyingToId: String?, content: String, spoiler: Bool) async throws {

@@ -134,7 +134,7 @@ struct CommentRow: View {
     @State private var localVote = 0
 
     private var score: Int {
-        (comment.score ?? ((comment.upvotes ?? 0) - (comment.downvotes ?? 0))) + localVote
+        comment.displayScore + localVote
     }
 
     var body: some View {
@@ -145,7 +145,7 @@ struct CommentRow: View {
                     Text(comment.user?.username ?? "Unknown")
                         .font(.subheadline.bold())
                     if let created = comment.createdAtDate {
-                        Text(created.formatted(.relative(presentation: .named)))
+                        Text(created.relativeLabel)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }

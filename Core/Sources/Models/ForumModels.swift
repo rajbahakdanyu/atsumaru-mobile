@@ -21,10 +21,9 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     public let locked: Bool?
     public let commentCount: Int?
 
-    public var createdAtDate: Date? {
-        guard let createdAt else { return nil }
-        return Date(timeIntervalSince1970: TimeInterval(createdAt) / 1000)
-    }
+    public var createdAtDate: Date? { createdAt?.dateFromEpochMs }
+
+    public var displayScore: Int { score ?? ((upvotes ?? 0) - (downvotes ?? 0)) }
 
     public struct ForumUser: Codable, Sendable, Hashable {
         public let id: String?
@@ -77,13 +76,7 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
             ?? (try? c.decodeIfPresent(Int.self, forKey: .upvotes))
         downvotes = (try? c.decodeIfPresent(Int.self, forKey: .downVotes))
             ?? (try? c.decodeIfPresent(Int.self, forKey: .downvotes))
-        if let ms = try? c.decodeIfPresent(Int.self, forKey: .createdAt) {
-            createdAt = ms
-        } else if let str = try? c.decodeIfPresent(String.self, forKey: .createdAt) {
-            createdAt = Comment.epochMs(fromISO8601: str)
-        } else {
-            createdAt = nil
-        }
+        createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
     }
 
     public func encode(to encoder: Encoder) throws {

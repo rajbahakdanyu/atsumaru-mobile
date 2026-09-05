@@ -14,10 +14,7 @@ public struct LiveForumRepository: ForumRepository {
     private let client: APIClient
     public init(client: APIClient) { self.client = client }
 
-    private struct ChannelsEnvelope: Decodable { let channels: [ForumChannel] }
-    private struct PostsEnvelope: Decodable { let posts: [ForumPost] }
     private struct PostEnvelope: Decodable { let post: ForumPost }
-    private struct TagsEnvelope: Decodable { let tags: [ForumTag] }
 
     private struct CreatePostBody: Encodable {
         let forumId: String
@@ -39,13 +36,7 @@ public struct LiveForumRepository: ForumRepository {
             "/api/forum/forums/channels",
             query: ["adult": includeAdult ? "true" : "false"]
         )
-        if let env = try? JSONDecoder().decode(ChannelsEnvelope.self, from: data) {
-            return env.channels
-        }
-        if let arr = try? JSONDecoder().decode([ForumChannel].self, from: data) {
-            return arr
-        }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(ForumChannel.self, from: data, key: "channels")
     }
 
     /// Tolerant decode: prefers `{"posts":[...]}` then a bare array `[...]`.
@@ -53,13 +44,7 @@ public struct LiveForumRepository: ForumRepository {
         var query: [String: String] = ["forumId": forumId, "page": "\(page)"]
         if let sort { query["sort"] = sort }
         let data = try await client.getData("/api/forum/posts", query: query)
-        if let env = try? JSONDecoder().decode(PostsEnvelope.self, from: data) {
-            return env.posts
-        }
-        if let arr = try? JSONDecoder().decode([ForumPost].self, from: data) {
-            return arr
-        }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(ForumPost.self, from: data, key: "posts")
     }
 
     /// Tolerant decode: prefers `{"post":{...}}` then a bare object `{...}`.
@@ -98,12 +83,6 @@ public struct LiveForumRepository: ForumRepository {
     /// Tolerant decode: prefers `{"tags":[...]}` then a bare array `[...]`.
     public func tags(forumId: String) async throws -> [ForumTag] {
         let data = try await client.getData("/api/forum/tags", query: ["forumId": forumId])
-        if let env = try? JSONDecoder().decode(TagsEnvelope.self, from: data) {
-            return env.tags
-        }
-        if let arr = try? JSONDecoder().decode([ForumTag].self, from: data) {
-            return arr
-        }
-        throw ApiError.decoding
+        return try TolerantDecoding.array(ForumTag.self, from: data, key: "tags")
     }
 }
