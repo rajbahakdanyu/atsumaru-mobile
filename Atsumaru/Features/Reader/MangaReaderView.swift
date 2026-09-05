@@ -16,6 +16,9 @@ struct MangaReaderView: View {
     @State private var zoomScale: CGFloat = 1.0
     @State private var showComments = false
     @State private var stripScrollTarget: Int?
+    @State private var stripScrollActive = false
+    @State private var stripViewportFrame: CGRect?
+    @State private var stripSeekGateResetTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -117,29 +120,90 @@ struct MangaReaderView: View {
                             .frame(maxWidth: .infinity)
                             .clipped()
                             .id(page.id)
-                            .onScrollVisibilityChange(threshold: 0.5) { visible in
-                                guard visible else { return }
-                                if let target = stripScrollTarget {
-                                    if index == target { stripScrollTarget = nil }
-                                    return
+                            .background {
+                                GeometryReader { geo in
+                                    Color.clear.preference(
+                                        key: StripRowFramesKey.self,
+                                        value: [index: geo.frame(in: .global)]
+                                    )
                                 }
-                                viewModel.currentPage = index
-                                viewModel.scheduleProgressSave()
                             }
                     }
                 }
                 .padding(.top, 4)
             }
+            .background {
+                GeometryReader { geo in
+                    Color.clear.preference(key: StripViewportFrameKey.self, value: geo.frame(in: .global))
+                }
+            }
+            .onPreferenceChange(StripViewportFrameKey.self) { frame in
+                stripViewportFrame = frame
+            }
+            .onPreferenceChange(StripRowFramesKey.self) { frames in
+                updateStripPage(frames: frames, viewModel: viewModel)
+            }
             .onChange(of: stripScrollTarget) { _, target in
                 guard let target, pages.indices.contains(target) else { return }
                 viewModel.currentPage = target
                 withAnimation { proxy.scrollTo(pages[target].id, anchor: .top) }
+                stripSeekGateResetTask?.cancel()
+                stripSeekGateResetTask = Task {
+                    try? await Task.sleep(for: .seconds(2))
+                    guard !Task.isCancelled else { return }
+                    if stripScrollTarget == target { stripScrollTarget = nil }
+                }
             }
             .onScrollPhaseChange { _, newPhase in
+                stripScrollActive = newPhase != .idle
                 if newPhase == .idle {
                     stripScrollTarget = nil
                 }
             }
+            .onAppear {
+                stripScrollActive = false
+                stripScrollTarget = nil
+                stripSeekGateResetTask?.cancel()
+            }
+        }
+    }
+
+    private func updateStripPage(frames: [Int: CGRect], viewModel: ReaderViewModel) {
+        guard stripScrollTarget == nil,
+              stripScrollActive,
+              let viewport = stripViewportFrame else { return }
+        guard let index = stripCenterIndex(frames: frames, centerY: viewport.midY),
+              index != viewModel.currentPage else { return }
+        viewModel.currentPage = index
+        viewModel.scheduleProgressSave()
+    }
+
+    private func stripCenterIndex(frames: [Int: CGRect], centerY: CGFloat) -> Int? {
+        var nearestAbove: (index: Int, maxY: CGFloat)?
+        var topmost: (index: Int, minY: CGFloat)?
+        for (index, frame) in frames {
+            if frame.minY <= centerY, centerY < frame.maxY { return index }
+            if frame.maxY <= centerY, nearestAbove.map({ frame.maxY > $0.maxY }) ?? true {
+                nearestAbove = (index, frame.maxY)
+            }
+            if topmost.map({ frame.minY < $0.minY }) ?? true {
+                topmost = (index, frame.minY)
+            }
+        }
+        return nearestAbove?.index ?? topmost?.index
+    }
+
+    private struct StripRowFramesKey: PreferenceKey {
+        static let defaultValue: [Int: CGRect] = [:]
+        static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+            value.merge(nextValue(), uniquingKeysWith: { current, _ in current })
+        }
+    }
+
+    private struct StripViewportFrameKey: PreferenceKey {
+        static let defaultValue: CGRect = .zero
+        static func reduce(value: inout CGRect, nextValue: () -> CGRect) {
+            value = nextValue()
         }
     }
 
