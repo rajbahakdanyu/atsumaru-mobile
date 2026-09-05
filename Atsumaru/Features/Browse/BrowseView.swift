@@ -133,7 +133,7 @@ struct BrowseView: View {
                     }
                 case .filtered:
                     if viewModel.hasActiveFilters && viewModel.filteredResults.isEmpty {
-                        await viewModel.reloadFiltered()
+                        await viewModel.loadMoreFiltered()
                     }
                 }
             }

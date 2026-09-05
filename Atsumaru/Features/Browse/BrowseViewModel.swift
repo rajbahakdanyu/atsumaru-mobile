@@ -20,6 +20,7 @@ final class BrowseViewModel {
     var filteredHasMore = true
     var isLoadingFiltered = false
     var filteredError: ApiError?
+    private var filteredPage = 0
     var hasActiveFilters: Bool {
         !query.genres.isEmpty || !query.tags.isEmpty || !query.types.isEmpty
             || !query.statuses.isEmpty || !query.mediums.isEmpty
@@ -48,15 +49,20 @@ final class BrowseViewModel {
 
     func loadRecentlyUpdated(reset: Bool = false) async {
         guard !isLoadingRecentlyUpdated else { return }
-        if reset { recentlyUpdatedHasMore = true; recentlyUpdated = [] }
+        if reset { recentlyUpdatedHasMore = true }
         guard recentlyUpdatedHasMore else { return }
         isLoadingRecentlyUpdated = true
         defer { isLoadingRecentlyUpdated = false }
         do {
-            let rail = try await homeRepository.rail(.recentlyUpdated, offset: recentlyUpdated.count, limit: pageSize)
-            let newItems = rail.items.filter { item in !recentlyUpdated.contains(where: { $0.id == item.id }) }
-            recentlyUpdated.append(contentsOf: newItems)
-            recentlyUpdatedHasMore = rail.items.count == pageSize
+            let rail = try await homeRepository.rail(.recentlyUpdated, offset: reset ? 0 : recentlyUpdated.count, limit: pageSize)
+            if reset {
+                recentlyUpdated = rail.items
+                recentlyUpdatedHasMore = rail.items.count == pageSize
+            } else {
+                let newItems = rail.items.filter { item in !recentlyUpdated.contains(where: { $0.id == item.id }) }
+                recentlyUpdated.append(contentsOf: newItems)
+                recentlyUpdatedHasMore = rail.items.count == pageSize
+            }
             recentlyUpdatedError = nil
         } catch {
             recentlyUpdatedError = (error as? ApiError) ?? .decoding
@@ -65,15 +71,20 @@ final class BrowseViewModel {
 
     func loadPopular(reset: Bool = false) async {
         guard !isLoadingPopular else { return }
-        if reset { popularHasMore = true; popular = [] }
+        if reset { popularHasMore = true }
         guard popularHasMore else { return }
         isLoadingPopular = true
         defer { isLoadingPopular = false }
         do {
-            let rail = try await homeRepository.rail(.popular, offset: popular.count, limit: pageSize)
-            let newItems = rail.items.filter { item in !popular.contains(where: { $0.id == item.id }) }
-            popular.append(contentsOf: newItems)
-            popularHasMore = rail.items.count == pageSize
+            let rail = try await homeRepository.rail(.popular, offset: reset ? 0 : popular.count, limit: pageSize)
+            if reset {
+                popular = rail.items
+                popularHasMore = rail.items.count == pageSize
+            } else {
+                let newItems = rail.items.filter { item in !popular.contains(where: { $0.id == item.id }) }
+                popular.append(contentsOf: newItems)
+                popularHasMore = rail.items.count == pageSize
+            }
             popularError = nil
         } catch {
             popularError = (error as? ApiError) ?? .decoding
@@ -92,33 +103,35 @@ final class BrowseViewModel {
         filteredResults = []
         filteredHasMore = true
         filteredError = nil
-        isLoadingFiltered = true
     }
 
     /// Clears and reloads the filtered feed from page 1.
     func reloadFiltered() async {
+        guard !isLoadingFiltered else { return }
+        isLoadingFiltered = true
+        defer { isLoadingFiltered = false }
+        filteredPage = 0
         filteredHasMore = true
         filteredResults = []
         filteredError = nil
-        isLoadingFiltered = true
-        defer { isLoadingFiltered = false }
-        await fetchFilteredPage(reset: true)
+        await loadMoreFiltered()
     }
 
     /// Loads the next page of filtered results (infinite scroll).
     func loadMoreFiltered() async {
         guard !isLoadingFiltered else { return }
         guard filteredHasMore else { return }
+        filteredPage += 1
         isLoadingFiltered = true
         defer { isLoadingFiltered = false }
-        await fetchFilteredPage(reset: false)
+        await fetchFilteredPage()
     }
 
-    private func fetchFilteredPage(reset: Bool) async {
+    private func fetchFilteredPage() async {
         var q = query
         if q.q.isEmpty { q.q = "*" }
         q.sortBy = sort.rawValue
-        q.page = reset ? 1 : (filteredResults.count / pageSize) + 1
+        q.page = filteredPage
         q.perPage = pageSize
         do {
             let result = try await browseRepository.search(q)
@@ -126,7 +139,9 @@ final class BrowseViewModel {
                 !filteredResults.contains(where: { $0.id == item.id })
             }
             filteredResults.append(contentsOf: newItems)
-            filteredHasMore = newItems.count == pageSize
+            // Base hasMore on the RAW page size (pre-dedup) so repeated/duplicate
+            // hits across pages don't silently truncate the result set.
+            filteredHasMore = result.hits.count == pageSize
             filteredError = nil
         } catch {
             filteredError = (error as? ApiError) ?? .decoding
