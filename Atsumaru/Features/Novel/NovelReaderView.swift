@@ -43,10 +43,15 @@ struct NovelReaderView: View {
                 viewModel = NovelReaderViewModel(
                     mangaId: mangaId,
                     chapter: chapter,
-                    novelRepository: environment.novelRepository
+                    novelRepository: environment.novelRepository,
+                    readRepository: environment.readRepository,
+                    progressStore: environment.progressStore
                 )
             }
             await viewModel?.load()
+        }
+        .onDisappear {
+            viewModel?.saveProgressNow()
         }
         .sheet(item: $commentPopover) {
             ParagraphCommentsSheet(chapterId: chapter.id, paragraph: $0.value)
@@ -59,6 +64,11 @@ struct NovelReaderView: View {
             LazyVStack(alignment: .leading, spacing: 18) {
                 ForEach(Array(novel.paragraphs.enumerated()), id: \.offset) { index, paragraph in
                     paragraphRow(index: index, paragraph: paragraph, count: novel.paragraphComments?[String(index)])
+                        .onScrollVisibilityChange(threshold: 0.5) { visible in
+                            guard visible else { return }
+                            viewModel?.currentParagraph = index
+                            viewModel?.scheduleProgressSave()
+                        }
                 }
             }
             .padding(.vertical, 24)
