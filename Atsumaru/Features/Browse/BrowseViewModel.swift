@@ -21,6 +21,7 @@ final class BrowseViewModel {
     var isLoadingFiltered = false
     var filteredError: ApiError?
     private var filteredPage = 0
+    private var pendingReload = false
     var hasActiveFilters: Bool {
         !query.genres.isEmpty || !query.tags.isEmpty || !query.types.isEmpty
             || !query.statuses.isEmpty || !query.mediums.isEmpty
@@ -105,16 +106,26 @@ final class BrowseViewModel {
         filteredError = nil
     }
 
-    /// Clears and reloads the filtered feed from page 1.
+    /// Reloads the filtered feed from page 1. Existing results stay on screen
+    /// while the fetch runs and are only replaced on success, so a failed
+    /// pull-to-refresh never wipes the feed. If a page load is already in
+    /// flight, the reload is queued and runs once that load finishes.
     func reloadFiltered() async {
-        guard !isLoadingFiltered else { return }
+        guard !isLoadingFiltered else {
+            pendingReload = true
+            return
+        }
         isLoadingFiltered = true
-        defer { isLoadingFiltered = false }
-        filteredPage = 0
-        filteredHasMore = true
-        filteredResults = []
-        filteredError = nil
-        await loadMoreFiltered()
+        defer {
+            isLoadingFiltered = false
+            drainPendingReload()
+        }
+        await fetchFilteredPage(page: 1, replaceExisting: true)
+        if filteredError != nil && filteredResults.isEmpty {
+            // A failed reload with nothing on screen: rewind the cursor so the
+            // next loadMore retries from page 1 instead of skipping ahead.
+            filteredPage = 0
+        }
     }
 
     /// Loads the next page of filtered results (infinite scroll).
@@ -123,22 +134,35 @@ final class BrowseViewModel {
         guard filteredHasMore else { return }
         filteredPage += 1
         isLoadingFiltered = true
-        defer { isLoadingFiltered = false }
-        await fetchFilteredPage()
+        defer {
+            isLoadingFiltered = false
+            drainPendingReload()
+        }
+        await fetchFilteredPage(page: filteredPage, replaceExisting: false)
     }
 
-    private func fetchFilteredPage() async {
+    private func fetchFilteredPage(page: Int, replaceExisting: Bool) async {
         var q = query
         if q.q.isEmpty { q.q = "*" }
         q.sortBy = sort.rawValue
-        q.page = filteredPage
+        q.page = page
         q.perPage = pageSize
         do {
             let result = try await browseRepository.search(q)
-            let newItems = result.hits.map(\.document).filter { item in
-                !filteredResults.contains(where: { $0.id == item.id })
+            if replaceExisting {
+                var unique: [HomeItem] = []
+                for item in result.hits.map(\.document)
+                where !unique.contains(where: { $0.id == item.id }) {
+                    unique.append(item)
+                }
+                filteredResults = unique
+                filteredPage = page
+            } else {
+                let newItems = result.hits.map(\.document).filter { item in
+                    !filteredResults.contains(where: { $0.id == item.id })
+                }
+                filteredResults.append(contentsOf: newItems)
             }
-            filteredResults.append(contentsOf: newItems)
             // Base hasMore on the RAW page size (pre-dedup) so repeated/duplicate
             // hits across pages don't silently truncate the result set.
             filteredHasMore = result.hits.count == pageSize
@@ -146,6 +170,13 @@ final class BrowseViewModel {
         } catch {
             filteredError = (error as? ApiError) ?? .decoding
         }
+    }
+
+    /// Runs a reload queued while another page load was in flight.
+    private func drainPendingReload() {
+        guard pendingReload else { return }
+        pendingReload = false
+        Task { await self.reloadFiltered() }
     }
 
     func clearFilters() {

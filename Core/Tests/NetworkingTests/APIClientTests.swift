@@ -10,6 +10,22 @@ struct APIClientTests {
         #expect(ImageURLBuilder.page("/static/pages/x/1.webp")?.absoluteString == "https://atsu.moe/static/pages/x/1.webp")
     }
 
+    @Test func avatarURLsPinAtsumoeHost() {
+        #expect(ImageURLBuilder.avatar("https://atsu.moe/pfp/x.webp")?.absoluteString == "https://atsu.moe/pfp/x.webp")
+        #expect(ImageURLBuilder.avatar("https://cdn.atsu.moe/pfp/x.webp")?.absoluteString == "https://cdn.atsu.moe/pfp/x.webp")
+        #expect(ImageURLBuilder.avatar("https://atsu.moe.evil.com/x.jpg") == nil)
+        #expect(ImageURLBuilder.avatar("https://atsu.moe@evil.example/x.jpg") == nil)
+    }
+
+    @Test func avatarURLsRejectAttackerHTTPAndEmptyInput() {
+        #expect(ImageURLBuilder.avatar("https://evil.example/x.jpg") == nil)
+        #expect(ImageURLBuilder.avatar("http://evil.example/x.jpg") == nil)
+        #expect(ImageURLBuilder.avatar("http://atsu.moe/pfp/x.webp")?.absoluteString == "http://atsu.moe/pfp/x.webp")
+        #expect(ImageURLBuilder.avatar("pfp/abc.webp") == nil)
+        #expect(ImageURLBuilder.avatar("") == nil)
+        #expect(ImageURLBuilder.avatar(nil) == nil)
+    }
+
     @Test func homeEndpointsHavePaths() {
         #expect(HomeEndpoint.popular.path == "/api/home2/popular")
         #expect(HomeEndpoint.recentlyUpdated.path == "/api/home2/recentlyUpdated")

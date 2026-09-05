@@ -28,11 +28,16 @@ final class ComposeViewModel {
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let c = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, !c.isEmpty else { return }
+        errorMessage = nil
         isSubmitting = true
         defer { isSubmitting = false }
         do {
             try await repository.createPost(forumId: channel.id, title: t, content: c)
             didSubmit = true
+        } catch is CancellationError {
+            return
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            return
         } catch {
             errorMessage = "Couldn't post. Please try again."
         }

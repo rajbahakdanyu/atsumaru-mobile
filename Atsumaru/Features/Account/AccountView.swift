@@ -82,7 +82,7 @@ struct AccountView: View {
 
     @ViewBuilder
     private func avatarView(urlString: String?) -> some View {
-        let url = AccountView.avatarURL(from: urlString)
+        let url = AccountView.pinnedAvatarURL(from: urlString)
         KFImage(url)
             .resizable()
             .placeholder { placeholderAvatar }
@@ -156,11 +156,13 @@ struct AccountView: View {
         .padding(.horizontal, 16)
     }
 
-    private static func avatarURL(from path: String?) -> URL? {
+    private static func pinnedAvatarURL(from path: String?) -> URL? {
         guard let path, !path.isEmpty else { return nil }
-        if let url = URL(string: path), url.scheme != nil { return url }
+        if URL(string: path)?.scheme != nil {
+            return ImageURLBuilder.avatar(path)
+        }
         let trimmed = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        return URL(string: "https://atsu.moe/" + trimmed)
+        return ImageURLBuilder.avatar("https://atsu.moe/" + trimmed)
     }
 }
 

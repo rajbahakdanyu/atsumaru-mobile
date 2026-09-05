@@ -76,11 +76,19 @@ struct NovelReaderView: View {
                 }
                 .padding(.vertical, 24)
             }
-            .onChange(of: novel.id) { _, _ in
-                // Once the chapter is loaded, jump to the previously read paragraph
-                // so the reader visually resumes where the user left off.
-                guard let vm = viewModel, vm.currentParagraph > 0 else { return }
-                proxy.scrollTo(vm.currentParagraph, anchor: .top)
+            .onChange(of: novel.id, initial: true) { _, _ in
+                // `novel` is assigned before this subtree is created, so the id
+                // never changes while the reader is visible; `initial: true` is
+                // what makes the restore actually run on first appearance. The
+                // jump is deferred past the first layout pass because the scroll
+                // view has not laid out its content yet at `initial` evaluation,
+                // and it re-checks `hasUserScrolled` so a re-shown view never
+                // re-jumps after the user has scrolled away.
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(0.05))
+                    guard let vm = viewModel, !hasUserScrolled, vm.currentParagraph > 0 else { return }
+                    proxy.scrollTo(vm.currentParagraph, anchor: .top)
+                }
             }
             .onScrollPhaseChange { _, newPhase in
                 if newPhase == .tracking || newPhase == .interacting {

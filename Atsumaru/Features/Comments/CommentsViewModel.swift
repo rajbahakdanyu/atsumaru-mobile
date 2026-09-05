@@ -55,6 +55,7 @@ final class CommentsViewModel {
     func post() async {
         let content = composing.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
+        postError = false
         isPosting = true
         defer { isPosting = false }
         do {
@@ -67,7 +68,6 @@ final class CommentsViewModel {
             )
             composing = ""
             replyTarget = nil
-            postError = false
             await refresh()
         } catch {
             postError = true

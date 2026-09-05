@@ -129,11 +129,6 @@ extension APIClient {
         try await send(method: "DELETE", path: path, query: query, contentType: nil, body: nil)
     }
 
-    /// GETs and checks the HTTP status, discarding the response body.
-    public func getVoid(_ path: String, query: [String: String] = [:]) async throws {
-        try await send(method: "GET", path: path, query: query, contentType: nil, body: nil)
-    }
-
     /// POSTs form fields and checks the HTTP status, discarding the response body.
     public func postFormVoid(_ path: String, fields: [String: String]) async throws {
         try await send(method: "POST", path: path, query: [:],

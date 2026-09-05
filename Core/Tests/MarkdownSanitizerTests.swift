@@ -86,4 +86,13 @@ struct MarkdownSanitizerTests {
         let sanitized = MarkdownSanitizer.sanitizeImages("![x](ftp://cdn.atsu.moe/x.png)")
         #expect(sanitized == "[x](ftp://cdn.atsu.moe/x.png)")
     }
+
+    @Test func spoilerWrappedImageSanitized() {
+        let kept = MarkdownSanitizer.sanitizeImages("||![pic](https://cdn.atsu.moe/s.png)||")
+        #expect(kept == "||![pic](https://cdn.atsu.moe/s.png)||")
+
+        let demoted = MarkdownSanitizer.sanitizeImages("||![pixel](https://evil.com/p.png)||")
+        #expect(demoted == "||[pixel](https://evil.com/p.png)||")
+        #expect(!demoted.contains("!["))
+    }
 }

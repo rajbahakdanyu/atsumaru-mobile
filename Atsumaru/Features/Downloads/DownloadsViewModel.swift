@@ -38,6 +38,7 @@ final class DownloadsViewModel {
     private var eventTask: Task<Void, Never>?
     private var loaded = false
     private var isRefreshing = false
+    private var hasPendingRefresh = false
 
     init(downloadManager: DownloadManager, backgroundScheduler: BackgroundScheduler) {
         self.downloadManager = downloadManager
@@ -45,7 +46,11 @@ final class DownloadsViewModel {
     }
 
     func load() async {
-        if loaded { return }
+        if loaded {
+            startEventStream()
+            scheduleCoalescedRefresh()
+            return
+        }
         loaded = true
         await refresh()
         startEventStream()
@@ -103,6 +108,7 @@ final class DownloadsViewModel {
         eventTask = Task { [weak self, downloadManager] in
             let stream = await downloadManager.events()
             for await event in stream {
+                guard !Task.isCancelled else { break }
                 await self?.handle(event: event)
             }
         }
@@ -120,15 +126,9 @@ final class DownloadsViewModel {
             updateRow(chapterId: chapterId) { row in
                 row.state = .completed
             }
-            if !rows.contains(where: { $0.chapterId == chapterId }) {
-                await refresh()
-            }
         case .failed(let chapterId, let message):
             updateRow(chapterId: chapterId) { row in
                 row.state = .failed(message)
-            }
-            if !rows.contains(where: { $0.chapterId == chapterId }) {
-                await refresh()
             }
         }
     }
@@ -145,10 +145,24 @@ final class DownloadsViewModel {
     private func updateRow(chapterId: String, _ updater: (inout DownloadRow) -> Void) {
         guard let index = rows.firstIndex(where: { $0.chapterId == chapterId }) else {
             // Row not loaded yet (e.g. a fresh enqueue); coalesce a refresh.
-            guard !isRefreshing else { return }
-            Task { await refresh() }
+            scheduleCoalescedRefresh()
             return
         }
         updater(&rows[index])
+    }
+
+    private func scheduleCoalescedRefresh() {
+        guard !hasPendingRefresh else { return }
+        hasPendingRefresh = true
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(250))
+            await self?.flushPendingRefresh()
+        }
+    }
+
+    private func flushPendingRefresh() async {
+        guard hasPendingRefresh else { return }
+        hasPendingRefresh = false
+        await refresh()
     }
 }
