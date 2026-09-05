@@ -117,7 +117,12 @@ struct MangaReaderView: View {
                             .frame(maxWidth: .infinity)
                             .clipped()
                             .id(page.id)
-                            .onAppear {
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                guard visible else { return }
+                                if let target = stripScrollTarget {
+                                    if index == target { stripScrollTarget = nil }
+                                    return
+                                }
                                 viewModel.currentPage = index
                                 viewModel.scheduleProgressSave()
                             }
@@ -127,8 +132,13 @@ struct MangaReaderView: View {
             }
             .onChange(of: stripScrollTarget) { _, target in
                 guard let target, pages.indices.contains(target) else { return }
+                viewModel.currentPage = target
                 withAnimation { proxy.scrollTo(pages[target].id, anchor: .top) }
-                stripScrollTarget = nil
+            }
+            .onScrollPhaseChange { _, newPhase in
+                if newPhase == .idle {
+                    stripScrollTarget = nil
+                }
             }
         }
     }
