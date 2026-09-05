@@ -17,7 +17,9 @@ public enum ImageURLBuilder {
     }
 
     /// Builds an avatar URL. Absolute `atsu.moe` URLs pass through; any other
-    /// absolute URL is rejected; relative paths are rooted at `atsu.moe`.
+    /// URL-parseable string is rejected — bare relative paths parse too
+    /// (host-less) and are *not* rooted; only strings `URL(string:)` cannot
+    /// parse fall through to being rooted at `atsu.moe`.
     public static func avatar(_ path: String?) -> URL? {
         guard let path, !path.isEmpty else { return nil }
         if let url = URL(string: path) {

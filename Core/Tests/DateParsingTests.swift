@@ -24,26 +24,36 @@ struct DateParsingTests {
         #expect((-86_400_000).dateFromEpochMs! < Date(timeIntervalSince1970: 0))
     }
 
-    @Test func justNowRendersAsNowOrSeconds() {
-        let label = Date().relativeLabel
-        #expect(label == "now" || label.contains("econd"))
+    // relativeLabel formats with the host locale, so these assert on bucket
+    // differentiation between offsets instead of English wording.
+    @Test func justNowDiffersFromMinutesBucket() {
+        let now = Date().relativeLabel
+        #expect(!now.isEmpty)
+        #expect(now != Date(timeIntervalSinceNow: -120).relativeLabel)
     }
 
     @Test func minutesAgoBucket() {
-        #expect(Date(timeIntervalSinceNow: -120).relativeLabel.contains("minute"))
+        let label = Date(timeIntervalSinceNow: -120).relativeLabel
+        #expect(!label.isEmpty)
+        #expect(label != Date(timeIntervalSinceNow: -30).relativeLabel)
+        #expect(label != Date(timeIntervalSinceNow: -7_200).relativeLabel)
     }
 
     @Test func hoursAgoBucket() {
-        #expect(Date(timeIntervalSinceNow: -7_200).relativeLabel.contains("hour"))
+        let label = Date(timeIntervalSinceNow: -7_200).relativeLabel
+        #expect(!label.isEmpty)
+        #expect(label != Date(timeIntervalSinceNow: -120).relativeLabel)
+        #expect(label != Date(timeIntervalSinceNow: -3 * 86_400).relativeLabel)
     }
 
     @Test func daysAgoBucket() {
-        #expect(Date(timeIntervalSinceNow: -3 * 86_400).relativeLabel.contains("day"))
+        let label = Date(timeIntervalSinceNow: -3 * 86_400).relativeLabel
+        #expect(!label.isEmpty)
+        #expect(label != Date(timeIntervalSinceNow: -7_200).relativeLabel)
     }
 
     @Test func futureIsNotAgo() {
-        let label = Date(timeIntervalSinceNow: 7_200).relativeLabel
-        #expect(label.contains("hour"))
-        #expect(!label.contains("ago"))
+        #expect(Date(timeIntervalSinceNow: 7_200).relativeLabel
+            != Date(timeIntervalSinceNow: -7_200).relativeLabel)
     }
 }

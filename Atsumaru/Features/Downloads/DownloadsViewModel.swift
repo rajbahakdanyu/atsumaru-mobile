@@ -64,7 +64,16 @@ final class DownloadsViewModel {
     func refresh() async {
         guard !isRefreshing else { return }
         isRefreshing = true
-        defer { isRefreshing = false }
+        defer {
+            isRefreshing = false
+            // A coalesced refresh that bounced off the guard above stays
+            // pending; pick it up now that this refresh is done.
+            // flushPendingRefresh clears the flag before refreshing, so this
+            // cannot loop.
+            if hasPendingRefresh {
+                Task { [weak self] in await self?.flushPendingRefresh() }
+            }
+        }
         let snapshots = await downloadManager.listChapters()
         var updated: [DownloadRow] = []
         for record in snapshots {
@@ -162,6 +171,11 @@ final class DownloadsViewModel {
 
     private func flushPendingRefresh() async {
         guard hasPendingRefresh else { return }
+        if isRefreshing {
+            // refresh() would bounce and drop the event; leave the flag set
+            // and let the in-flight refresh's completion path flush it.
+            return
+        }
         hasPendingRefresh = false
         await refresh()
     }

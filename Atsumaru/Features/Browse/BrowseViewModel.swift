@@ -132,13 +132,16 @@ final class BrowseViewModel {
     func loadMoreFiltered() async {
         guard !isLoadingFiltered else { return }
         guard filteredHasMore else { return }
-        filteredPage += 1
+        let page = filteredPage + 1
         isLoadingFiltered = true
         defer {
             isLoadingFiltered = false
             drainPendingReload()
         }
-        await fetchFilteredPage(page: filteredPage, replaceExisting: false)
+        await fetchFilteredPage(page: page, replaceExisting: false)
+        // Advance the cursor only on success so a failed fetch leaves it
+        // unchanged and the next loadMore retries the same page.
+        if filteredError == nil { filteredPage = page }
     }
 
     private func fetchFilteredPage(page: Int, replaceExisting: Bool) async {
