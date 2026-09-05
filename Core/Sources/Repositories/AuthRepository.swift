@@ -6,8 +6,6 @@ public protocol AuthRepository: Sendable {
     func logout() async throws
     func sendPasswordReset(email: String) async throws
     func resetPassword(token: String, newPassword: String, confirmPassword: String) async throws
-    func oauthURL(provider: String) async throws -> String
-    func oauthCallback(provider: String, code: String, state: String) async throws
 }
 
 public struct LiveAuthRepository: AuthRepository {
@@ -24,7 +22,6 @@ public struct LiveAuthRepository: AuthRepository {
     private struct MeResponse: Decodable { let me: AuthUser? }
     private struct LoginResponse: Decodable { let status: String?; let error: String?; let me: AuthUser? }
     private struct EmptyBody: Encodable {}
-    private struct OAuthURLResponse: Decodable { let url: String }
 
     public func me() async throws -> AuthUser? {
         let resp: MeResponse = try await client.get("/api/auth/me")
@@ -76,18 +73,6 @@ public struct LiveAuthRepository: AuthRepository {
                 "newPassword": newPassword,
                 "confirmPassword": confirmPassword,
             ]
-        )
-    }
-
-    public func oauthURL(provider: String) async throws -> String {
-        let resp: OAuthURLResponse = try await client.get("/api/auth/oauth/\(provider)/url")
-        return resp.url
-    }
-
-    public func oauthCallback(provider: String, code: String, state: String) async throws {
-        try await client.getVoid(
-            "/api/auth/oauth/\(provider)/callback",
-            query: ["code": code, "state": state]
         )
     }
 }
