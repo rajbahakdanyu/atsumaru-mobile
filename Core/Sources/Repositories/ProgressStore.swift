@@ -28,7 +28,7 @@ public final class ProgressStore {
         } else {
             self.container = try ModelContainer(
                 for: ProgressRecord.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: false)
+                configurations: ModelConfiguration("progress", isStoredInMemoryOnly: false)
             )
         }
     }

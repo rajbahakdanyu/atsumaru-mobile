@@ -1,9 +1,12 @@
 import SwiftUI
 import Core
+import os
 
 @Observable
 @MainActor
 final class AppEnvironment {
+    private static let persistenceLog = Logger(subsystem: "dev.atsumaru.app", category: "persistence")
+
     let apiClient = APIClient()
     let keychainStore = KeychainStore(service: "dev.atsumaru.app")
     let homeRepository: any HomeRepository
@@ -32,15 +35,26 @@ final class AppEnvironment {
         libraryRepository = LiveLibraryRepository(client: apiClient)
         commentsRepository = LiveCommentsRepository(client: apiClient)
         forumRepository = LiveForumRepository(client: apiClient)
-        let store = try? DownloadStore()
-        let downloadMgr = DownloadManager(readRepository: readRepository, store: store)
+        let downloadStore: DownloadStore?
+        do { downloadStore = try DownloadStore() }
+        catch {
+            downloadStore = nil
+            Self.persistenceLog.error("DownloadStore init failed: \(String(describing: error), privacy: .public)")
+        }
+        let downloadMgr = DownloadManager(readRepository: readRepository, store: downloadStore)
         downloadManager = downloadMgr
         backgroundScheduler = BackgroundScheduler(
             downloadManager: downloadMgr,
             libraryRepository: libraryRepository,
             mangaRepository: mangaRepository
         )
-        progressStore = try? ProgressStore()
+        let progressStore: ProgressStore?
+        do { progressStore = try ProgressStore() }
+        catch {
+            progressStore = nil
+            Self.persistenceLog.error("ProgressStore init failed: \(String(describing: error), privacy: .public)")
+        }
+        self.progressStore = progressStore
         backgroundScheduler.registerTasks()
     }
 

@@ -24,6 +24,7 @@
 		2D2915369D3E3AF37BA4554B /* ReadRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CAB567017F6E178E73169A3 /* ReadRepository.swift */; };
 		323A3CFC211A469241D7DFFD /* LibraryViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DB06922838E2B388876895 /* LibraryViewModel.swift */; };
 		3278134E3128CC4258C9D0BE /* LibraryRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B7D63CF357121BD09BE213D /* LibraryRepositoryTests.swift */; };
+		335D9141110BD6060C5D4341 /* StoreSeparationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5715DB50B252ECC478648FB /* StoreSeparationTests.swift */; };
 		3482DCF697E4196EDA1F7B0B /* ContinueReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 599DB2BDBA027CAC400A55FB /* ContinueReadingView.swift */; };
 		38A47447A17FCE9CB4B51FDF /* AccountView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D883C49885B30130FA3B03B /* AccountView.swift */; };
 		3A8AD82C50D1353BBCE7D78C /* DownloadsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18F02612399FC828CF84EB5C /* DownloadsView.swift */; };
@@ -240,6 +241,7 @@
 		F23BE2DD845902C0F23C5EB1 /* CommentsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsViewModel.swift; sourceTree = "<group>"; };
 		F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingSkeletonView.swift; sourceTree = "<group>"; };
 		F444216A56BFD164C0652274 /* ForumModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForumModels.swift; sourceTree = "<group>"; };
+		F5715DB50B252ECC478648FB /* StoreSeparationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreSeparationTests.swift; sourceTree = "<group>"; };
 		F9BAB66C0BD916FC3EB2DD10 /* Core.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Core.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -366,6 +368,7 @@
 				5B7D63CF357121BD09BE213D /* LibraryRepositoryTests.swift */,
 				00C0F37C89363CE28FF571F4 /* ProgressMergeTests.swift */,
 				F06FA5A126B6374456089905 /* SearchQueryTests.swift */,
+				F5715DB50B252ECC478648FB /* StoreSeparationTests.swift */,
 				5D36F940F7785AEC1EA19BDE /* UserRepositoryTests.swift */,
 				14DC807539AD327116B76483 /* NetworkingTests */,
 			);
@@ -803,6 +806,7 @@
 				FD9B3DE64440B99E79C0271D /* ProgressMergeTests.swift in Sources */,
 				7C6119AEC02DB08BBEE6A978 /* ReadRepositoryTests.swift in Sources */,
 				ACB2DD99D9021D75E0638536 /* SearchQueryTests.swift in Sources */,
+				335D9141110BD6060C5D4341 /* StoreSeparationTests.swift in Sources */,
 				DD097FC846FD374C951B67BE /* UserRepositoryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

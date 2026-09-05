@@ -66,7 +66,7 @@ public final class DownloadStore {
         } else {
             self.container = try ModelContainer(
                 for: DownloadedChapter.self,
-                configurations: ModelConfiguration(isStoredInMemoryOnly: false)
+                configurations: ModelConfiguration("downloads", isStoredInMemoryOnly: false)
             )
         }
     }
