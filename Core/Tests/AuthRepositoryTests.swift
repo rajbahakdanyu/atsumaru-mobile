@@ -61,6 +61,28 @@ import Testing
         #expect(keychain.load(key: "auth-user") == nil)
     }
 
+    @Test func meDeletesStaleKeychainBlobWhenServerSaysLoggedOut() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            guard request.url?.path == "/api/auth/me" else {
+                let resp = HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!
+                return (resp, Data())
+            }
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/auth/me")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"me":null}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        try keychain.save(Data(#"{"id":"u1"}"#.utf8), key: "auth-user")
+        defer { try? keychain.delete(key: "auth-user") }
+        let repo = LiveAuthRepository(client: client, keychain: keychain)
+        let me = try await repo.me()
+        #expect(me == nil)
+        #expect(keychain.load(key: "auth-user") == nil)
+    }
+
     @Test func mePersistsUserWhenAuthed() async throws {
         let json = #"{"me":{"id":"u1","usernameDisplay":"dan","usernameSlug":"dan","email":"dan@e.x","premium":true,"rep":5,"pfp":"pfp/abc.webp"}}"#
         let config = URLSessionConfiguration.ephemeral

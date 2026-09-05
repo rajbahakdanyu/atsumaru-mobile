@@ -73,6 +73,8 @@ final class AppEnvironment {
             } else {
                 currentUser = nil
             }
+        } catch let error as ApiError where error == .http(401) || error == .http(403) {
+            currentUser = nil
         } catch {
             // Keep any cached user from the keychain on transient network errors.
         }

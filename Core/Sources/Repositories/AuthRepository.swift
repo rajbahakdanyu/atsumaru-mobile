@@ -30,6 +30,8 @@ public struct LiveAuthRepository: AuthRepository {
         let resp: MeResponse = try await client.get("/api/auth/me")
         if let user = resp.me, let data = try? JSONEncoder().encode(user) {
             try? keychain.save(data, key: Self.storedUserKey)
+        } else if resp.me == nil {
+            try? keychain.delete(key: Self.storedUserKey)
         }
         return resp.me
     }
@@ -54,6 +56,9 @@ public struct LiveAuthRepository: AuthRepository {
     public func logout() async throws {
         try await client.postVoid("/api/auth/logout/self", json: EmptyBody())
         try? keychain.delete(key: Self.storedUserKey)
+        for cookie in HTTPCookieStorage.shared.cookies(for: APIClient.baseURL) ?? [] {
+            HTTPCookieStorage.shared.deleteCookie(cookie)
+        }
     }
 
     public func sendPasswordReset(email: String) async throws {
