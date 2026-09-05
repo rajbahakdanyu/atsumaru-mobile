@@ -15,6 +15,7 @@ struct NovelReaderView: View {
     @State private var viewModel: NovelReaderViewModel?
     @State private var showSettings = false
     @State private var commentPopover: ParagraphIndex?
+    @State private var hasUserScrolled = false
 
     var body: some View {
         Group {
@@ -60,18 +61,32 @@ struct NovelReaderView: View {
 
     @ViewBuilder
     private func readerContent(novel: NovelChapter) -> some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 18) {
-                ForEach(Array(novel.paragraphs.enumerated()), id: \.offset) { index, paragraph in
-                    paragraphRow(index: index, paragraph: paragraph, count: novel.paragraphComments?[String(index)])
-                        .onScrollVisibilityChange(threshold: 0.5) { visible in
-                            guard visible else { return }
-                            viewModel?.currentParagraph = index
-                            viewModel?.scheduleProgressSave()
-                        }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    ForEach(Array(novel.paragraphs.enumerated()), id: \.offset) { index, paragraph in
+                        paragraphRow(index: index, paragraph: paragraph, count: novel.paragraphComments?[String(index)])
+                            .id(index)
+                            .onScrollVisibilityChange(threshold: 0.5) { visible in
+                                guard visible, hasUserScrolled else { return }
+                                viewModel?.currentParagraph = index
+                                viewModel?.scheduleProgressSave()
+                            }
+                    }
+                }
+                .padding(.vertical, 24)
+            }
+            .onChange(of: novel.id) { _, _ in
+                // Once the chapter is loaded, jump to the previously read paragraph
+                // so the reader visually resumes where the user left off.
+                guard let vm = viewModel, vm.currentParagraph > 0 else { return }
+                proxy.scrollTo(vm.currentParagraph, anchor: .top)
+            }
+            .onScrollPhaseChange { _, newPhase in
+                if newPhase == .tracking || newPhase == .interacting {
+                    hasUserScrolled = true
                 }
             }
-            .padding(.vertical, 24)
         }
     }
 
