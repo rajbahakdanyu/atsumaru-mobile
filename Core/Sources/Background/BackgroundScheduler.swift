@@ -13,6 +13,20 @@ private struct UnsafeSendableBox<T>: @unchecked Sendable {
 public final class BackgroundScheduler: Sendable {
     public static let refreshIdentifier = "dev.atsumaru.app.refresh"
     public static let processingIdentifier = "dev.atsumaru.app.processing"
+    public static let backgroundRefreshKey = "dev.atsumaru.app.backgroundRefresh"
+    public static let notificationsKey = "dev.atsumaru.app.newChapterNotifications"
+
+    /// Defaults to enabled when the preference key has never been written.
+    private static var refreshEnabled: Bool {
+        UserDefaults.standard.object(forKey: backgroundRefreshKey) == nil
+            || UserDefaults.standard.bool(forKey: backgroundRefreshKey)
+    }
+
+    /// Defaults to enabled when the preference key has never been written.
+    private static var notificationsEnabled: Bool {
+        UserDefaults.standard.object(forKey: notificationsKey) == nil
+            || UserDefaults.standard.bool(forKey: notificationsKey)
+    }
 
     private let downloadManager: DownloadManager
     private let libraryRepository: any LibraryRepository
@@ -56,6 +70,7 @@ public final class BackgroundScheduler: Sendable {
     }
 
     public func scheduleRefresh() {
+        guard Self.refreshEnabled else { return }
         let request = BGAppRefreshTaskRequest(identifier: Self.refreshIdentifier)
         request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
         do {
@@ -63,6 +78,10 @@ public final class BackgroundScheduler: Sendable {
         } catch {
             // best-effort: device may not allow background scheduling right now.
         }
+    }
+
+    public func cancelRefresh() {
+        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: Self.refreshIdentifier)
     }
 
     public func scheduleProcessing() {
@@ -87,9 +106,9 @@ public final class BackgroundScheduler: Sendable {
         task.expirationHandler = { work.cancel() }
         let success = await work.value
         task.setTaskCompleted(success: success)
-        if success {
-            self.scheduleRefresh()
-        }
+        // Reschedule regardless of success so one failure doesn't kill the
+        // background cycle; scheduleRefresh() no-ops when the pref is off.
+        self.scheduleRefresh()
     }
 
     public func handleProcessing(task: BGProcessingTask) async {
@@ -117,7 +136,8 @@ public final class BackgroundScheduler: Sendable {
         var newChaptersEnqueued = 0
         var chapterTitles: [String] = []
         var enqueuedIds: [String] = []
-        for bookmark in bookmarks where !bookmark.id.isEmpty {
+        // Glance through at most 10 bookmarks per refresh to keep the task short.
+        for bookmark in bookmarks.prefix(10) where !bookmark.id.isEmpty {
             if Task.isCancelled { return false }
             guard let page = try? await mangaRepository.page(id: bookmark.id) else { continue }
             let home = Self.homeItem(from: bookmark)
@@ -133,7 +153,7 @@ public final class BackgroundScheduler: Sendable {
         if Task.isCancelled { return false }
         await downloadManager.awaitCompletion(enqueuedIds)
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
-        if newChaptersEnqueued > 0 {
+        if newChaptersEnqueued > 0 && Self.notificationsEnabled {
             let title = newChaptersEnqueued == 1 ? "New chapter downloaded" : "New chapters available"
             let body = chapterTitles.first ?? "\(newChaptersEnqueued) new chapter(s) are now available offline."
             await postNotification(title: title, body: body)

@@ -15,9 +15,14 @@ struct DownloadSettingsView: View {
                         if newValue {
                             Task { await environment.backgroundScheduler.requestNotificationAuthorization() }
                             environment.backgroundScheduler.scheduleRefresh()
+                        } else {
+                            environment.backgroundScheduler.cancelRefresh()
                         }
                     }
                 Toggle("Auto-download new chapters (any network)", isOn: $autoDownloadAnyNetwork)
+                    .onChange(of: autoDownloadAnyNetwork) { _, newValue in
+                        Task { await environment.downloadManager.setAllowsCellularAccess(newValue) }
+                    }
                 Toggle("New chapter notifications", isOn: $newChapterNotifications)
                     .onChange(of: newChapterNotifications) { _, newValue in
                         if newValue {

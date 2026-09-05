@@ -41,7 +41,11 @@ final class AppEnvironment {
             downloadStore = nil
             Self.persistenceLog.error("DownloadStore init failed: \(String(describing: error), privacy: .public)")
         }
-        let downloadMgr = DownloadManager(readRepository: readRepository, store: downloadStore)
+        let downloadMgr = DownloadManager(
+            readRepository: readRepository,
+            store: downloadStore,
+            allowsCellularAccess: UserDefaults.standard.bool(forKey: "dev.atsumaru.app.autoDownloadAnyNetwork")
+        )
         downloadManager = downloadMgr
         backgroundScheduler = BackgroundScheduler(
             downloadManager: downloadMgr,

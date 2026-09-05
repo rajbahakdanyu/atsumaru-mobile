@@ -17,7 +17,7 @@ public actor DownloadManager {
     private let readRepository: any ReadRepository
     private let store: DownloadStore?
     private let baseDirectory: URL
-    private let session: URLSession
+    private var session: URLSession
     private let storageCapBytes: Int64
 
     private var states: [String: DownloadState] = [:]
@@ -43,6 +43,14 @@ public actor DownloadManager {
         let config = sessionConfiguration ?? Self.makeDefaultSessionConfiguration()
         config.allowsCellularAccess = allowsCellularAccess
         self.session = URLSession(configuration: config)
+    }
+
+    /// Rebuilds the download session with the given cellular policy so the
+    /// "any network" setting takes effect without relaunching the app.
+    public func setAllowsCellularAccess(_ allowed: Bool) {
+        let config = Self.makeDefaultSessionConfiguration()
+        config.allowsCellularAccess = allowed
+        session = URLSession(configuration: config)
     }
 
     public func enqueue(manga: HomeItem, chapter: Chapter) async {
