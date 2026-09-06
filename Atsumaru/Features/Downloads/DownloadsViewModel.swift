@@ -5,6 +5,7 @@ import Core
 final class DownloadsViewModel {
     struct DownloadRow: Identifiable {
         let chapterId: String
+        let mangaId: String
         let mangaTitle: String
         let chapterTitle: String
         let kind: String
@@ -26,7 +27,37 @@ final class DownloadsViewModel {
         }
     }
 
+    /// The Downloads tab shows one card per SERIES (like the Library tab);
+    /// expanding a card reveals its downloaded chapters.
+    struct DownloadSection: Identifiable {
+        let mangaId: String
+        let title: String
+        let kind: String
+        var chapters: [DownloadRow]
+        var id: String { mangaId }
+        var totalBytes: Int64 { chapters.reduce(0) { $0 + $1.totalBytes } }
+        var chapterCount: Int { chapters.count }
+        var inFlightFraction: Double? {
+            let inFlight = chapters.filter {
+                if case .downloading = $0.state { return true }
+                if case .queued = $0.state { return true }
+                return false
+            }
+            guard !inFlight.isEmpty else { return nil }
+            let fractions = inFlight.map { row -> Double in
+                if case .downloading(let fraction) = row.state { return fraction }
+                return 0
+            }
+            return fractions.reduce(0, +) / Double(inFlight.count)
+        }
+        var sizeText: String? {
+            guard totalBytes > 0 else { return nil }
+            return ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
+        }
+    }
+
     var rows: [DownloadRow] = []
+    var sections: [DownloadSection] = []
     var storageBytes: Int64 = 0
     var storageText: String? {
         guard storageBytes > 0 else { return nil }
@@ -81,6 +112,7 @@ final class DownloadsViewModel {
             let effective = DownloadState.effective(live: live, persisted: record.state)
             updated.append(DownloadRow(
                 chapterId: record.chapterId,
+                mangaId: record.mangaId,
                 mangaTitle: record.mangaTitle,
                 chapterTitle: record.chapterTitle,
                 kind: record.kind,
@@ -90,7 +122,52 @@ final class DownloadsViewModel {
             ))
         }
         rows = updated
+        rebuildSections(from: updated)
         storageBytes = await downloadManager.storageUsed()
+    }
+
+    func delete(mangaId: String) async {
+        let chapterIds = rows.filter { $0.mangaId == mangaId }.map(\.chapterId)
+        for chapterId in chapterIds {
+            await downloadManager.deleteChapter(chapterId)
+        }
+        await refresh()
+    }
+
+    func posterPath(for mangaId: String) -> String? {
+        UserDefaults.standard.string(forKey: "downloads.poster.\(mangaId)")
+    }
+
+    /// Groups rows into per-series sections; chapters sort by the number
+    /// parsed from the chapter title ("Chapter 112.7" → 112.7), falling back
+    /// to insertion order when no number is present.
+    private func rebuildSections(from updated: [DownloadRow]) {
+        var order: [String] = []
+        var grouped: [String: [DownloadRow]] = [:]
+        for row in updated {
+            if grouped[row.mangaId] == nil { order.append(row.mangaId) }
+            grouped[row.mangaId, default: []].append(row)
+        }
+        sections = order.map { mangaId in
+            let chapters = grouped[mangaId]!
+            let sorted = chapters.enumerated().sorted { lhs, rhs in
+                switch (Self.chapterNumber(lhs.element.chapterTitle), Self.chapterNumber(rhs.element.chapterTitle)) {
+                case let (l?, r?) where l != r: return l < r
+                default: return lhs.offset < rhs.offset
+                }
+            }.map(\.element)
+            return DownloadSection(
+                mangaId: mangaId,
+                title: sorted.first?.mangaTitle ?? "",
+                kind: sorted.first?.kind ?? "manga",
+                chapters: sorted
+            )
+        }
+    }
+
+    private static func chapterNumber(_ title: String) -> Double? {
+        guard let match = title.firstMatch(of: /([0-9]+(?:\.[0-9]+)?)/) else { return nil }
+        return Double(match.1)
     }
 
     func delete(_ chapterId: String) async {

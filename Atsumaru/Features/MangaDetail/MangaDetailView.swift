@@ -49,7 +49,8 @@ struct MangaDetailView: View {
             if viewModel == nil {
                 viewModel = MangaDetailViewModel(
                     mangaId: mangaId,
-                    mangaRepository: environment.mangaRepository
+                    mangaRepository: environment.mangaRepository,
+                    downloadManager: environment.downloadManager
                 )
             }
             await viewModel?.load()
@@ -60,6 +61,12 @@ struct MangaDetailView: View {
     private func content(for manga: MangaPage) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if viewModel?.isOfflineFallback == true {
+                    Label("Offline — showing downloaded chapters", systemImage: "wifi.slash")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                }
                 header(manga)
                 detailsSection(manga)
                 continueReadingButton(for: manga)
@@ -372,6 +379,11 @@ struct MangaDetailView: View {
     }
 
     private func enqueueDownload(_ chapter: Chapter, manga: MangaPage) {
+        // Remember the poster so the Downloads tab can show series cards
+        // without a network fetch.
+        if let poster = manga.poster?.image {
+            UserDefaults.standard.set(poster, forKey: "downloads.poster.\(manga.id)")
+        }
         let item = HomeItem(
             id: manga.id,
             title: manga.title,

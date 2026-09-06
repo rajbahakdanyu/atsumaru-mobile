@@ -7,6 +7,10 @@ public enum DownloadState: Sendable, Equatable {
     case completed
     case failed(String)
 
+    public var isFailed: Bool {
+        if case .failed = self { return true }
+        return false
+    }
     /// Maps a live in-memory state onto what the UI should show for a record
     /// persisted from a previous session. After relaunch there is no live
     /// state, so `state(for:)` reports `.queued` for everything; a persisted

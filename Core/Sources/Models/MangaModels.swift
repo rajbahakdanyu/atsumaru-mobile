@@ -23,6 +23,36 @@ public struct MangaPage: Decodable, Sendable {
         guard let sid = chapter.scanlationMangaId else { return nil }
         return scanlators?.first { $0.id == sid }?.name
     }
+
+    /// Memberwise init for locally-synthesized pages (e.g. the offline
+    /// fallback that lists downloaded chapters when the network fails).
+    public init(
+        id: String, title: String, type: String? = nil, medium: String? = nil,
+        status: String? = nil, synopsis: String? = nil, avgRating: Double? = nil,
+        poster: PosterImages? = nil, banner: Banner? = nil,
+        genres: [Tag] = [], tags: [Tag] = [], authors: [Author] = [],
+        scanlators: [Scanlator]? = nil, chapters: [Chapter] = [],
+        recommendations: [HomeItem] = [], relations: [Relation] = [],
+        startReading: StartReading? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.type = type
+        self.medium = medium
+        self.status = status
+        self.synopsis = synopsis
+        self.avgRating = avgRating
+        self.poster = poster
+        self.banner = banner
+        self.genres = genres
+        self.tags = tags
+        self.authors = authors
+        self.scanlators = scanlators
+        self.chapters = chapters
+        self.recommendations = recommendations
+        self.relations = relations
+        self.startReading = startReading
+    }
 }
 
 public struct PosterImages: Decodable, Sendable {
