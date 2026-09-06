@@ -302,15 +302,18 @@ struct MangaDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func chapterRow(_ chapter: Chapter, manga: MangaPage) -> some View {
-        HStack(spacing: 12) {
+        // Read chapters grey out their title; no per-row icons (the progress
+        // glyph re-rendered every layout pass and read as visual noise).
+        let isRead = chapter.progress?.isComplete == true
+        return HStack(spacing: 12) {
             NavigationLink(value: chapter) {
                 HStack(alignment: .top, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(chapter.title)
                             .font(.body)
                             .lineLimit(1)
+                            .foregroundStyle(isRead ? Color.secondary : Color.primary)
                         HStack(spacing: 6) {
                             if let created = chapter.createdAt?.dateFromEpochMs {
                                 Text(created.relativeLabel)
@@ -329,21 +332,6 @@ struct MangaDetailView: View {
                         }
                     }
                     Spacer()
-                    if let progress = chapter.progress {
-                        if progress.isComplete {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
-                        } else {
-                            // Reading progress, not a mystery glyph: a thin
-                            // bar showing how far into the chapter you got.
-                            ProgressView(value: progress.fraction)
-                                .progressViewStyle(.linear)
-                                .tint(.secondary)
-                                .frame(width: 56)
-                        }
-                    }
                 }
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
