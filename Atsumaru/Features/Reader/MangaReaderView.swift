@@ -132,6 +132,7 @@ struct MangaReaderView: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .environment(\.layoutDirection, readingDirection == "rtl" ? .rightToLeft : .leftToRight)
             .onChange(of: viewModel.currentPage) { _, _ in
                 viewModel.scheduleProgressSave()
                 zoomScale = 1.0
@@ -335,9 +336,13 @@ struct MangaReaderView: View {
         HStack(spacing: 0) {
             Color.clear
                 .contentShape(Rectangle())
+                .accessibilityLabel("Previous page")
+                .accessibilityAddTraits(.isButton)
                 .onTapGesture { navigate(viewModel: viewModel, delta: -1, total: total) }
                 .frame(maxWidth: .infinity)
             Color.clear
+                .accessibilityLabel("Toggle controls")
+                .accessibilityAddTraits(.isButton)
                 .frame(width: 80)
                 .contentShape(Rectangle())
                 // Center tap toggles the chrome (standard reader behavior);
@@ -345,6 +350,8 @@ struct MangaReaderView: View {
                 .onTapGesture { toggleChrome() }
             Color.clear
                 .contentShape(Rectangle())
+                .accessibilityLabel("Next page")
+                .accessibilityAddTraits(.isButton)
                 .onTapGesture { navigate(viewModel: viewModel, delta: 1, total: total) }
                 .frame(maxWidth: .infinity)
         }

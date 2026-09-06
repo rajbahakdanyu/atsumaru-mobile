@@ -44,6 +44,7 @@ final class ReaderViewModel {
     var pageCount: Int { readChapter?.pages.count ?? 0 }
 
     func load() async {
+        guard !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
         // Offline first: a completed download is read entirely from disk —
@@ -107,8 +108,14 @@ final class ReaderViewModel {
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
               let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
-              height > 0 else { return nil }
-        return width / height
+              width > 0, height > 0 else { return nil }
+        let orientationValue = (properties[kCGImagePropertyOrientation] as? NSNumber)?.intValue ?? 1
+        let isRotated = [5, 6, 7, 8].contains(orientationValue)
+        if isRotated {
+            return height / width
+        } else {
+            return width / height
+        }
     }
 
     func scheduleProgressSave() {
@@ -160,7 +167,16 @@ final class ReaderViewModel {
         do {
             try await readRepository.updateProgress(update)
         } catch {
-            logger.error("progress save failed for chapter \(readChapter.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            if let apiError = error as? ApiError {
+                switch apiError {
+                case .http(401), .http(403):
+                    logger.debug("progress save unauthorized for chapter \(readChapter.id, privacy: .public)")
+                default:
+                    logger.error("progress save failed for chapter \(readChapter.id, privacy: .public): \(String(describing: apiError), privacy: .public)")
+                }
+            } else {
+                logger.error("progress save failed for chapter \(readChapter.id, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
         }
     }
 
@@ -175,7 +191,19 @@ final class ReaderViewModel {
             let page = try await mangaRepository.page(id: mangaId)
             let ordered = page.chapters
                 .filter { $0.scanlationMangaId == scanId }
-                .sorted { ($0.index ?? Int($0.number), $0.number) < ($1.index ?? Int($1.number), $1.number) }
+                .sorted { lhs, rhs in
+                    switch (lhs.index, rhs.index) {
+                    case let (li?, ri?):
+                        if li != ri { return li < ri }
+                        return lhs.number < rhs.number
+                    case (nil, nil):
+                        return lhs.number < rhs.number
+                    case (nil, _?):
+                        return false
+                    case (_?, nil):
+                        return true
+                    }
+                }
             guard let idx = ordered.firstIndex(where: { $0.id == chapter.id }),
                   ordered.indices.contains(idx + 1) else { return }
             nextChapter = ordered[idx + 1]
