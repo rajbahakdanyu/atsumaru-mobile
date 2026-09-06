@@ -53,7 +53,6 @@ public actor DownloadManager {
     private let store: DownloadStore?
     private let baseDirectory: URL
     private var session: URLSession
-    private let storageCapBytes: Int64
 
     private var states: [String: DownloadState] = [:]
     private var pageProgress: [String: [Double]] = [:]
@@ -70,8 +69,6 @@ public actor DownloadManager {
         let task: Task<Void, Never>
     }
 
-    public static let defaultStorageCapBytes: Int64 = 500 * 1024 * 1024
-
     /// Maximum number of page-image downloads in flight at once per chapter.
     private static let pageConcurrency = 4
 
@@ -80,13 +77,11 @@ public actor DownloadManager {
                 store: DownloadStore? = nil,
                 baseDirectory: URL? = nil,
                 sessionConfiguration: URLSessionConfiguration? = nil,
-                storageCapBytes: Int64 = DownloadManager.defaultStorageCapBytes,
                 allowsCellularAccess: Bool = true) {
         self.readRepository = readRepository
         self.novelRepository = novelRepository
         self.store = store
         self.baseDirectory = baseDirectory ?? Self.defaultDownloadsURL()
-        self.storageCapBytes = storageCapBytes
         let config = sessionConfiguration ?? Self.makeDefaultSessionConfiguration()
         config.allowsCellularAccess = allowsCellularAccess
         self.session = URLSession(configuration: config)
@@ -221,17 +216,6 @@ public actor DownloadManager {
         return total
     }
 
-    public func storageEviction() async {
-        guard let store else { return }
-        let chapters = await store.all()
-        let toEvictIds = Self.evictionOrder(chapters, cap: storageCapBytes)
-        for chapterId in toEvictIds {
-            if let record = chapters.first(where: { $0.chapterId == chapterId }) {
-                await evictChapter(record)
-            }
-        }
-    }
-
     public func deleteChapter(_ chapterId: String) async {
         guard let store else { return }
         let chapters = await store.all()
@@ -293,7 +277,6 @@ public actor DownloadManager {
             await persist(chapterId: chapterId, manga: manga, chapter: chapter,
                           pageCount: fetchedCount, totalBytes: totalBytes, state: "completed")
             Self.log.info("Chapter \(chapterId, privacy: .public) downloaded (\(totalBytes, privacy: .public) bytes)")
-            await storageEviction()
             emit(.completed(chapterId: chapterId))
         } catch {
             if Task.isCancelled { return }
@@ -461,20 +444,6 @@ public actor DownloadManager {
     private static func kind(for manga: HomeItem) -> String {
         let medium = manga.medium.lowercased()
         return medium.contains("novel") ? "novel" : "manga"
-    }
-
-    public static func evictionOrder(_ chapters: [DownloadedChapterSnapshot], cap: Int64) -> [String] {
-        let sorted = chapters.sorted { $0.completedAt > $1.completedAt }
-        var running: Int64 = 0
-        var evict: [String] = []
-        for chapter in sorted {
-            if running + chapter.totalBytes > cap {
-                evict.append(chapter.chapterId)
-            } else {
-                running += chapter.totalBytes
-            }
-        }
-        return evict.reversed()
     }
 
     public static func defaultDownloadsURL() -> URL {

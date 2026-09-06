@@ -6,6 +6,7 @@ struct DownloadSettingsView: View {
     @AppStorage("dev.atsumaru.app.backgroundRefresh") private var backgroundRefreshEnabled = true
     @AppStorage("dev.atsumaru.app.autoDownloadAnyNetwork") private var autoDownloadAnyNetwork = false
     @AppStorage("dev.atsumaru.app.newChapterNotifications") private var newChapterNotifications = true
+    @State private var storageUsed: Int64?
 
     var body: some View {
         Form {
@@ -32,32 +33,30 @@ struct DownloadSettingsView: View {
             } header: {
                 Text("Downloads")
             } footer: {
-                Text(backgroundRefreshEnabled
-                     ? "New chapters for your library will be checked periodically."
-                     : "Background refresh is off; new chapters will only be checked while you use the app.")
+                Text("Background refresh checks your library for new chapters about every 15 minutes. Cellular applies to all download traffic. Notifications require system permission.")
             }
 
             Section("Storage") {
-                if let text = lastRefreshText {
+                HStack {
+                    Text("Downloads")
+                    Spacer()
+                    Text(storageUsed.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "…")
+                        .foregroundStyle(.secondary)
+                }
+                if let date = BackgroundScheduler.lastRefreshDate() {
                     HStack {
                         Text("Last refresh")
                         Spacer()
-                        Text(text).foregroundStyle(.secondary)
+                        Text(date.formatted(date: .abbreviated, time: .shortened))
+                            .foregroundStyle(.secondary)
                     }
-                }
-                HStack {
-                    Text("Storage cap")
-                    Spacer()
-                    Text("500 MB").foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle("Download settings")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var lastRefreshText: String? {
-        guard let date = BackgroundScheduler.lastRefreshDate() else { return nil }
-        return date.formatted(date: .abbreviated, time: .shortened)
+        .task {
+            storageUsed = await environment.downloadManager.storageUsed()
+        }
     }
 }

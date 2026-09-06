@@ -209,46 +209,37 @@ struct DownloadManagerTests {
         #expect(state == .completed)
     }
 
-    @Test func evictionOrderEvictsOldestFirst() {
-        let old = DownloadedChapterSnapshot(chapterId: "old", mangaId: "m1", mangaTitle: "M1",
-                                            chapterTitle: "Old", kind: "manga", pageCount: 2,
-                                            totalBytes: 50, completedAt: Date(timeIntervalSince1970: 100),
-                                            state: "completed")
-        let mid = DownloadedChapterSnapshot(chapterId: "mid", mangaId: "m1", mangaTitle: "M1",
-                                            chapterTitle: "Mid", kind: "manga", pageCount: 2,
-                                            totalBytes: 50, completedAt: Date(timeIntervalSince1970: 200),
-                                            state: "completed")
-        let newest = DownloadedChapterSnapshot(chapterId: "new", mangaId: "m1", mangaTitle: "M1",
-                                               chapterTitle: "New", kind: "manga", pageCount: 2,
-                                               totalBytes: 50, completedAt: Date(timeIntervalSince1970: 300),
-                                               state: "completed")
+    @Test func noStorageCapEviction() async throws {
+        // DownloadManager no longer evicts: enqueueing two chapters both
+        // complete and both records remain regardless of size.
+        let json = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
+        Self.makeStubURLProtocol(json: json)
+        let config = makeBetaURLConfiguration()
+        let repo = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let store = try await DownloadStore.makeInMemory()
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
 
-        // Cap = 110: keep newest (50) + mid (50 + 50 = 100), evict old (would push to 150)
-        #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 110) == ["old"])
-        // Cap = 50: keep newest only; evict [old, mid] (oldest first)
-        #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 50) == ["old", "mid"])
-        // Cap = 200: keep all
-        #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 200) == [])
-        // Cap = 0: evict everything (oldest first)
-        #expect(DownloadManager.evictionOrder([old, mid, newest], cap: 0) == ["old", "mid", "new"])
-    }
+        let manager = DownloadManager(readRepository: repo, store: store,
+                                      baseDirectory: tmpDir, sessionConfiguration: config)
 
-    @Test func evictionOrderEdgeCases() {
-        let a = DownloadedChapterSnapshot(chapterId: "a", mangaId: "m1", mangaTitle: "M1",
-                                          chapterTitle: "A", kind: "manga", pageCount: 1,
-                                          totalBytes: 0, completedAt: Date(timeIntervalSince1970: 100),
-                                          state: "completed")
-        let b = DownloadedChapterSnapshot(chapterId: "b", mangaId: "m1", mangaTitle: "M1",
-                                          chapterTitle: "B", kind: "manga", pageCount: 1,
-                                          totalBytes: 10, completedAt: Date(timeIntervalSince1970: 200),
-                                          state: "completed")
+        let manga = makeManga()
+        let chapter1 = try JSONDecoder().decode(Chapter.self,
+                                                 from: Data(#"{"id":"ch1","title":"Chapter 1","number":1,"pageCount":1}"#.utf8))
+        let chapter2 = try JSONDecoder().decode(Chapter.self,
+                                                 from: Data(#"{"id":"ch2","title":"Chapter 2","number":2,"pageCount":1}"#.utf8))
 
-        // Exactly at cap: a zero-byte item never forces eviction of a fitting item.
-        #expect(DownloadManager.evictionOrder([b], cap: 10) == [])
-        // A chapter larger than the entire cap is evicted.
-        #expect(DownloadManager.evictionOrder([b], cap: 5) == ["b"])
-        // Zero-size items never evict anything and are kept in place.
-        #expect(DownloadManager.evictionOrder([a, b], cap: 10) == [])
+        try await Self.withTimeout(seconds: 10) {
+            async let completion: Void = manager.awaitCompletion(["ch1", "ch2"])
+            await manager.enqueue(manga: manga, chapter: chapter1)
+            await manager.enqueue(manga: manga, chapter: chapter2)
+            await completion
+        }
+
+        let records = await manager.listChapters()
+        #expect(records.count == 2, "no cap: both records survive completion")
+        #expect(records.allSatisfy { $0.state == "completed" })
     }
 
     @Test func pathExtensionEdgeCases() {
@@ -557,62 +548,5 @@ struct DownloadManagerTests {
         let event = await collector.value
         timeoutTask.cancel()
         return event
-    }
-
-    @Test func storageEvictionDeletesOldestFilesAndRecord() async throws {
-        // cap = 1 byte forces automatic eviction of any completed chapter, since
-        // totalBytes always exceeds the cap. The LRU ordering is unit-tested
-        // elsewhere in `evictionOrderEvictsOldestFirst`; here we assert the
-        // eviction deletes both the record and the on-disk page files.
-        let json = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
-        Self.makeStubURLProtocol(json: json)
-        let config = makeBetaURLConfiguration()
-        let repo = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
-        let store = try await DownloadStore.makeInMemory()
-        let tmpDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dl-test-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: tmpDir) }
-
-        let manager = DownloadManager(readRepository: repo, store: store,
-                                      baseDirectory: tmpDir, sessionConfiguration: config,
-                                      storageCapBytes: 1)
-
-        let manga = makeManga()
-        let chapter = try JSONDecoder().decode(Chapter.self,
-                                               from: Data(#"{"id":"ch1","title":"Chapter 1","number":1,"pageCount":1}"#.utf8))
-
-        let stream = await manager.events()
-        let collector = Task<DownloadEvent?, Never> {
-            for await event in stream {
-                switch event {
-                case .completed(let cid) where cid == "ch1":
-                    return event
-                case .failed(let cid, _) where cid == "ch1":
-                    return event
-                default:
-                    continue
-                }
-            }
-            return nil
-        }
-        try await Task.sleep(nanoseconds: 100_000_000)
-        await manager.enqueue(manga: manga, chapter: chapter)
-
-        let timeoutTask = Task {
-            try await Task.sleep(nanoseconds: 5_000_000_000)
-            collector.cancel()
-        }
-        let event = await collector.value
-        timeoutTask.cancel()
-        guard event != nil else {
-            Issue.record("Expected completion event, got nil/timeout")
-            return
-        }
-
-        // Auto-eviction at the end of enqueue should have removed the chapter.
-        let recordsAfter = await manager.listChapters()
-        #expect(recordsAfter.count == 0)
-        let chapterDir = tmpDir.appendingPathComponent("m1").appendingPathComponent("ch1")
-        #expect(!FileManager.default.fileExists(atPath: chapterDir.path))
     }
 }
