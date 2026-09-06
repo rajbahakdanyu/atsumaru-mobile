@@ -24,6 +24,34 @@ public struct MangaPage: Decodable, Sendable {
         return scanlators?.first { $0.id == sid }?.name
     }
 
+    enum CodingKeys: String, CodingKey {
+        case id, title, type, medium, status, synopsis, avgRating, poster, banner
+        case genres, tags, authors, scanlators, chapters, recommendations, relations, startReading
+    }
+
+    /// Tolerant decode: only `id` is required. One malformed array element or
+    /// oddly-typed field must never blank the whole page.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        title = (try? c.decodeIfPresent(String.self, forKey: .title)) ?? ""
+        type = try? c.decodeIfPresent(String.self, forKey: .type)
+        medium = try? c.decodeIfPresent(String.self, forKey: .medium)
+        status = try? c.decodeIfPresent(String.self, forKey: .status)
+        synopsis = try? c.decodeIfPresent(String.self, forKey: .synopsis)
+        avgRating = try? c.decodeIfPresent(Double.self, forKey: .avgRating)
+        poster = try? c.decodeIfPresent(PosterImages.self, forKey: .poster)
+        banner = try? c.decodeIfPresent(Banner.self, forKey: .banner)
+        genres = c.tolerantArray(Tag.self, forKey: .genres)
+        tags = c.tolerantArray(Tag.self, forKey: .tags)
+        authors = c.tolerantArray(Author.self, forKey: .authors)
+        scanlators = try? c.decodeIfPresent([Scanlator].self, forKey: .scanlators)
+        chapters = c.tolerantArray(Chapter.self, forKey: .chapters)
+        recommendations = c.tolerantArray(HomeItem.self, forKey: .recommendations)
+        relations = c.tolerantArray(Relation.self, forKey: .relations)
+        startReading = try? c.decodeIfPresent(StartReading.self, forKey: .startReading)
+    }
+
     /// Memberwise init for locally-synthesized pages (e.g. the offline
     /// fallback that lists downloaded chapters when the network fails).
     public init(
@@ -57,37 +85,95 @@ public struct MangaPage: Decodable, Sendable {
 
 public struct PosterImages: Decodable, Sendable {
     public let image: String
+
+    enum CodingKeys: String, CodingKey { case image }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        image = (try? c.decode(String.self, forKey: .image)) ?? ""
+    }
 }
 
 public struct Banner: Decodable, Sendable {
     public let url: String
     public let aspectRatio: Double
+
+    enum CodingKeys: String, CodingKey { case url, aspectRatio }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        url = (try? c.decode(String.self, forKey: .url)) ?? ""
+        aspectRatio = (try? c.decode(Double.self, forKey: .aspectRatio)) ?? 1
+    }
 }
 
 public struct Tag: Decodable, Identifiable, Hashable, Sendable {
     public let id: String
-    public let name: String
+    public let name: String?
+
+    enum CodingKeys: String, CodingKey { case id, name }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        name = try? c.decodeIfPresent(String.self, forKey: .name)
+    }
 }
 
 public struct Author: Decodable, Identifiable, Hashable, Sendable {
     public let id: String
-    public let name: String
+    public let name: String?
     public let slug: String?
     public let type: String?
+
+    enum CodingKeys: String, CodingKey { case id, name, slug, type }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        name = try? c.decodeIfPresent(String.self, forKey: .name)
+        slug = try? c.decodeIfPresent(String.self, forKey: .slug)
+        type = try? c.decodeIfPresent(String.self, forKey: .type)
+    }
 }
 
 public struct Scanlator: Decodable, Identifiable, Hashable, Sendable {
     public let id: String
-    public let name: String
+    public let name: String?
+
+    enum CodingKeys: String, CodingKey { case id, name }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        name = try? c.decodeIfPresent(String.self, forKey: .name)
+    }
 }
 
 public struct Relation: Decodable, Sendable {
     public let type: String
     public let manga: HomeItem
+
+    enum CodingKeys: String, CodingKey { case type, manga }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        type = (try? c.decode(String.self, forKey: .type)) ?? ""
+        // Required: if it fails the Relation decode fails, but element-skip
+        // removes just the bad relation.
+        manga = try c.decode(HomeItem.self, forKey: .manga)
+    }
 }
 
 public struct StartReading: Decodable, Sendable {
     public let chapterId: String
+
+    enum CodingKeys: String, CodingKey { case chapterId }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        chapterId = (try? c.decode(String.self, forKey: .chapterId)) ?? ""
+    }
 }
 
 public struct Chapter: Codable, Identifiable, Hashable, Sendable {
@@ -129,7 +215,7 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         number = (try? c.decode(Double.self, forKey: .number)) ?? 0
         index = try c.decodeIfPresent(Int.self, forKey: .index)
         pageCount = (try? c.decode(Int.self, forKey: .pageCount)) ?? 0
-        scanlationMangaId = try c.decodeIfPresent(String.self, forKey: .scanlationMangaId)
+        scanlationMangaId = try? c.decodeIfPresent(String.self, forKey: .scanlationMangaId)
         createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
         progress = try c.decodeIfPresent(ChapterProgress.self, forKey: .progress)
     }

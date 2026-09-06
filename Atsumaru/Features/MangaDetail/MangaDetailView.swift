@@ -108,11 +108,11 @@ struct MangaDetailView: View {
                 }
                 let authors = manga.authors.filter { $0.type?.lowercased() != "artist" }
                 if !authors.isEmpty {
-                    labeledRow("Author", authors.map(\.name).joined(separator: ", "))
+                    labeledRow("Author", authors.map { $0.name ?? "" }.joined(separator: ", "))
                 }
                 let artists = manga.authors.filter { $0.type?.lowercased() == "artist" }
                 if !artists.isEmpty {
-                    labeledRow("Artist", artists.map(\.name).joined(separator: ", "))
+                    labeledRow("Artist", artists.map { $0.name ?? "" }.joined(separator: ", "))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,8 +122,8 @@ struct MangaDetailView: View {
 
     @ViewBuilder
     private func detailsSection(_ manga: MangaPage) -> some View {
-        let genres = manga.genres.map(\.name)
-        let tags = manga.tags.map(\.name)
+        let genres = manga.genres.map { $0.name ?? "" }
+        let tags = manga.tags.map { $0.name ?? "" }
         let hasSynopsis = !(manga.synopsis?.isEmpty ?? true)
         if hasSynopsis || !genres.isEmpty || !tags.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
@@ -268,9 +268,9 @@ struct MangaDetailView: View {
                         selectedScanlatorId = group.id
                     } label: {
                         if selectedScanlatorId == group.id {
-                            Label(group.name, systemImage: "checkmark")
+                            Label(group.name ?? "", systemImage: "checkmark")
                         } else {
-                            Text(group.name)
+                            Text(group.name ?? "")
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 import SwiftUI
 import Core
+import os
 
 @Observable @MainActor
 final class MangaDetailViewModel {
@@ -32,6 +33,7 @@ final class MangaDetailViewModel {
         } catch let urlError as URLError where urlError.code == .cancelled {
             return
         } catch {
+            Logger(subsystem: "dev.atsumaru.app", category: "detail").error("detail load \(self.mangaId, privacy: .public) failed: \(String(describing: error), privacy: .public)")
             // Offline fallback: downloaded chapters remain readable without
             // the network page.
             if let fallback = await Self.offlineFallback(

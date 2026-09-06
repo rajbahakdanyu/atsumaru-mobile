@@ -24,6 +24,40 @@ import Testing
         #expect(page.relations.first?.type == "SpinOff")
     }
 
+    @Test func mangaPageToleratesMalformedNestedContent() async throws {
+        // relations key missing entirely; genres contains a NON-OBJECT element
+        // (element-skip); one tag with null name (leaf-tolerance); poster null;
+        // a chapter with numeric scanlation id (leaf-tolerance).
+        let json = """
+        {"mangaPage":{"id":"m1","title":"T",
+          "genres":["Action",{"id":"g2","name":"Drama"},{"id":"g3","name":null}],
+          "tags":[],
+          "authors":[{"id":"a1","name":"A"}],
+          "chapters":[{"id":"c1","title":"Ch 1","number":1,"pageCount":5,
+                       "scanlationMangaId":42,"createdAt":1787336992131}],
+          "recommendations":[{"id":"r1","title":null,"image":"posters/x.jpg"}],
+          "poster":null}}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/manga/page")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveMangaRepository(client: client)
+        let page = try await repo.page(id: "m1")
+        #expect(page.title == "T")
+        #expect(page.genres.count == 2)              // "Action" skipped; null-name tag decoded (name "")
+        #expect(page.chapters.count == 1)            // numeric scanlation id tolerated
+        #expect(page.chapters[0].scanlationMangaId == nil)
+        #expect(page.recommendations.count == 1)     // null title decoded as ""
+        #expect(page.recommendations[0].title == "")
+        #expect(page.relations.isEmpty)              // missing key tolerated
+        #expect(page.poster == nil)
+    }
+
     @Test func chaptersDecodesISOCreatedAt() async throws {
         let json = #"{"chapters":[{"id":"QFpTs","title":"Chapter 97","number":97,"index":98,"pageCount":26,"createdAt":"2026-06-10T00:03:06.716Z"},{"id":"NoFrac","title":"Chapter 96","number":96,"index":97,"pageCount":26,"createdAt":"2026-06-10T00:03:06Z"}]}"#
         let config = URLSessionConfiguration.ephemeral

@@ -25,8 +25,8 @@ public struct HomeItem: Codable, Identifiable, Hashable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        id = try c.decode(String.self, forKey: .id)
-        title = try c.decode(String.self, forKey: .title)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        title = (try? c.decode(String.self, forKey: .title)) ?? ""
 
         // Home rails use `image`; the search documents use `poster`. Tolerate
         // both shapes.

@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "detail")
 
 public protocol MangaRepository: Sendable {
     func page(id: String) async throws -> MangaPage
@@ -13,8 +16,13 @@ public struct LiveMangaRepository: MangaRepository {
     private struct ChaptersResponse: Decodable { let chapters: [Chapter] }
 
     public func page(id: String) async throws -> MangaPage {
-        let resp: PageResponse = try await client.get("/api/manga/page", query: ["id": id])
-        return resp.mangaPage
+        do {
+            let resp: PageResponse = try await client.get("/api/manga/page", query: ["id": id])
+            return resp.mangaPage
+        } catch {
+            logger.error("manga page \(id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            throw error
+        }
     }
     public func chapters(id: String, page: Int) async throws -> [Chapter] {
         let resp: ChaptersResponse = try await client.get("/api/manga/chapters", query: ["id": id, "page": String(page)])
