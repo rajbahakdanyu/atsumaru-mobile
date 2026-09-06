@@ -1,5 +1,8 @@
 import SwiftUI
 import Core
+import os
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "progress")
 
 @Observable
 @MainActor
@@ -111,10 +114,15 @@ final class NovelReaderViewModel {
             ts: ts,
             strip: false,
             nextChapterId: nil,
-            readMs: 0
+            readMs: 0,
+            completed: frac >= 0.999
         )
         try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: novel.id, pageIndex: index, updatedAt: Date()))
         guard !novel.scanlationMangaId.isEmpty else { return }
-        try? await readRepository.updateProgress(update)
+        do {
+            try await readRepository.updateProgress(update)
+        } catch {
+            logger.error("progress save failed for chapter \(novel.id, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
     }
 }

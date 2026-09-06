@@ -47,6 +47,7 @@ import Testing
             #expect(p.strip == false)
             #expect(p.nextChapterId == nil as String?)
             #expect(p.ts > 0)
+            #expect(p.completed == false)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/read/updateProgress")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -55,7 +56,26 @@ import Testing
         let repo = LiveReadRepository(client: client)
         let update = ProgressUpdate(mangaScanlationId: "cmrs_1", mangaId: "m1", chapterId: "QFpTs",
                                     page: 4, frac: 0.192, pages: 26, ts: 1_700_000_000_000,
-                                    strip: false, nextChapterId: nil, readMs: 0)
+                                    strip: false, nextChapterId: nil, readMs: 0, completed: false)
+        try await repo.updateProgress(update)
+    }
+
+    @Test func updateProgressCompletedFlagPassesThrough() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let body = try #require(requestBody(of: request))
+            let payload = try JSONDecoder().decode(ProgressBodyPayload.self, from: body)
+            #expect(payload.progress.completed == true)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/read/updateProgress")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveReadRepository(client: client)
+        let update = ProgressUpdate(mangaScanlationId: "cmrs_1", mangaId: "m1", chapterId: "QFpTs",
+                                    page: 25, frac: 1, pages: 26, ts: 1_700_000_000_000,
+                                    strip: false, nextChapterId: nil, readMs: 0, completed: true)
         try await repo.updateProgress(update)
     }
 }
@@ -75,4 +95,6 @@ private struct ProgressPayload: Decodable {
     let strip: Bool
     let nextChapterId: String?
     let readMs: Int
+    // Server Zod schema REQUIRES completed (verified live: body without it 400s).
+    let completed: Bool
 }

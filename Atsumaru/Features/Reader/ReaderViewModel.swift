@@ -1,6 +1,9 @@
 import SwiftUI
 import Core
 import ImageIO
+import os
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "progress")
 
 @Observable
 @MainActor
@@ -147,11 +150,18 @@ final class ReaderViewModel {
             ts: ts,
             strip: mode == .strip,
             nextChapterId: nil,
-            readMs: 0
+            readMs: 0,
+            // Last page = chapter finished; the server uses this for
+            // Continue Reading / history and the row's read state.
+            completed: frac >= 0.999
         )
         try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: readChapter.id, pageIndex: page, updatedAt: Date()))
         guard !readChapter.scanlationMangaId.isEmpty else { return }
-        try? await readRepository.updateProgress(update)
+        do {
+            try await readRepository.updateProgress(update)
+        } catch {
+            logger.error("progress save failed for chapter \(readChapter.id, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
     }
 
     /// Site parity (`filter(scanId) → findIndex(current) → [idx+1]`), made

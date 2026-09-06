@@ -48,9 +48,12 @@ public struct ProgressUpdate: Encodable, Sendable {
     public let strip: Bool
     public let nextChapterId: String?
     public let readMs: Int
-    public init(mangaScanlationId: String, mangaId: String, chapterId: String, page: Int, frac: Double, pages: Int, ts: Int, strip: Bool, nextChapterId: String?, readMs: Int) {
+    /// Server Zod schema REQUIRES this field — omitting it makes the whole
+    /// save fail with 400 (verified live 2026-09-06).
+    public let completed: Bool
+    public init(mangaScanlationId: String, mangaId: String, chapterId: String, page: Int, frac: Double, pages: Int, ts: Int, strip: Bool, nextChapterId: String?, readMs: Int, completed: Bool = false) {
         self.mangaScanlationId = mangaScanlationId; self.mangaId = mangaId; self.chapterId = chapterId
         self.page = page; self.frac = frac; self.pages = pages; self.ts = ts; self.strip = strip
-        self.nextChapterId = nextChapterId; self.readMs = readMs
+        self.nextChapterId = nextChapterId; self.readMs = readMs; self.completed = completed
     }
 }
