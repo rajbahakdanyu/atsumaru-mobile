@@ -16,6 +16,7 @@ struct MangaDetailView: View {
     @State private var isPollingDownloads = false
     @State private var pendingDeleteChapter: Chapter?
     @State private var showDeleteConfirmation = false
+    @State private var showAddToList = false
 
     var body: some View {
         Group {
@@ -75,6 +76,23 @@ struct MangaDetailView: View {
             .padding(.bottom, 24)
         }
         .task { await pollUntilIdle() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        showAddToList = true
+                    } label: {
+                        Label("Add to list", systemImage: "plus.rectangle.on.rectangle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .sheet(isPresented: $showAddToList) {
+            AddToListView(mangaId: mangaId)
+                .environment(environment)
+        }
         .confirmationDialog("Delete downloaded chapter?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Download", role: .destructive) {
                 Task { await deletePendingChapter() }

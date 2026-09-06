@@ -180,14 +180,16 @@ public struct HistoryEntry: Decodable, Identifiable, Sendable {
 
 /// Tolerant user manga list. Verified live shape: the display name arrives
 /// under the `title` key (mapped onto the app-facing `name` property); there
-/// is no `itemCount`. `id` falls back to "".
+/// is no `itemCount`. `id` falls back to "". `pinnedAt` (ISO string, optional)
+/// drives the `pinned` state.
 public struct UserList: Codable, Identifiable, Sendable {
     public let id: String
     public let name: String?
     public let description: String?
+    public let pinnedAt: String?
 
     enum CodingKeys: String, CodingKey {
-        case id, name = "title", description
+        case id, name = "title", description, pinnedAt
     }
 
     public init(from decoder: Decoder) throws {
@@ -195,12 +197,87 @@ public struct UserList: Codable, Identifiable, Sendable {
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
         name = try c.decodeIfPresent(String.self, forKey: .name)
         description = try c.decodeIfPresent(String.self, forKey: .description)
+        pinnedAt = try c.decodeIfPresent(String.self, forKey: .pinnedAt)
     }
 
-    public init(id: String, name: String? = nil, description: String? = nil) {
+    public init(id: String, name: String? = nil, description: String? = nil, pinnedAt: String? = nil) {
         self.id = id
         self.name = name
         self.description = description
+        self.pinnedAt = pinnedAt
+    }
+}
+
+extension UserList {
+    public var pinned: Bool { pinnedAt != nil }
+}
+
+/// A single list's content for `getList`. Decoded tolerantly: the envelope may
+/// be `{"list": {...}}` or a bare list object; items may be flat
+/// (`{mangaId, title}`) or nested (`{mangaId, manga: {title, poster: {image}}}`).
+public struct ListDetail: Decodable, Sendable {
+    public let id: String
+    public let title: String?
+    public let visibility: String?
+    public let items: [ListItem]
+
+    private enum Keys: String, CodingKey { case id, title, visibility, items }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        id = (try? c.decode(String.self, forKey: .id)) ?? ""
+        title = try? c.decodeIfPresent(String.self, forKey: .title)
+        visibility = try? c.decodeIfPresent(String.self, forKey: .visibility)
+        items = c.tolerantArray(ListItem.self, forKey: .items)
+    }
+}
+
+/// One manga inside a list detail. The wire shape is UNVERIFIED, so decoding
+/// prefers flat keys first (`mangaId`/`title`/`poster`/`note`), then falls
+/// back to a nested `manga` object (`title`, `poster: {image}`); every field
+/// is `try?`-wrapped and nothing force-unwraps. `id` is the mangaId (falls
+/// back to "" so the item stays `Identifiable`).
+public struct ListItem: Decodable, Identifiable, Hashable, Sendable {
+    public let mangaId: String
+    public let title: String?
+    public let poster: String?
+    public let note: String?
+    public var id: String { mangaId }
+
+    private enum Keys: String, CodingKey { case mangaId, title, poster, note, manga }
+
+    /// Poster path may be a bare string (`"poster": "posters/x.jpg"`) or an
+    /// object (`"poster": {"image": "posters/x.jpg"}`).
+    private struct PosterBox: Decodable {
+        let image: String?
+    }
+
+    /// Nested manga object: `{title, poster: {image}}`.
+    private struct MangaBox: Decodable {
+        let title: String?
+        let poster: PosterBox?
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Keys.self)
+        mangaId = (try? c.decode(String.self, forKey: .mangaId)) ?? ""
+        note = try? c.decodeIfPresent(String.self, forKey: .note)
+
+        // Flat item shape first.
+        var resolvedTitle: String? = try? c.decodeIfPresent(String.self, forKey: .title)
+        var resolvedPoster: String? = try? c.decodeIfPresent(String.self, forKey: .poster)
+        if resolvedPoster == nil, let box = try? c.decodeIfPresent(PosterBox.self, forKey: .poster) {
+            resolvedPoster = box.image
+        }
+
+        // Nested `manga` object fallback.
+        if let manga = try? c.decodeIfPresent(MangaBox.self, forKey: .manga) {
+            if resolvedTitle == nil { resolvedTitle = manga.title }
+            if resolvedPoster == nil { resolvedPoster = manga.poster?.image }
+        }
+
+        title = resolvedTitle
+        poster = resolvedPoster
     }
 }
 

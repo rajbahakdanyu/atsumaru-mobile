@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public protocol LibraryRepository: Sendable {
     func bookmarks(offset: Int, limit: Int) async throws -> [Bookmark]
@@ -6,8 +7,13 @@ public protocol LibraryRepository: Sendable {
     func lists() async throws -> [UserList]
     func createList(name: String) async throws
     func deleteList(id: String) async throws
+    func addManga(listId: String, mangaId: String) async throws -> Bool
+    func setPinned(listId: String, pinned: Bool) async throws
+    func listDetail(id: String) async throws -> ListDetail
     func continueReading() async throws -> [ContinueReadingItem]
 }
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "library")
 
 public struct LiveLibraryRepository: LibraryRepository {
     private let client: APIClient
@@ -62,5 +68,45 @@ public struct LiveLibraryRepository: LibraryRepository {
             "/api/user/userMangaLists/deleteList",
             json: DeleteBody(listId: id)
         )
+    }
+
+    public func addManga(listId: String, mangaId: String) async throws -> Bool {
+        // Verified contract: response contains `alreadyExists` (nil → false).
+        struct AddBody: Encodable { let listId: String; let mangaId: String }
+        struct AddResponse: Decodable { let alreadyExists: Bool? }
+        let response: AddResponse = try await client.post(
+            "/api/user/userMangaLists/addManga",
+            json: AddBody(listId: listId, mangaId: mangaId)
+        )
+        return response.alreadyExists ?? false
+    }
+
+    public func setPinned(listId: String, pinned: Bool) async throws {
+        // Verified contract: POST {"listId": ..., "pinned": Bool}.
+        struct PinBody: Encodable { let listId: String; let pinned: Bool }
+        try await client.postVoid(
+            "/api/user/userMangaLists/setPinned",
+            json: PinBody(listId: listId, pinned: pinned)
+        )
+    }
+
+    /// Single list with its manga. The `getList` response shape is UNVERIFIED,
+    /// so decode tolerantly (`{"list": {...}}` then a bare list object); when
+    /// neither shape matches, log the raw response (truncated) so the first
+    /// real run fixes any shape mismatch.
+    public func listDetail(id: String) async throws -> ListDetail {
+        struct Envelope: Decodable { let list: ListDetail }
+        let data = try await client.getData(
+            "/api/user/userMangaLists/getList",
+            query: ["listId": id]
+        )
+        if let envelope = try? JSONDecoder().decode(Envelope.self, from: data) {
+            return envelope.list
+        }
+        if let bare = try? JSONDecoder().decode(ListDetail.self, from: data) {
+            return bare
+        }
+        logger.error("listDetail \(id, privacy: .public) decode failed: \(String(data: data.prefix(2000), encoding: .utf8) ?? "?", privacy: .public)")
+        throw ApiError.decoding
     }
 }

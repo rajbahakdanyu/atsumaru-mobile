@@ -10,6 +10,11 @@ struct ReaderResume: Hashable {
     let isNovel: Bool
 }
 
+/// Push target for opening one user list's detail screen.
+struct ListOpen: Hashable {
+    let listId: String
+}
+
 struct LibraryView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.displayScale) private var displayScale
@@ -134,14 +139,24 @@ struct LibraryView: View {
                         List {
                             Section {
                                 ForEach(viewModel.lists) { list in
-                                    listRow(list)
-                                        .swipeActions(edge: .trailing) {
-                                            Button(role: .destructive) {
-                                                listToDelete = list
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                    NavigationLink(value: ListOpen(listId: list.id)) {
+                                        listRow(list)
+                                    }
+                                    .contextMenu {
+                                        Button {
+                                            Task { await viewModel.setPinned(list, !list.pinned) }
+                                        } label: {
+                                            Label(list.pinned ? "Unpin" : "Pin",
+                                                  systemImage: list.pinned ? "pin.slash" : "pin")
                                         }
+                                    }
+                                    .swipeActions(edge: .trailing) {
+                                        Button(role: .destructive) {
+                                            listToDelete = list
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
                                 }
                             }
                             if viewModel.lists.isEmpty && !viewModel.isLoading {
@@ -164,6 +179,9 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .navigationDestination(for: String.self) { id in
             MangaDetailView(mangaId: id)
+        }
+        .navigationDestination(for: ListOpen.self) { open in
+            ListDetailView(listId: open.listId)
         }
         .navigationDestination(for: ReaderResume.self) { resume in
             if resume.isNovel {
@@ -302,6 +320,11 @@ struct LibraryView: View {
                 }
             }
             Spacer()
+            if list.pinned {
+                Image(systemName: "pin.fill")
+                    .font(.caption)
+                    .foregroundStyle(.tint)
+            }
         }
     }
 }

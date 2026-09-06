@@ -84,6 +84,140 @@ import Testing
         #expect(lists.count == 1)
         #expect(lists.first?.name == "To Read")
         #expect(lists.first?.description == "Queue")
+        #expect(lists.first?.pinned == false)
+    }
+
+    @Test func listsDecodePinnedAt() async throws {
+        let json = #"{"lists":[{"id":"list3","title":"Pinned One","pinnedAt":"2026-01-01T00:00:00Z"}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getLists")
+            #expect(request.httpMethod == "GET")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getLists")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let lists = try await repo.lists()
+        #expect(lists.count == 1)
+        #expect(lists.first?.pinned == true)
+        #expect(lists.first?.pinnedAt == "2026-01-01T00:00:00Z")
+    }
+
+    @Test func addMangaPostsJSON() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/addManga")
+            #expect(request.httpMethod == "POST")
+            captured.value = requestBody(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/addManga")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"alreadyExists":false}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let exists = try await repo.addManga(listId: "l1", mangaId: "m1")
+        #expect(exists == false)
+        let body = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(body.contains("\"listId\":\"l1\""))
+        #expect(body.contains("\"mangaId\":\"m1\""))
+    }
+
+    @Test func addMangaReturnsAlreadyExistsTrue() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/addManga")
+            #expect(request.httpMethod == "POST")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/addManga")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"alreadyExists":true}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let exists = try await repo.addManga(listId: "l1", mangaId: "m1")
+        #expect(exists == true)
+    }
+
+    @Test func setPinnedPostsJSON() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/setPinned")
+            #expect(request.httpMethod == "POST")
+            captured.value = requestBody(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/setPinned")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        try await repo.setPinned(listId: "l1", pinned: true)
+        let body = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(body.contains("\"listId\":\"l1\""))
+        #expect(body.contains("\"pinned\":true"))
+    }
+
+    @Test func listDetailTolerantDecode() async throws {
+        // Shape unverified from the wire — decode MUST tolerate both a flat item
+        // shape {mangaId, title} and a nested {mangaId, manga:{title, poster:{image}}}.
+        let json = """
+        {"list":{"id":"l1","title":"My List","visibility":"Private",
+          "items":[{"mangaId":"m1","title":"Flat T"},
+                   {"mangaId":"m2","manga":{"title":"Nested T","poster":{"image":"posters/n.jpg"}}},
+                   {"mangaId":"m3","note":"reading next"}]}}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getList")
+            #expect(request.httpMethod == "GET")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "listId", value: "l1")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getList")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let detail = try await repo.listDetail(id: "l1")
+        #expect(detail.id == "l1")
+        #expect(detail.title == "My List")
+        #expect(detail.visibility == "Private")
+        #expect(detail.items.count == 3)
+        #expect(detail.items[0].title == "Flat T")
+        #expect(detail.items[0].poster == nil)
+        #expect(detail.items[1].title == "Nested T")
+        #expect(detail.items[1].poster == "posters/n.jpg")
+        #expect(detail.items[2].note == "reading next")
+        #expect(detail.items[2].title == nil)
+    }
+
+    @Test func listDetailAcceptsBareListShape() async throws {
+        // Tolerant decode: if no {"list": ...} envelope arrives, a bare list
+        // object at the top level must still decode.
+        let json = """
+        {"id":"l2","title":"Bare","visibility":"Public","items":[]}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getList")
+            #expect(request.httpMethod == "GET")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getList")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let detail = try await repo.listDetail(id: "l2")
+        #expect(detail.title == "Bare")
+        #expect(detail.items.isEmpty)
     }
 
     @Test func listsThrowsWhenNoEnvelopeDecodes() async throws {

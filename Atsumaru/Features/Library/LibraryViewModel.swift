@@ -81,4 +81,14 @@ final class LibraryViewModel {
             actionError = "Couldn't delete list. Try again."
         }
     }
+
+    func setPinned(_ list: UserList, _ pinned: Bool) async {
+        do {
+            try await repository.setPinned(listId: list.id, pinned: pinned)
+            actionError = nil
+            if let refreshed = try? await repository.lists() { lists = refreshed }
+        } catch {
+            actionError = "Couldn't update the list. Try again."
+        }
+    }
 }
