@@ -59,11 +59,6 @@ final class DownloadsViewModel {
 
     var rows: [DownloadRow] = []
     var sections: [DownloadSection] = []
-    var storageBytes: Int64 = 0
-    var storageText: String? {
-        guard storageBytes > 0 else { return nil }
-        return "\(ByteCountFormatter.string(fromByteCount: storageBytes, countStyle: .file)) used"
-    }
 
     private let downloadManager: DownloadManager
     private let backgroundScheduler: BackgroundScheduler
@@ -124,7 +119,6 @@ final class DownloadsViewModel {
         }
         rows = updated
         rebuildSections(from: updated)
-        storageBytes = await downloadManager.storageUsed()
     }
 
     func delete(mangaId: String) async {
@@ -194,7 +188,6 @@ final class DownloadsViewModel {
                 row.state = .downloading(fraction)
             }
         case .completed(let chapterId):
-            storageBytes = await downloadManager.storageUsed()
             await refreshSizes(for: chapterId)
             updateRow(chapterId: chapterId) { row in
                 row.state = .completed

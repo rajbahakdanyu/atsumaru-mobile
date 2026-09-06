@@ -137,8 +137,18 @@ struct LibraryView: View {
                         .refreshable { await viewModel.load(force: true) }
 
                     case .lists:
-                        List {
-                            Section {
+                        if viewModel.lists.isEmpty && !viewModel.isLoading {
+                            Group {
+                                if let error = viewModel.error {
+                                    ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+                                } else {
+                                    ContentUnavailableView("No lists yet", systemImage: "list.bullet")
+                                }
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .refreshable { await viewModel.load(force: true) }
+                        } else {
+                            List {
                                 ForEach(viewModel.lists) { list in
                                     NavigationLink(value: ListOpen(listId: list.id)) {
                                         listRow(list)
@@ -159,20 +169,15 @@ struct LibraryView: View {
                                         }
                                     }
                                 }
-                            }
-                            if viewModel.lists.isEmpty && !viewModel.isLoading {
-                                Section {
-                                    if let error = viewModel.error {
-                                        ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
-                                    } else {
-                                        ContentUnavailableView("No lists yet", systemImage: "list.bullet")
+                                if viewModel.isLoading && viewModel.lists.isEmpty {
+                                    Section {
+                                        LoadingSkeletonView().listRowBackground(Color.clear)
                                     }
                                 }
-                                .listRowBackground(Color.clear)
                             }
+                            .listStyle(.plain)
+                            .refreshable { await viewModel.load(force: true) }
                         }
-                        .listStyle(.plain)
-                        .refreshable { await viewModel.load(force: true) }
                     }
                 }
             }

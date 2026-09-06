@@ -64,23 +64,24 @@ struct DownloadsView: View {
                             description: Text("Download chapters from a manga page to keep them offline.")
                         )
                         .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
                     } else {
                         ForEach(vm.sections) { section in
                             seriesSection(section)
                                 .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        Task { await viewModel.delete(mangaId: section.mangaId) }
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                         }
-                    }
-                } footer: {
-                    if let storageText = vm.storageText {
-                        HStack {
-                            Image(systemName: "internaldrive")
-                            Text(storageText)
-                        }
-                        .font(.footnote)
                     }
                 }
             }
-            .listStyle(.insetGrouped)
+            .listStyle(.plain)
             .refreshable { await viewModel.refresh() }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
