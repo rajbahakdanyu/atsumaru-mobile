@@ -134,6 +134,7 @@ final class ReaderViewModel {
             readMs: 0
         )
         try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: readChapter.id, pageIndex: page, updatedAt: Date()))
+        guard !readChapter.scanlationMangaId.isEmpty else { return }
         try? await readRepository.updateProgress(update)
     }
 }

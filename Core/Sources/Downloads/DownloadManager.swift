@@ -146,11 +146,13 @@ public actor DownloadManager {
         if record.kind == "novel" {
             let url = dir.appendingPathComponent(Self.novelContentFileName, isDirectory: false)
             guard let data = try? Data(contentsOf: url),
-                  let paragraphs = try? JSONDecoder().decode([String].self, from: data) else { return nil }
+                  let paragraphs = try? JSONDecoder().decode([String].self, from: data),
+                  !paragraphs.isEmpty else { return nil }
             return .novelParagraphs(paragraphs)
         }
-        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil),
-              !files.isEmpty else { return nil }
+        guard record.pageCount > 0,
+              let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil),
+              files.count == record.pageCount else { return nil }
         let pages = files.sorted { Self.pageIndex($0) < Self.pageIndex($1) }
         return .pages(pages)
     }
@@ -381,6 +383,7 @@ public actor DownloadManager {
             throw NSError(domain: "dev.atsumaru.DownloadManager", code: 3,
                           userInfo: [NSLocalizedDescriptionKey: "HTTP \(status) for page \(page.number)"])
         }
+        guard !Task.isCancelled else { throw CancellationError() }
         let ext = Self.pathExtension(from: page.image) ?? "webp"
         let dir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
             .appendingPathComponent(chapterId, isDirectory: true)
