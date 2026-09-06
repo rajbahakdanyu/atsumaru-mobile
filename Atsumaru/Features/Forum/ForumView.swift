@@ -36,7 +36,7 @@ struct ForumView: View {
     @State private var showAuth = false
     @State private var showingCompose = false
     // Safer default: adult channels stay hidden until opted in (audit low fix).
-    @AppStorage("forum.includeAdult") private var includeAdult = false
+    @AppStorage("forum.includeAdult") private var includeAdult = true
 
     var body: some View {
         NavigationStack {
