@@ -16,6 +16,10 @@ struct NovelReaderView: View {
     @State private var showSettings = false
     @State private var commentPopover: ParagraphIndex?
     @State private var hasUserScrolled = false
+    // Reader chrome (nav bar) shows on launch/tap and auto-hides after ~3s
+    // without interaction, like the manga reader.
+    @State private var showChrome = true
+    @State private var chromeHideTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -36,7 +40,10 @@ struct NovelReaderView: View {
             }
         }
         .toolbar { toolbarContent }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // While visible the bar keeps its material background so the chapter
+        // title stays readable over light paragraphs; transparent when hidden.
+        .toolbarBackground(showChrome ? .visible : .hidden, for: .navigationBar)
+        .toolbar(showChrome ? .visible : .hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .task {
@@ -54,11 +61,20 @@ struct NovelReaderView: View {
         }
         .onDisappear {
             viewModel?.saveProgressNow()
+            chromeHideTask?.cancel()
         }
         .sheet(item: $commentPopover) {
             ParagraphCommentsSheet(chapterId: chapter.id, paragraph: $0.value)
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
+        }
+        .sheet(isPresented: $showSettings) {
+            settingsPanel
+                .presentationDetents([.fraction(0.35)])
+                .presentationDragIndicator(.visible)
+        }
+        .onAppear {
+            scheduleChromeHide()
         }
     }
 
@@ -96,6 +112,7 @@ struct NovelReaderView: View {
             .onScrollPhaseChange { _, newPhase in
                 if newPhase == .tracking || newPhase == .interacting {
                     hasUserScrolled = true
+                    scheduleChromeHide()
                 }
             }
         }
@@ -110,18 +127,55 @@ struct NovelReaderView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 4)
             .contentShape(Rectangle())
-            .onTapGesture { commentPopover = ParagraphIndex(value: index) }
+            // Reading tap toggles the chrome; comments live on the dedicated
+            // trailing affordance so paragraph taps never open sheets by accident.
+            .onTapGesture { toggleChrome() }
             .overlay(alignment: .topTrailing) {
-                if let count, count > 0 {
-                    Text("\(count)")
-                        .font(.caption2)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(.quaternary, in: Capsule())
-                        .padding(.top, 2)
-                        .padding(.trailing, 4)
+                Button {
+                    commentPopover = ParagraphIndex(value: index)
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "bubble.left")
+                        if let count, count > 0 {
+                            Text("\(count)")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.quaternary, in: Capsule())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Paragraph comments")
+                .padding(.top, 2)
+                .padding(.trailing, 4)
             }
+    }
+
+    private func toggleChrome() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showChrome.toggle()
+        }
+        if showChrome {
+            scheduleChromeHide()
+        } else {
+            chromeHideTask?.cancel()
+            chromeHideTask = nil
+        }
+    }
+
+    /// Auto-hides the chrome ~3s after the last reading interaction.
+    private func scheduleChromeHide() {
+        chromeHideTask?.cancel()
+        guard showChrome else { return }
+        chromeHideTask = Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showChrome = false
+            }
+        }
     }
 
     @ToolbarContentBuilder
@@ -133,9 +187,6 @@ struct NovelReaderView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             Button { showSettings = true } label: { Image(systemName: "textformat") }
-                .popover(isPresented: $showSettings) {
-                    settingsPanel
-                }
         }
     }
 
@@ -160,8 +211,9 @@ struct NovelReaderView: View {
             Toggle("Serif font", isOn: $serif)
         }
         .padding(20)
-        .frame(width: 300)
-        .presentationCompactAdaptation(.popover)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        // Presented as a bottom sheet on every size class (fraction detent);
+        // the fixed-300pt popover was cramped on iPhone at large Dynamic Type.
     }
 }
 

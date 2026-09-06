@@ -20,6 +20,10 @@ struct MangaReaderView: View {
     @State private var stripScrollActive = false
     @State private var stripViewportFrame: CGRect?
     @State private var stripSeekGateResetTask: Task<Void, Never>?
+    // Reader chrome (nav bar + page slider) shows on launch/tap and
+    // auto-hides after ~3s without interaction.
+    @State private var showChrome = true
+    @State private var chromeHideTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -40,7 +44,11 @@ struct MangaReaderView: View {
             }
         }
         .toolbar { toolbarContent }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        // Chrome visibility follows `showChrome`; while visible the bar
+        // keeps its material background so icons stay readable over light
+        // pages, and it goes fully transparent when hidden.
+        .toolbarBackground(showChrome ? .visible : .hidden, for: .navigationBar)
+        .toolbar(showChrome ? .visible : .hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
         .task {
@@ -59,9 +67,11 @@ struct MangaReaderView: View {
         }
         .onChange(of: storedMode) { _, newMode in
             viewModel?.mode = newMode
+            scheduleChromeHide()
         }
         .onDisappear {
             viewModel?.saveProgressNow()
+            chromeHideTask?.cancel()
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {
@@ -86,11 +96,17 @@ struct MangaReaderView: View {
             if pages.count > 1 {
                 VStack {
                     Spacer()
-                    pageSlider(viewModel: viewModel, total: pages.count)
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
+                    if showChrome {
+                        pageSlider(viewModel: viewModel, total: pages.count)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .transition(.opacity)
+                    }
                 }
             }
+        }
+        .onAppear {
+            scheduleChromeHide()
         }
     }
 
@@ -110,6 +126,7 @@ struct MangaReaderView: View {
             .onChange(of: viewModel.currentPage) { _, _ in
                 viewModel.scheduleProgressSave()
                 zoomScale = 1.0
+                scheduleChromeHide()
             }
 
             tapZones(viewModel: viewModel, total: pages.count)
@@ -175,6 +192,7 @@ struct MangaReaderView: View {
                     // their manual scroll updates the page immediately.
                     stripScrollTarget = nil
                     stripScrollActive = true
+                    scheduleChromeHide()
                 case .idle:
                     stripScrollActive = false
                     stripScrollTarget = nil
@@ -190,6 +208,10 @@ struct MangaReaderView: View {
             .onDisappear {
                 stripSeekGateResetTask?.cancel()
             }
+            .contentShape(Rectangle())
+            // Strip mode has no page-tap zones; a tap anywhere toggles the
+            // reader chrome.
+            .onTapGesture { toggleChrome() }
         }
     }
 
@@ -269,6 +291,10 @@ struct MangaReaderView: View {
                     .gesture(zoomGesture)
                     .frame(maxWidth: .infinity)
             }
+            // Vertical micro-scroll is reserved for the zoomed state; at
+            // natural size the vertical axis stays locked so a drag never
+            // fights the horizontal page turn.
+            .scrollDisabled(zoomScale <= 1.0)
         }
     }
 
@@ -301,7 +327,10 @@ struct MangaReaderView: View {
                 .frame(maxWidth: .infinity)
             Color.clear
                 .frame(width: 80)
-                .allowsHitTesting(false)
+                .contentShape(Rectangle())
+                // Center tap toggles the chrome (standard reader behavior);
+                // the flanks turn pages.
+                .onTapGesture { toggleChrome() }
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture { navigate(viewModel: viewModel, delta: 1, total: total) }
@@ -319,12 +348,39 @@ struct MangaReaderView: View {
         }
     }
 
+    private func toggleChrome() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showChrome.toggle()
+        }
+        if showChrome {
+            scheduleChromeHide()
+        } else {
+            chromeHideTask?.cancel()
+            chromeHideTask = nil
+        }
+    }
+
+    /// Auto-hides the chrome ~3s after the last reading interaction; every
+    /// interaction path calls this again to reschedule.
+    private func scheduleChromeHide() {
+        chromeHideTask?.cancel()
+        guard showChrome else { return }
+        chromeHideTask = Task {
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showChrome = false
+            }
+        }
+    }
+
     @ViewBuilder
     private func pageSlider(viewModel: ReaderViewModel, total: Int) -> some View {
         HStack(spacing: 12) {
             Text("\(viewModel.currentPage + 1)")
                 .font(.body.monospacedDigit())
-                .frame(width: 36, alignment: .trailing)
+                .fixedSize()
+                .frame(minWidth: 36, alignment: .trailing)
             Slider(value: Binding(
                 get: { Double(viewModel.currentPage) },
                 set: { newValue in
@@ -334,10 +390,19 @@ struct MangaReaderView: View {
                         stripScrollTarget = page
                     }
                 }
-            ), in: 0...Double(max(0, total - 1)))
+            ), in: 0...Double(max(0, total - 1)), onEditingChanged: { editing in
+                // Hold the chrome while scrubbing; restart the auto-hide
+                // timer when the drag ends.
+                if editing {
+                    chromeHideTask?.cancel()
+                } else {
+                    scheduleChromeHide()
+                }
+            })
             Text("\(total)")
                 .font(.body.monospacedDigit())
-                .frame(width: 36, alignment: .leading)
+                .fixedSize()
+                .frame(minWidth: 36, alignment: .leading)
         }
         .font(.subheadline)
         .padding(.horizontal, 14)
@@ -359,8 +424,22 @@ struct MangaReaderView: View {
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
-                Button { storedMode = .paged } label: { Label("Paged", systemImage: "book") }
-                Button { storedMode = .strip } label: { Label("Webtoon", systemImage: "rectangle.split.1x2") }
+                Picker("Mode", selection: $storedMode) {
+                    Label("Paged", systemImage: "book").tag(ReaderMode.paged)
+                    Label("Webtoon", systemImage: "rectangle.split.1x2").tag(ReaderMode.strip)
+                }
+                if storedMode != .strip {
+                    // Direction/fit only affect paged pages; they were
+                    // previously stored with no UI to change them.
+                    Picker("Reading direction", selection: $readingDirection) {
+                        Label("Left to right", systemImage: "arrow.right").tag("ltr")
+                        Label("Right to left", systemImage: "arrow.left").tag("rtl")
+                    }
+                    Picker("Page fit", selection: $readerFit) {
+                        Label("Fit width", systemImage: "arrow.up.left.and.arrow.down.right").tag(ReaderFit.fit)
+                        Label("Fill screen", systemImage: "arrow.down.right.and.arrow.up.left").tag(ReaderFit.fill)
+                    }
+                }
             } label: {
                 Image(systemName: storedMode == .strip ? "rectangle.split.1x2" : "book")
             }
