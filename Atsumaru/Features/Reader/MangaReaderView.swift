@@ -67,6 +67,8 @@ struct MangaReaderView: View {
             NavigationStack {
                 CommentsView(sectionId: "manga:\(mangaId)")
             }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
     }
 
@@ -340,7 +342,7 @@ struct MangaReaderView: View {
         .font(.subheadline)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassCapsule()
+        .glassCapsule(interactive: true)
     }
 
     @ToolbarContentBuilder

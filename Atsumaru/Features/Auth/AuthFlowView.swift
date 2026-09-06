@@ -8,7 +8,7 @@ struct AuthFlowView: View {
         NavigationStack {
             LoginView(onSuccess: onSuccess)
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(28)
     }
@@ -43,7 +43,7 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .glassCapsule()
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
                 HStack(spacing: 8) {
                     Image(systemName: "lock")
@@ -53,7 +53,7 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
-                .glassCapsule()
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
 
             if let errorMessage {

@@ -38,8 +38,7 @@ struct ParagraphCommentsSheet: View {
                 Button("Retry") { Task { await load() } }
             }
         } else {
-            Text("No comments yet")
-                .foregroundStyle(.secondary)
+            ContentUnavailableView("No comments", systemImage: "bubble.left")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -59,11 +58,9 @@ struct ParagraphCommentsSheet: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 if comments.isEmpty {
-                    Text("No comments yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    ContentUnavailableView("No comments", systemImage: "bubble.left")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 48)
+                        .padding(.vertical, 24)
                 }
                 ForEach(comments) { comment in
                     CommentRow(comment: comment, onReply: {}, onVote: { _ in false })

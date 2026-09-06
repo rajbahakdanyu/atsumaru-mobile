@@ -92,6 +92,8 @@ struct MangaDetailView: View {
         .sheet(isPresented: $showAddToList) {
             AddToListView(mangaId: mangaId)
                 .environment(environment)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         }
         .confirmationDialog("Delete downloaded chapter?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
             Button("Delete Download", role: .destructive) {
@@ -235,7 +237,7 @@ struct MangaDetailView: View {
             .font(.caption)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .glassCapsule()
+            .background(.quaternary, in: Capsule())
     }
 
     @ViewBuilder
@@ -253,9 +255,7 @@ struct MangaDetailView: View {
                     return chapter.scanlationMangaId == sid
                 }
                 if visible.isEmpty {
-                    Text("No chapters for this group.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    ContentUnavailableView("No chapters", systemImage: "book.closed")
                         .padding(.vertical, 12)
                 } else {
                     ForEach(visible) { chapter in

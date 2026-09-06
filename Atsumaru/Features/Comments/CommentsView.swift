@@ -63,11 +63,9 @@ struct CommentsView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 if viewModel.comments.isEmpty {
-                    Text("No comments yet")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    ContentUnavailableView("No comments", systemImage: "bubble.left")
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 48)
+                        .padding(.vertical, 24)
                 }
                 ForEach(viewModel.comments) { comment in
                     CommentRow(
@@ -124,7 +122,7 @@ struct CommentsView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .glassCapsule()
+            .glassCapsule(interactive: true)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -185,7 +183,7 @@ struct CommentRow: View {
                             .font(.caption)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .glassCapsule()
+                            .background(.quaternary, in: Capsule())
                     }
                     .buttonStyle(.plain)
                 }

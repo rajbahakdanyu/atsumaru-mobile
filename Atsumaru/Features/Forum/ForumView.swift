@@ -39,32 +39,35 @@ struct ForumView: View {
 
     var body: some View {
         NavigationStack {
-            if let viewModel {
-                content(viewModel: viewModel)
-            } else {
-                LoadingSkeletonView()
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button { showingCompose = true } label: {
-                    Image(systemName: "square.and.pencil")
+            Group {
+                if let viewModel {
+                    content(viewModel: viewModel)
+                } else {
+                    LoadingSkeletonView()
                 }
             }
-            ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Toggle(isOn: Binding(
-                        get: { includeAdult },
-                        set: { newValue in
-                            includeAdult = newValue
-                            viewModel?.includeAdult = newValue
-                            Task { await viewModel?.load(force: true) }
-                        }
-                    )) {
-                        Label("Adult channels", systemImage: "18.circle")
+            .navigationTitle("Forum")
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { showingCompose = true } label: {
+                        Image(systemName: "square.and.pencil")
                     }
-                } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Toggle(isOn: Binding(
+                            get: { includeAdult },
+                            set: { newValue in
+                                includeAdult = newValue
+                                viewModel?.includeAdult = newValue
+                                Task { await viewModel?.load(force: true) }
+                            }
+                        )) {
+                            Text("Adult channels")
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
                 }
             }
         }
@@ -87,6 +90,8 @@ struct ForumView: View {
         }
         .sheet(isPresented: $showingCompose) {
             ComposeView(initialChannel: nil)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .authSheet(isPresented: $showAuth, environment: environment)
     }
@@ -102,7 +107,10 @@ struct ForumView: View {
         } else {
             List {
                 if viewModel.channels.isEmpty {
-                    EmptyStateView(message: "No channels")
+                    ContentUnavailableView(
+                        "No channels",
+                        systemImage: "bubble.left.and.bubble.right"
+                    )
                 } else {
                     ForEach(viewModel.channels) { channel in
                         NavigationLink(value: channel) {
@@ -113,7 +121,6 @@ struct ForumView: View {
                 }
             }
             .listStyle(.plain)
-            .navigationTitle("Forum")
             .navigationDestination(for: ForumChannel.self) { channel in
                 ChannelPostsView(channel: channel)
             }
@@ -129,7 +136,6 @@ struct ForumView: View {
         SignedOutView(message: "Sign in to browse the forum.") {
             showAuth = true
         }
-        .navigationTitle("Forum")
     }
 
     @ViewBuilder
@@ -227,6 +233,12 @@ struct ChannelPostsView: View {
                         Text("Top").tag("top")
                         Text("Old").tag("old")
                     }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                }
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
                     Picker("Tag", selection: Binding(
                         get: { viewModel?.tagId ?? "" },
                         set: { newValue in
@@ -262,6 +274,8 @@ struct ChannelPostsView: View {
         .refreshable { await viewModel?.load() }
         .sheet(isPresented: $showingCompose) {
             ComposeView(initialChannel: channel)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
         .onChange(of: showingCompose) { _, isShowing in
             // Refresh when the compose sheet closes; a newly created post
@@ -281,7 +295,7 @@ struct ChannelPostsView: View {
         } else {
             List {
                 if viewModel.posts.isEmpty {
-                    EmptyStateView(message: "No posts yet")
+                    ContentUnavailableView("No posts yet", systemImage: "bubble.left")
                 } else {
                     ForEach(viewModel.posts) { post in
                         NavigationLink(value: post) {

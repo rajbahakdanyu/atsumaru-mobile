@@ -47,7 +47,8 @@ struct ContinueReadingView: View {
                 .accessibilityLabel("Resume reading")
             }
             .padding(.horizontal, 12)
-            .glassCapsule()
+            .padding(.vertical, 10)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         } else {
             NavigationLink(value: item.id) {
                 rowContent(for: item, showsChevron: true)

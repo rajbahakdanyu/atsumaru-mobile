@@ -57,6 +57,8 @@ struct NovelReaderView: View {
         }
         .sheet(item: $commentPopover) {
             ParagraphCommentsSheet(chapterId: chapter.id, paragraph: $0.value)
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -115,7 +117,7 @@ struct NovelReaderView: View {
                         .font(.caption2)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
-                        .glassCapsule()
+                        .background(.quaternary, in: Capsule())
                         .padding(.top, 2)
                         .padding(.trailing, 4)
                 }

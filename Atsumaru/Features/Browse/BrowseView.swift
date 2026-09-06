@@ -66,7 +66,6 @@ struct BrowseView: View {
                 }
             }
             .navigationTitle("Browse")
-            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Picker("Display", selection: $displayMode) {
@@ -92,6 +91,7 @@ struct BrowseView: View {
                 if let viewModel {
                     FilterSheet(viewModel: viewModel)
                         .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
                         .onDisappear {
                             if viewModel.hasActiveFilters {
                                 displayMode = .filtered
@@ -105,6 +105,7 @@ struct BrowseView: View {
                 if let viewModel {
                     SearchSheet(viewModel: viewModel)
                         .presentationDetents([.large])
+                        .presentationDragIndicator(.visible)
                         .onDisappear {
                             if !viewModel.query.q.isEmpty, viewModel.query.q != "*" {
                                 displayMode = .filtered
@@ -142,10 +143,12 @@ struct BrowseView: View {
 
     @ViewBuilder
     private var filteredEmptyState: some View {
-        VStack(spacing: 12) {
-            EmptyStateView(message: "Search or apply filters to see results here.")
-                .padding(.top, 40)
-        }
+        ContentUnavailableView(
+            "No filters applied",
+            systemImage: "line.3.horizontal.decrease.circle",
+            description: Text("Search or apply filters to see results here.")
+        )
+        .padding(.top, 40)
     }
 
     @ViewBuilder
@@ -159,7 +162,7 @@ struct BrowseView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 200)
             } else {
-                EmptyStateView(message: "Nothing here yet.")
+                ContentUnavailableView("Nothing here yet", systemImage: "magnifyingglass")
                     .padding(.top, 40)
             }
         } else {

@@ -165,6 +165,8 @@ struct PostDetailView: View {
         .sheet(isPresented: $showEditSheet) {
             if let viewModel {
                 EditPostView(viewModel: viewModel)
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
             }
         }
         .confirmationDialog(
@@ -268,7 +270,7 @@ struct PostDetailView: View {
                     .font(.caption)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
-                    .glassCapsule()
+                    .background(.quaternary, in: Capsule())
             }
         }
     }
@@ -290,7 +292,7 @@ struct PostDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .glassCapsule()
+        .glassCapsule(interactive: true)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
     }

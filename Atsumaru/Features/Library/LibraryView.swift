@@ -92,7 +92,7 @@ struct LibraryView: View {
                                     ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
                                         .padding(.top, 20)
                                 } else {
-                                    EmptyStateView(message: "No bookmarks")
+                                    ContentUnavailableView("No bookmarks", systemImage: "bookmark")
                                         .padding(.top, 20)
                                 }
                             } else {
@@ -117,7 +117,7 @@ struct LibraryView: View {
                                     ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
                                         .padding(.top, 20)
                                 } else {
-                                    EmptyStateView(message: "No history")
+                                    ContentUnavailableView("No history", systemImage: "clock.arrow.circlepath")
                                         .padding(.top, 20)
                                 }
                             } else {
@@ -164,7 +164,7 @@ struct LibraryView: View {
                                     if let error = viewModel.error {
                                         ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
                                     } else {
-                                        EmptyStateView(message: "No lists yet")
+                                        ContentUnavailableView("No lists yet", systemImage: "list.bullet")
                                     }
                                 }
                                 .listRowBackground(Color.clear)
@@ -290,7 +290,7 @@ struct LibraryView: View {
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCapsule()
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func chapterSubtitle(for entry: HistoryEntry) -> String? {

@@ -67,7 +67,7 @@ struct AccountView: View {
                             .font(.caption2.weight(.semibold))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .glassCapsule()
+                            .background(.quaternary, in: Capsule())
                     }
                 }
                 if let rep = profile?.rep ?? user.rep {
@@ -120,7 +120,7 @@ struct AccountView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .glassCapsule()
+                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 }
             }
         }
@@ -132,13 +132,10 @@ struct AccountView: View {
         if let url = URL(string: "https://atsu.moe/profile/settings") {
             Link(destination: url) {
                 Label("Manage account on atsu.moe", systemImage: "safari")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .padding(.vertical, 10)
-                    .padding(.horizontal, 14)
-                    .glassCapsule()
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.bordered)
             .padding(.horizontal, 16)
         }
     }

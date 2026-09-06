@@ -54,7 +54,7 @@ struct FilterSheet: View {
 
     private var sortSection: some View {
         section(title: "Sort") {
-            menuCapsule(label: viewModel.sort.label) {
+            menuRow(label: viewModel.sort.label) {
                 ForEach(BrowseSort.allCases) { s in
                     Button {
                         viewModel.sort = s
@@ -70,7 +70,7 @@ struct FilterSheet: View {
         }
     }
 
-    private func menuCapsule<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
+    private func menuRow<Content: View>(label: String, @ViewBuilder content: () -> Content) -> some View {
         Menu {
             content()
         } label: {
@@ -82,11 +82,8 @@ struct FilterSheet: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 11)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 6)
             .contentShape(Rectangle())
-            .glassCapsule()
         }
     }
 
@@ -152,7 +149,7 @@ struct FilterSheet: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .glassCapsule()
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             let filtered = tagSearch.isEmpty
                 ? []
@@ -194,7 +191,7 @@ struct FilterSheet: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
             .foregroundStyle(Color.accentColor)
-            .glassCapsule()
+            .background(Color.accentColor.opacity(0.18), in: Capsule())
         }
         .buttonStyle(.plain)
     }
@@ -221,14 +218,14 @@ struct FilterSheet: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
-            .glassCapsule()
+            .background(.quaternary, in: Capsule())
         }
         .buttonStyle(.plain)
     }
 
     private var minChaptersSection: some View {
         section(title: "Minimum chapters") {
-            menuCapsule(label: minChaptersLabel) {
+            menuRow(label: minChaptersLabel) {
                 Button {
                     viewModel.query.minChapters = nil
                 } label: {
@@ -280,7 +277,8 @@ struct FilterSheet: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .foregroundStyle(selected ? Color.accentColor : Color.primary)
-                .glassCapsule()
+                .background(selected ? Color.accentColor.opacity(0.18) : Color.clear, in: Capsule())
+                .background(.quaternary, in: Capsule())
         }
         .buttonStyle(.plain)
     }

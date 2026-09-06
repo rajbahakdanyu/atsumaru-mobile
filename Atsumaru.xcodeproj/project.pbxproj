@@ -12,7 +12,6 @@
 		0D18D64218791A7223852847 /* AuthFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44C3BEA1A0CE62B471BAE603 /* AuthFlowView.swift */; };
 		0E5EAD4057AE27454CD0A585 /* CommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB8B730516B104F4F60A5471 /* CommentsView.swift */; };
 		0E72599FE56BAB6735A0531E /* CommentsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F23BE2DD845902C0F23C5EB1 /* CommentsViewModel.swift */; };
-		0FFF22C65E491C6053F0E0BF /* EmptyStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 012D592A0C80C61243120ACB /* EmptyStateView.swift */; };
 		10ED766E319097C830D44269 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B63E54986F0D069FF0CC15 /* ComposeView.swift */; };
 		14CFE0D228F5CBB871529AE6 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAC28F6E226CDB1CF73DBF0 /* FlowLayout.swift */; };
 		187DEF3B41EDF36023E28DCD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F5476F1B7906FB1F6562EFE /* Assets.xcassets */; };
@@ -154,7 +153,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		012D592A0C80C61243120ACB /* EmptyStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyStateView.swift; sourceTree = "<group>"; };
 		048892B61D218EF39080306A /* CommentsRepositoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsRepositoryTests.swift; sourceTree = "<group>"; };
 		0543926CADE12F4C83BEC10A /* HomeRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeRepository.swift; sourceTree = "<group>"; };
 		0624510854929A2A8761E1BD /* ReadModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadModels.swift; sourceTree = "<group>"; };
@@ -425,7 +423,6 @@
 			isa = PBXGroup;
 			children = (
 				5ABD44F0D2DE1A9BF98A1517 /* AuthModifier.swift */,
-				012D592A0C80C61243120ACB /* EmptyStateView.swift */,
 				48E45EE92764F8AA4A51ED16 /* ErrorStateView.swift */,
 				EEAC28F6E226CDB1CF73DBF0 /* FlowLayout.swift */,
 				C81B97BCED8E057D67859F6F /* Glass.swift */,
@@ -763,7 +760,6 @@
 				FAED1E704D8F2E74979A3188 /* DownloadSettingsView.swift in Sources */,
 				3A8AD82C50D1353BBCE7D78C /* DownloadsView.swift in Sources */,
 				D055843DE2A8893231ABB400 /* DownloadsViewModel.swift in Sources */,
-				0FFF22C65E491C6053F0E0BF /* EmptyStateView.swift in Sources */,
 				D2877AADB1CCD938C7170A5C /* ErrorStateView.swift in Sources */,
 				27CA23EEB9F4E08B387632C2 /* FilterSheet.swift in Sources */,
 				14CFE0D228F5CBB871529AE6 /* FlowLayout.swift in Sources */,
