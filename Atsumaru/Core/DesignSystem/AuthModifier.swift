@@ -11,7 +11,10 @@ extension View {
     }
 }
 
-/// Shared poster-grid column definition used by Browse and Library.
+/// Shared poster-grid column definition used by Browse, Library, and
+/// ListDetailView. `spacing` is the single grid-gutter token for the same
+/// poster grid everywhere (audit: Browse 16 vs ListDetail 12 drift).
 enum PosterGrid {
-    static let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: 12)]
+    static let spacing: CGFloat = 16
+    static let columns: [GridItem] = [GridItem(.adaptive(minimum: 108), spacing: spacing)]
 }

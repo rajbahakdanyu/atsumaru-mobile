@@ -16,16 +16,20 @@ struct DownloadsView: View {
                 }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
+                        // Settings get their own gear (HIG: gear belongs on
+                        // the toolbar); Clear All stays in the overflow menu.
+                        NavigationLink {
+                            DownloadSettingsView()
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         Menu {
                             Button(role: .destructive) {
                                 Task { await viewModel?.deleteAll() }
                             } label: {
                                 Label("Clear All", systemImage: "trash")
-                            }
-                            NavigationLink {
-                                DownloadSettingsView()
-                            } label: {
-                                Label("Settings", systemImage: "gearshape")
                             }
                         } label: {
                             Image(systemName: "ellipsis.circle")
@@ -66,8 +70,6 @@ struct DownloadsView: View {
                                 .listRowBackground(Color.clear)
                         }
                     }
-                } header: {
-                    Text("Series")
                 } footer: {
                     if let storageText = vm.storageText {
                         HStack {
@@ -79,6 +81,7 @@ struct DownloadsView: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .refreshable { await viewModel.refresh() }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -120,7 +123,7 @@ struct DownloadsView: View {
                 }
             }
             .frame(width: 52, height: 74)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(section.title)
@@ -141,7 +144,8 @@ struct DownloadsView: View {
                         .font(.caption2)
                         .foregroundStyle(.red)
                 } else {
-                    Label("Ready offline", systemImage: "checkmark.icloud.fill")
+                    // Local files — no cloud glyph.
+                    Label("Ready offline", systemImage: "checkmark.circle.fill")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }

@@ -96,10 +96,10 @@ struct LibraryView: View {
                                         .padding(.top, 20)
                                 }
                             } else {
-                                LazyVGrid(columns: columns, spacing: 16) {
+                                LazyVGrid(columns: columns, spacing: PosterGrid.spacing) {
                                     ForEach(viewModel.bookmarks) { bookmark in
                                         NavigationLink(value: bookmark.id) {
-                                            bookmarkCell(bookmark)
+                                            Poster(title: bookmark.title, image: bookmark.image)
                                         }
                                         .buttonStyle(.plain)
                                     }
@@ -111,28 +111,29 @@ struct LibraryView: View {
                         .refreshable { await viewModel.load(force: true) }
 
                     case .history:
-                        ScrollView {
+                        // Row-based segment → List (separators, swipe-ready),
+                        // not card rows in a ScrollView.
+                        List {
                             if viewModel.history.isEmpty && !viewModel.isLoading {
                                 if let error = viewModel.error {
                                     ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
-                                        .padding(.top, 20)
+                                        .listRowBackground(Color.clear)
                                 } else {
                                     ContentUnavailableView("No history", systemImage: "clock.arrow.circlepath")
-                                        .padding(.top, 20)
+                                        .listRowBackground(Color.clear)
                                 }
+                            } else if viewModel.isLoading && viewModel.history.isEmpty {
+                                LoadingSkeletonView()
+                                    .listRowBackground(Color.clear)
                             } else {
-                                LazyVStack(spacing: 10) {
-                                    ForEach(viewModel.history) { entry in
-                                        NavigationLink(value: entry.id) {
-                                            historyRow(entry)
-                                        }
-                                        .buttonStyle(.plain)
+                                ForEach(viewModel.history) { entry in
+                                    NavigationLink(value: entry.id) {
+                                        historyRow(entry)
                                     }
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 24)
                             }
                         }
+                        .listStyle(.plain)
                         .refreshable { await viewModel.load(force: true) }
 
                     case .lists:
@@ -250,25 +251,12 @@ struct LibraryView: View {
     }
 
     @ViewBuilder
-    private func bookmarkCell(_ bookmark: Bookmark) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            KFImage.poster(bookmark.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
-                .scaledToFill()
-                .frame(width: 108, height: 154)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Text(bookmark.title)
-                .font(.caption)
-                .lineLimit(1)
-        }
-    }
-
-    @ViewBuilder
     private func historyRow(_ entry: HistoryEntry) -> some View {
         HStack(spacing: 12) {
             KFImage.poster(entry.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 48, height: 68)
-                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.title ?? "Untitled")
@@ -288,9 +276,6 @@ struct LibraryView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func chapterSubtitle(for entry: HistoryEntry) -> String? {

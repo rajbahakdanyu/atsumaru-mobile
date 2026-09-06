@@ -37,7 +37,7 @@ struct MangaDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .navigationTitle(viewModel?.manga?.title ?? "")
+        .navigationTitle(viewModel?.manga?.title ?? "Manga")
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Chapter.self) { chapter in
             if viewModel?.manga?.medium == "Novel" {
@@ -77,16 +77,14 @@ struct MangaDetailView: View {
         }
         .task { await pollUntilIdle() }
         .toolbar {
+            // Single action → direct button (HIG: menus need 2+ actions).
             ToolbarItem(placement: .topBarTrailing) {
-                Menu {
-                    Button {
-                        showAddToList = true
-                    } label: {
-                        Label("Add to list", systemImage: "plus.rectangle.on.rectangle")
-                    }
+                Button {
+                    showAddToList = true
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "plus.rectangle.on.rectangle")
                 }
+                .accessibilityLabel("Add to list")
             }
         }
         .sheet(isPresented: $showAddToList) {
@@ -152,7 +150,7 @@ struct MangaDetailView: View {
                 } label: {
                     HStack {
                         Text("Details")
-                            .font(.headline)
+                            .font(.title2.bold())
                         Spacer()
                         Image(systemName: detailsExpanded ? "chevron.up" : "chevron.down")
                             .foregroundStyle(.secondary)
@@ -246,7 +244,7 @@ struct MangaDetailView: View {
             LazyVStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Chapters")
-                        .font(.headline)
+                        .font(.title2.bold())
                     Spacer()
                     scanlatorMenu(manga)
                 }

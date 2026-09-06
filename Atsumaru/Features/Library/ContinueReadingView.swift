@@ -24,15 +24,16 @@ struct ContinueReadingView: View {
     }
 
     /// Mirrors the website: tapping the row opens the manga detail, the play
-    /// button resumes directly into the reader at the saved chapter.
+    /// button resumes directly into the reader at the saved chapter. One row
+    /// archetype for resumable and non-resumable items.
     @ViewBuilder
     private func resumeRow(_ item: ContinueReadingItem) -> some View {
-        if let chapterId = item.continueReading?.chapterId {
-            HStack(spacing: 10) {
-                NavigationLink(value: item.id) {
-                    rowContent(for: item, showsChevron: false)
-                }
-                .buttonStyle(.plain)
+        HStack(spacing: 10) {
+            NavigationLink(value: item.id) {
+                rowContent(for: item)
+            }
+            .buttonStyle(.plain)
+            if let chapterId = item.continueReading?.chapterId {
                 NavigationLink(value: ReaderResume(
                     mangaId: item.id,
                     chapter: Chapter(id: chapterId),
@@ -46,24 +47,19 @@ struct ContinueReadingView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Resume reading")
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(.quaternary, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        } else {
-            NavigationLink(value: item.id) {
-                rowContent(for: item, showsChevron: true)
-            }
-            .buttonStyle(.plain)
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
     }
 
     @ViewBuilder
-    private func rowContent(for item: ContinueReadingItem, showsChevron: Bool) -> some View {
+    private func rowContent(for item: ContinueReadingItem) -> some View {
         HStack(spacing: 14) {
             KFImage.poster(item.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 64, height: 92)
-                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(item.title ?? "Untitled")
@@ -89,12 +85,6 @@ struct ContinueReadingView: View {
             }
 
             Spacer(minLength: 0)
-
-            if showsChevron {
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
