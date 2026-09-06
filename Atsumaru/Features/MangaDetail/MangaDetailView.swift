@@ -336,10 +336,12 @@ struct MangaDetailView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.top, 2)
                         } else {
-                            Image(systemName: "circle.lefthalf.filled")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
+                            // Reading progress, not a mystery glyph: a thin
+                            // bar showing how far into the chapter you got.
+                            ProgressView(value: progress.fraction)
+                                .progressViewStyle(.linear)
+                                .tint(.secondary)
+                                .frame(width: 56)
                         }
                     }
                 }
