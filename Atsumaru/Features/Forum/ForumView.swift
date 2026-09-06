@@ -34,6 +34,7 @@ struct ForumView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ForumViewModel?
     @State private var showAuth = false
+    @State private var showingCompose = false
     @AppStorage("forum.includeAdult") private var includeAdult = true
 
     var body: some View {
@@ -45,6 +46,11 @@ struct ForumView: View {
             }
         }
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button { showingCompose = true } label: {
+                    Image(systemName: "square.and.pencil")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Toggle(isOn: Binding(
@@ -78,6 +84,9 @@ struct ForumView: View {
                     await viewModel?.load(force: true)
                 }
             }
+        }
+        .sheet(isPresented: $showingCompose) {
+            ComposeView(initialChannel: nil)
         }
         .authSheet(isPresented: $showAuth, environment: environment)
     }
@@ -155,11 +164,14 @@ struct ForumView: View {
 final class ChannelPostsViewModel {
     let channel: ForumChannel
     var posts: [ForumPost] = []
+    var tags: [ForumTag] = []
     var isLoading = false
     var error: ApiError?
     /// Server accepts "hot" | "top" | "new" | "old"; defaults to "new" so
     /// freshly created posts are immediately visible at the top.
     var sort = "new"
+    /// Website parity: filter the feed to a single forum tag.
+    var tagId: String?
 
     private let repository: any ForumRepository
 
@@ -172,11 +184,15 @@ final class ChannelPostsViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            posts = try await repository.posts(forumId: channel.id, sort: sort, page: 0)
+            posts = try await repository.posts(forumId: channel.id, sort: sort, page: 0, tagId: tagId)
             error = nil
         } catch {
             self.error = (error as? ApiError) ?? .decoding
         }
+    }
+
+    func loadTags() async {
+        tags = (try? await repository.tags(forumId: channel.id)) ?? []
     }
 }
 
@@ -211,8 +227,20 @@ struct ChannelPostsView: View {
                         Text("Top").tag("top")
                         Text("Old").tag("old")
                     }
+                    Picker("Tag", selection: Binding(
+                        get: { viewModel?.tagId ?? "" },
+                        set: { newValue in
+                            viewModel?.tagId = newValue.isEmpty ? nil : newValue
+                            Task { await viewModel?.load() }
+                        }
+                    )) {
+                        Text("All tags").tag("")
+                        ForEach(viewModel?.tags ?? []) { tag in
+                            Text("\(tag.emoji ?? "") \(tag.name ?? tag.id)").tag(tag.id)
+                        }
+                    }
                 } label: {
-                    Image(systemName: "arrow.up.arrow.down.circle")
+                    Image(systemName: "line.3.horizontal.decrease.circle")
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
@@ -225,6 +253,7 @@ struct ChannelPostsView: View {
                     channel: channel,
                     repository: environment.forumRepository
                 )
+                await viewModel?.loadTags()
             }
             if viewModel?.posts.isEmpty ?? false {
                 await viewModel?.load()
@@ -232,7 +261,7 @@ struct ChannelPostsView: View {
         }
         .refreshable { await viewModel?.load() }
         .sheet(isPresented: $showingCompose) {
-            ComposeView(channel: channel)
+            ComposeView(initialChannel: channel)
         }
         .onChange(of: showingCompose) { _, isShowing in
             // Refresh when the compose sheet closes; a newly created post

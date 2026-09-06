@@ -4,7 +4,11 @@ import Core
 @Observable
 @MainActor
 final class ComposeViewModel {
-    let channel: ForumChannel
+    var channels: [ForumChannel] = []
+    var selectedChannel: ForumChannel?
+    var tags: [ForumTag] = []
+    var selectedTagIds: Set<String> = []
+    var spoiler = false
     var title = ""
     var content = ""
     var isSubmitting = false
@@ -13,26 +17,80 @@ final class ComposeViewModel {
 
     private let repository: any ForumRepository
 
-    init(channel: ForumChannel, repository: any ForumRepository) {
-        self.channel = channel
+    init(repository: any ForumRepository) {
         self.repository = repository
     }
 
     var canSubmit: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !isSubmitting
+        guard let channel = selectedChannel else { return false }
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        if content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return false }
+        if channel.tagsRequired == true && selectedTagIds.isEmpty { return false }
+        if selectedTagIds.count > (channel.maxTagsPerPost ?? 3) { return false }
+        return !isSubmitting
+    }
+
+    var tagsHint: String? {
+        guard let channel = selectedChannel else { return nil }
+        let max = channel.maxTagsPerPost ?? 3
+        if selectedTagIds.count > max {
+            return "Up to \(max) tags per post."
+        }
+        if channel.tagsRequired == true && selectedTagIds.isEmpty {
+            return "This channel requires at least one tag."
+        }
+        return nil
+    }
+
+    func load(initialChannel: ForumChannel?) async {
+        do {
+            channels = try await repository.channels(includeAdult: true)
+        } catch {
+            errorMessage = "Couldn't load channels. Please try again."
+        }
+        if selectedChannel == nil {
+            selectedChannel = initialChannel ?? channels.first
+        }
+        await loadTags()
+    }
+
+    func select(channel: ForumChannel) async {
+        guard channel.id != selectedChannel?.id else { return }
+        selectedChannel = channel
+        selectedTagIds = []
+        await loadTags()
+    }
+
+    func toggle(tag: ForumTag) {
+        let max = selectedChannel?.maxTagsPerPost ?? 3
+        if selectedTagIds.contains(tag.id) {
+            selectedTagIds.remove(tag.id)
+        } else if selectedTagIds.count < max {
+            selectedTagIds.insert(tag.id)
+        }
+    }
+
+    func loadTags() async {
+        guard let forumId = selectedChannel?.id else {
+            tags = []
+            return
+        }
+        tags = (try? await repository.tags(forumId: forumId)) ?? []
+        selectedTagIds = selectedTagIds.filter { id in tags.contains(where: { $0.id == id }) }
     }
 
     func submit() async {
+        guard let channel = selectedChannel else { return }
         let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let c = content.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty, !c.isEmpty else { return }
-        errorMessage = nil
         isSubmitting = true
         defer { isSubmitting = false }
         do {
-            try await repository.createPost(forumId: channel.id, title: t, content: c)
+            try await repository.createPost(
+                forumId: channel.id, title: t, content: c,
+                spoiler: spoiler, tagIds: Array(selectedTagIds)
+            )
             didSubmit = true
         } catch is CancellationError {
             return
@@ -45,7 +103,7 @@ final class ComposeViewModel {
 }
 
 struct ComposeView: View {
-    let channel: ForumChannel
+    var initialChannel: ForumChannel?
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComposeViewModel?
@@ -97,10 +155,8 @@ struct ComposeView: View {
         }
         .task {
             if viewModel == nil {
-                viewModel = ComposeViewModel(
-                    channel: channel,
-                    repository: environment.forumRepository
-                )
+                viewModel = ComposeViewModel(repository: environment.forumRepository)
+                await viewModel?.load(initialChannel: initialChannel)
             }
         }
         .onAppear {
@@ -114,12 +170,14 @@ struct ComposeView: View {
         @Bindable var viewModel = viewModel
         Form {
             Section {
+                channelPicker(viewModel: viewModel)
                 TextField("Title", text: $viewModel.title)
                     .font(.headline)
                     .focused($focusedField, equals: .title)
                     .submitLabel(.next)
                     .onSubmit { focusedField = .body }
             }
+            tagSection(viewModel: viewModel)
             Section {
                 ZStack(alignment: .topLeading) {
                     TextEditor(text: $viewModel.content)
@@ -139,6 +197,9 @@ struct ComposeView: View {
             } footer: {
                 Text("Markdown formatting is supported.")
             }
+            Section {
+                Toggle("Mark as spoiler", isOn: $viewModel.spoiler)
+            }
         }
         .alert(
             "Couldn't post",
@@ -150,6 +211,56 @@ struct ComposeView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+    }
+
+    @ViewBuilder
+    private func channelPicker(viewModel: ComposeViewModel) -> some View {
+        Picker("Channel", selection: Binding(
+            get: { viewModel.selectedChannel?.id },
+            set: { newValue in
+                if let channel = viewModel.channels.first(where: { $0.id == newValue }) {
+                    Task { await viewModel.select(channel: channel) }
+                }
+            }
+        )) {
+            ForEach(viewModel.channels) { channel in
+                Text(channel.name ?? "Untitled").tag(channel.id)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func tagSection(viewModel: ComposeViewModel) -> some View {
+        Section {
+            if viewModel.tags.isEmpty {
+                Text("No tags in this channel")
+                    .foregroundStyle(.secondary)
+            } else {
+                FlowLayout(spacing: 8) {
+                    ForEach(viewModel.tags) { tag in
+                        Button {
+                            viewModel.toggle(tag: tag)
+                        } label: {
+                            Label(tag.name ?? tag.id, systemImage: viewModel.selectedTagIds.contains(tag.id) ? "checkmark.circle.fill" : "circle")
+                                .font(.subheadline)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Capsule().fill(viewModel.selectedTagIds.contains(tag.id) ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.08))
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .tint(viewModel.selectedTagIds.contains(tag.id) ? .accentColor : .primary)
+                    }
+                }
+            }
+        } header: {
+            Text("Tags")
+        } footer: {
+            if let hint = viewModel.tagsHint {
+                Text(hint)
+            }
         }
     }
 }

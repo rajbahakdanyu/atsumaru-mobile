@@ -2,9 +2,9 @@ import Foundation
 
 public protocol ForumRepository: Sendable {
     func channels(includeAdult: Bool) async throws -> [ForumChannel]
-    func posts(forumId: String, sort: String?, page: Int) async throws -> [ForumPost]
+    func posts(forumId: String, sort: String?, page: Int, tagId: String?) async throws -> [ForumPost]
     func post(postId: String) async throws -> ForumPost
-    func createPost(forumId: String, title: String, content: String) async throws
+    func createPost(forumId: String, title: String, content: String, spoiler: Bool, tagIds: [String]) async throws
     func editPost(postId: String, title: String, content: String) async throws
     func removePost(postId: String) async throws
     func votePost(postId: String, vote: Int) async throws
@@ -22,6 +22,8 @@ public struct LiveForumRepository: ForumRepository {
         let forumId: String
         let title: String
         let content: String
+        let spoiler: Bool
+        let tagIds: [String]
     }
     private struct EditPostBody: Encodable {
         let postId: String
@@ -53,10 +55,12 @@ public struct LiveForumRepository: ForumRepository {
         return try TolerantDecoding.array(ForumChannel.self, from: data, key: "channels")
     }
 
-    /// Tolerant decode: prefers `{"posts":[...]}` then a bare array `[...]`.
-    public func posts(forumId: String, sort: String?, page: Int) async throws -> [ForumPost] {
+    /// Mirrors the website's channel feed: `sort` is one of hot|top|new|old;
+    /// `tagId` filters to a single forum tag when set.
+    public func posts(forumId: String, sort: String?, page: Int, tagId: String?) async throws -> [ForumPost] {
         var query: [String: String] = ["forumId": forumId, "page": "\(page)"]
         if let sort { query["sort"] = sort }
+        if let tagId { query["tagId"] = tagId }
         let data = try await client.getData("/api/forum/posts", query: query)
         return try TolerantDecoding.array(ForumPost.self, from: data, key: "posts")
     }
@@ -73,10 +77,17 @@ public struct LiveForumRepository: ForumRepository {
         throw ApiError.decoding
     }
 
-    public func createPost(forumId: String, title: String, content: String) async throws {
+    /// Website parity: the compose form always sends `spoiler` and `tagIds`
+    /// (channels may require tags via `tagsRequired`).
+    public func createPost(
+        forumId: String, title: String, content: String, spoiler: Bool, tagIds: [String]
+    ) async throws {
         try await client.postVoid(
             "/api/forum/createPost",
-            json: CreatePostBody(forumId: forumId, title: title, content: content)
+            json: CreatePostBody(
+                forumId: forumId, title: title, content: content,
+                spoiler: spoiler, tagIds: tagIds
+            )
         )
     }
 

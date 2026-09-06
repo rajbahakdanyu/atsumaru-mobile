@@ -5,6 +5,9 @@ public struct ForumChannel: Codable, Identifiable, Sendable, Hashable {
     public let name: String?
     public let description: String?
     public let postCount: Int?
+    public let slug: String?
+    public let tagsRequired: Bool?
+    public let maxTagsPerPost: Int?
 }
 
 public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
@@ -105,4 +108,5 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
 public struct ForumTag: Codable, Identifiable, Sendable, Hashable {
     public let id: String
     public let name: String?
+    public let emoji: String?
 }

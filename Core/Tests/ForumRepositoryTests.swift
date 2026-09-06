@@ -77,7 +77,7 @@ import Testing
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
-        let posts = try await repo.posts(forumId: "cms0", sort: nil, page: 0)
+        let posts = try await repo.posts(forumId: "cms0", sort: nil, page: 0, tagId: nil)
         #expect(posts.count == 1)
         #expect(posts.first?.user?.username == "LazyReader")
         #expect(posts.first?.user?.avatarUrl == "pfp/x.webp")
@@ -103,13 +103,36 @@ import Testing
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
-        try await repo.createPost(forumId: "ch1", title: "Hello world", content: "# Hi")
+        try await repo.createPost(
+            forumId: "ch1", title: "Hello world", content: "# Hi",
+            spoiler: false, tagIds: ["t1", "t2"]
+        )
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"forumId\""))
-        #expect(bodyString.contains("\"title\""))
-        #expect(bodyString.contains("\"content\""))
-        #expect(bodyString.contains("ch1"))
-        #expect(bodyString.contains("Hello world"))
+        #expect(bodyString.contains("\"forumId\":\"ch1\""))
+        #expect(bodyString.contains("\"title\":\"Hello world\""))
+        #expect(bodyString.contains("\"content\":\"# Hi\""))
+        #expect(bodyString.contains("\"spoiler\":false"))
+        #expect(bodyString.contains("\"tagIds\":[\"t1\",\"t2\"]"))
+    }
+
+    @Test func postsFilterParamsPassedAsQuery() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/posts")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "forumId", value: "ch1")))
+            #expect(items.contains(URLQueryItem(name: "sort", value: "new")))
+            #expect(items.contains(URLQueryItem(name: "page", value: "0")))
+            #expect(items.contains(URLQueryItem(name: "tagId", value: "t9")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/posts")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(#"{"posts":[]}"#.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let posts = try await repo.posts(forumId: "ch1", sort: "new", page: 0, tagId: "t9")
+        #expect(posts.isEmpty)
     }
 
     @Test func editPostPostsJSON() async throws {
