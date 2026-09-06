@@ -1,6 +1,14 @@
-1. Some mangas are still broken e.g. The Knight Only Lives Today, when I open up said manga then I get a Couldn't load manga, Something went wrong error but I can view other like The Stellar Swordmaster just fine.
-2. The design of the list items in download is horrendous. Update it so that instead of a dropdown it just directly opens up said manga and probably just show how many chapters are downloaded.
-3. In the Download tab, the header crosses the download size and clear all button. Make the design better.
-4. In the Download settings, the options don't work and make it so that there is no storage cap. Just show how much storage the current app or downloads are taking.
-5. A list created in the Lists tab in Library has no function other than being able to be deleted, check if the website has any function for it. If it does implement it, if not remove it.
-6. Da a complete design and UI/UX audit of the app as there is a lot of design inconsistency within the app as well as a lot of unecessary and ugly elements. Streamline the design following apples design guidelines and make it as native as possible using the new glass design pattern.
+1. The Browse Title in the browse tab in hidden by the top tab group which makes it look weird.
+2. In the manga, The Knight Only Lives Today Chapter 112.7 by Gamma has a purple check mark for some reason.
+3. I can now add a manga to a list but the Add to list panel only shows the the manga is already present in the list when I try to add it in the same list.
+4. In the manga reader comment panel, the upvote, downvote, replying and adding a comment doesn't work.
+5. The manga reader doesn't automatically go to the next chapter at the end of a chapter.
+6. In the manga reader the page tracker has a different style than the top options i.e. the bottom one is in light mode while the upper ones are in dark mode. I want them to always be in the same style.
+7. In the manga reader I want the top and bottom options to auto hide when I start scrolling.
+8. In an empty Lists tab in Library tab the bottom divider is only half width. Just remove it as no other screen has a divider.
+9. In a list in lists tab it is not showing any mangas that I have added to the list.
+10. In the Downloads tab, the download list has unnecessary padding 
+11. In the Downloads tab, remove the storage used shown.
+12. In the Downloads tab, i want to be able to delete an individual downloaded series as well.
+13. In the Forum tab, I can't reply to any forum posts right now.
+14. In the New Post panel in the Forum tab, the channel doesn't show anything and the tags are blank options in the non Adult channels while in the adult channels the channel has an option selection but the tags are still blank.
