@@ -34,6 +34,7 @@ struct ForumView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: ForumViewModel?
     @State private var showAuth = false
+    @AppStorage("forum.includeAdult") private var includeAdult = true
 
     var body: some View {
         NavigationStack {
@@ -43,9 +44,28 @@ struct ForumView: View {
                 LoadingSkeletonView()
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Toggle(isOn: Binding(
+                        get: { includeAdult },
+                        set: { newValue in
+                            includeAdult = newValue
+                            viewModel?.includeAdult = newValue
+                            Task { await viewModel?.load(force: true) }
+                        }
+                    )) {
+                        Label("Adult channels", systemImage: "18.circle")
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+        }
         .task {
             if viewModel == nil {
                 viewModel = ForumViewModel(repository: environment.forumRepository)
+                viewModel?.includeAdult = includeAdult
             }
             if environment.currentUser != nil {
                 await viewModel?.load()
@@ -53,7 +73,10 @@ struct ForumView: View {
         }
         .onChange(of: environment.currentUser) { _, user in
             if user != nil {
-                Task { await viewModel?.load(force: true) }
+                Task {
+                    viewModel?.includeAdult = includeAdult
+                    await viewModel?.load(force: true)
+                }
             }
         }
         .authSheet(isPresented: $showAuth, environment: environment)
@@ -134,6 +157,9 @@ final class ChannelPostsViewModel {
     var posts: [ForumPost] = []
     var isLoading = false
     var error: ApiError?
+    /// Server accepts "hot" | "top" | "new" | "old"; defaults to "new" so
+    /// freshly created posts are immediately visible at the top.
+    var sort = "new"
 
     private let repository: any ForumRepository
 
@@ -146,7 +172,7 @@ final class ChannelPostsViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            posts = try await repository.posts(forumId: channel.id, sort: nil, page: 0)
+            posts = try await repository.posts(forumId: channel.id, sort: sort, page: 0)
             error = nil
         } catch {
             self.error = (error as? ApiError) ?? .decoding
@@ -171,6 +197,24 @@ struct ChannelPostsView: View {
         .navigationTitle(channel.name ?? "Posts")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    Picker("Sort", selection: Binding(
+                        get: { viewModel?.sort ?? "new" },
+                        set: { newValue in
+                            viewModel?.sort = newValue
+                            Task { await viewModel?.load() }
+                        }
+                    )) {
+                        Text("New").tag("new")
+                        Text("Hot").tag("hot")
+                        Text("Top").tag("top")
+                        Text("Old").tag("old")
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down.circle")
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button { showingCompose = true } label: { Image(systemName: "square.and.pencil") }
             }
@@ -189,6 +233,13 @@ struct ChannelPostsView: View {
         .refreshable { await viewModel?.load() }
         .sheet(isPresented: $showingCompose) {
             ComposeView(channel: channel)
+        }
+        .onChange(of: showingCompose) { _, isShowing in
+            // Refresh when the compose sheet closes; a newly created post
+            // must show up in the list immediately.
+            if !isShowing {
+                Task { await viewModel?.load() }
+            }
         }
     }
 
