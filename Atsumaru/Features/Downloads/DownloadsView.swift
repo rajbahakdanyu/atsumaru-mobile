@@ -2,13 +2,6 @@ import SwiftUI
 import Kingfisher
 import Core
 
-/// Opens a downloaded chapter straight in the reader from the Downloads tab.
-struct ChapterOpen: Hashable {
-    let mangaId: String
-    let chapter: Chapter
-    let isNovel: Bool
-}
-
 struct DownloadsView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.displayScale) private var displayScale
@@ -21,19 +14,21 @@ struct DownloadsView: View {
                 .navigationDestination(for: String.self) { mangaId in
                     MangaDetailView(mangaId: mangaId)
                 }
-                .navigationDestination(for: ChapterOpen.self) { open in
-                    if open.isNovel {
-                        NovelReaderView(mangaId: open.mangaId, chapter: open.chapter)
-                    } else {
-                        MangaReaderView(mangaId: open.mangaId, chapter: open.chapter)
-                    }
-                }
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink {
-                            DownloadSettingsView()
+                        Menu {
+                            Button(role: .destructive) {
+                                Task { await viewModel?.deleteAll() }
+                            } label: {
+                                Label("Clear All", systemImage: "trash")
+                            }
+                            NavigationLink {
+                                DownloadSettingsView()
+                            } label: {
+                                Label("Settings", systemImage: "gearshape")
+                            }
                         } label: {
-                            Image(systemName: "gearshape")
+                            Image(systemName: "ellipsis.circle")
                         }
                     }
                 }
@@ -56,24 +51,8 @@ struct DownloadsView: View {
     private var content: some View {
         if let viewModel {
             @Bindable var vm = viewModel
-            VStack(spacing: 0) {
-                if let storageText = vm.storageText {
-                    HStack {
-                        Label(storageText, systemImage: "internaldrive")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button(role: .destructive) {
-                            Task { await vm.deleteAll() }
-                        } label: {
-                            Text("Clear All")
-                                .font(.footnote)
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                }
-                List {
+            List {
+                Section {
                     if vm.sections.isEmpty {
                         ContentUnavailableView(
                             "No downloads",
@@ -87,73 +66,40 @@ struct DownloadsView: View {
                                 .listRowBackground(Color.clear)
                         }
                     }
+                } header: {
+                    Text("Series")
+                } footer: {
+                    if let storageText = vm.storageText {
+                        HStack {
+                            Image(systemName: "internaldrive")
+                            Text(storageText)
+                        }
+                        .font(.footnote)
+                    }
                 }
-                .listStyle(.plain)
             }
+            .listStyle(.insetGrouped)
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
-    @State private var expandedSeries: Set<String> = []
-
-    /// One card per series (poster, title, aggregate status); tapping the
-    /// card opens the manga. Expanding reveals the downloaded chapters, each
-    /// tappable straight into the reader (works offline).
+    /// One flat card per series (poster, title, aggregate status); tapping
+    /// the card opens the manga, where per-chapter status and offline
+    /// reading live.
     @ViewBuilder
     private func seriesSection(_ section: DownloadsViewModel.DownloadSection) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 12) {
-                NavigationLink(value: section.mangaId) {
-                    seriesHeader(section)
-                }
-                .buttonStyle(.plain)
-                Button {
-                    withAnimation {
-                        if expandedSeries.contains(section.id) {
-                            expandedSeries.remove(section.id)
-                        } else {
-                            expandedSeries.insert(section.id)
-                        }
-                    }
-                } label: {
-                    Image(systemName: expandedSeries.contains(section.id) ? "chevron.down" : "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(expandedSeries.contains(section.id) ? "Collapse chapters" : "Expand chapters")
-            }
-            .contextMenu {
-                Button(role: .destructive) {
-                    Task { await viewModel?.delete(mangaId: section.mangaId) }
-                } label: {
-                    Label("Remove all downloads", systemImage: "trash")
-                }
-            }
-            if expandedSeries.contains(section.id) {
-                ForEach(section.chapters) { row in
-                    NavigationLink(value: ChapterOpen(
-                        mangaId: section.mangaId,
-                        chapter: Chapter(id: row.chapterId, title: row.chapterTitle, pageCount: row.pageCount),
-                        isNovel: section.kind == "novel"
-                    )) {
-                        downloadRow(row)
-                    }
-                    .buttonStyle(.plain)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive) {
-                            Task { await viewModel?.delete(row.chapterId) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
+        NavigationLink(value: section.mangaId) {
+            seriesHeader(section)
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            Button(role: .destructive) {
+                Task { await viewModel?.delete(mangaId: section.mangaId) }
+            } label: {
+                Label("Remove all downloads", systemImage: "trash")
             }
         }
-        .padding(.vertical, 6)
     }
 
     @ViewBuilder
@@ -189,8 +135,9 @@ struct DownloadsView: View {
                     ProgressView(value: fraction)
                         .progressViewStyle(.linear)
                         .tint(Color.accentColor)
-                } else if section.chapters.contains(where: { $0.state.isFailed }) {
-                    Label("Some chapters failed", systemImage: "exclamationmark.triangle")
+                } else if section.failedCount > 0 {
+                    Label(section.failedCount == section.chapterCount ? "Failed" : "\(section.failedCount) failed",
+                          systemImage: "exclamationmark.triangle")
                         .font(.caption2)
                         .foregroundStyle(.red)
                 } else {
@@ -202,50 +149,5 @@ struct DownloadsView: View {
             Spacer(minLength: 0)
         }
         .contentShape(Rectangle())
-    }
-
-    @ViewBuilder
-    private func downloadRow(_ row: DownloadsViewModel.DownloadRow) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(row.chapterTitle)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-            HStack(spacing: 8) {
-                progressCapsule(for: row)
-                Text(row.statusText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                if let size = row.sizeText {
-                    Text(size)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    @ViewBuilder
-    private func progressCapsule(for row: DownloadsViewModel.DownloadRow) -> some View {
-        switch row.state {
-        case .queued:
-            Image(systemName: "clock")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        case .downloading(let fraction):
-            ProgressView(value: fraction)
-                .progressViewStyle(.linear)
-                .frame(maxWidth: 100)
-        case .completed:
-            Image(systemName: "checkmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.green)
-        case .failed:
-            Image(systemName: "xmark.circle.fill")
-                .font(.caption2)
-                .foregroundStyle(.red)
-        }
     }
 }

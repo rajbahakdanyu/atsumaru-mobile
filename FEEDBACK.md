@@ -1,0 +1,6 @@
+1. Some mangas are still broken e.g. The Knight Only Lives Today, when I open up said manga then I get a Couldn't load manga, Something went wrong error but I can view other like The Stellar Swordmaster just fine.
+2. The design of the list items in download is horrendous. Update it so that instead of a dropdown it just directly opens up said manga and probably just show how many chapters are downloaded.
+3. In the Download tab, the header crosses the download size and clear all button. Make the design better.
+4. In the Download settings, the options don't work and make it so that there is no storage cap. Just show how much storage the current app or downloads are taking.
+5. A list created in the Lists tab in Library has no function other than being able to be deleted, check if the website has any function for it. If it does implement it, if not remove it.
+6. Da a complete design and UI/UX audit of the app as there is a lot of design inconsistency within the app as well as a lot of unecessary and ugly elements. Streamline the design following apples design guidelines and make it as native as possible using the new glass design pattern.

@@ -54,6 +54,7 @@ final class DownloadsViewModel {
             guard totalBytes > 0 else { return nil }
             return ByteCountFormatter.string(fromByteCount: totalBytes, countStyle: .file)
         }
+        var failedCount: Int { chapters.filter { $0.state.isFailed }.count }
     }
 
     var rows: [DownloadRow] = []
