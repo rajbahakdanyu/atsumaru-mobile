@@ -12,6 +12,8 @@ final class PostDetailViewModel {
     var loadFailed = false
     var localVote = 0
     var bookmarked = false
+    var didRemove = false
+    var actionError: String?
 
     private let repository: any ForumRepository
 
@@ -21,6 +23,37 @@ final class PostDetailViewModel {
         self.localVote = Self.voteValue(from: post.viewerVote)
         self.bookmarked = post.viewerBookmarked ?? false
         self.repository = repository
+    }
+
+    /// Server rules: title >= 3 chars, content >= 2 chars.
+    static func isValidEdit(title: String, content: String) -> Bool {
+        title.trimmingCharacters(in: .whitespacesAndNewlines).count >= 3 &&
+        content.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
+    }
+
+    @discardableResult
+    func edit(title: String, content: String) async -> Bool {
+        do {
+            try await repository.editPost(
+                postId: postId,
+                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                content: content.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            await load()
+            return true
+        } catch {
+            actionError = "Couldn't save changes. Please try again."
+            return false
+        }
+    }
+
+    func remove() async {
+        do {
+            try await repository.removePost(postId: postId)
+            didRemove = true
+        } catch {
+            actionError = "Couldn't delete post. Please try again."
+        }
     }
 
     /// Maps the API's viewerVote ("up"/"down"/"none"/nil) to the UI's ±1/0 domain.
@@ -87,7 +120,17 @@ final class PostDetailViewModel {
 struct PostDetailView: View {
     let post: ForumPost
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.dismiss) private var dismiss
     @State private var viewModel: PostDetailViewModel?
+    @State private var showEditSheet = false
+    @State private var showDeleteConfirmation = false
+
+    private var isOwnPost: Bool {
+        guard let viewModel, let user = environment.currentUser else { return false }
+        if let slug = viewModel.post.user?.usernameSlug, slug == user.usernameSlug { return true }
+        if let authorId = viewModel.post.user?.id, authorId == user.id { return true }
+        return false
+    }
 
     var body: some View {
         Group {
@@ -99,6 +142,57 @@ struct PostDetailView: View {
         }
         .navigationTitle("Post")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if isOwnPost {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            showEditSheet = true
+                        } label: {
+                            Label("Edit Post", systemImage: "pencil")
+                        }
+                        Button(role: .destructive) {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Label("Delete Post", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showEditSheet) {
+            if let viewModel {
+                EditPostView(viewModel: viewModel)
+            }
+        }
+        .confirmationDialog(
+            "Delete this post?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel?.remove()
+                    if viewModel?.didRemove == true { dismiss() }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This post will be permanently removed.")
+        }
+        .alert(
+            "Error",
+            isPresented: Binding(
+                get: { viewModel?.actionError != nil },
+                set: { if !$0 { viewModel?.actionError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel?.actionError ?? "")
+        }
         .task {
             if viewModel == nil {
                 viewModel = PostDetailViewModel(
@@ -213,5 +307,74 @@ struct PostDetailView: View {
                 .foregroundStyle(active ? color : .secondary)
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct EditPostView: View {
+    @Bindable var viewModel: PostDetailViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var content: String
+    @State private var isSaving = false
+
+    init(viewModel: PostDetailViewModel) {
+        self.viewModel = viewModel
+        _title = State(initialValue: viewModel.post.title ?? "")
+        _content = State(initialValue: viewModel.post.content ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("Title", text: $title)
+                        .font(.headline)
+                        .submitLabel(.next)
+                }
+                Section {
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $content)
+                            .frame(minHeight: 180)
+                            .scrollDismissesKeyboard(.interactively)
+                        if content.isEmpty {
+                            Text("Start writing…")
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 8)
+                                .padding(.leading, 4)
+                                .allowsHitTesting(false)
+                        }
+                    }
+                } header: {
+                    Text("Body")
+                } footer: {
+                    Text("Markdown formatting is supported.")
+                }
+            }
+            .navigationTitle("Edit Post")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            isSaving = true
+                            let saved = await viewModel.edit(title: title, content: content)
+                            isSaving = false
+                            if saved { dismiss() }
+                        }
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                        } else {
+                            Text("Save").fontWeight(.semibold)
+                        }
+                    }
+                    .disabled(!PostDetailViewModel.isValidEdit(title: title, content: content) || isSaving)
+                }
+            }
+        }
+        .interactiveDismissDisabled(isSaving)
     }
 }

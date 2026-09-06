@@ -5,6 +5,8 @@ public protocol ForumRepository: Sendable {
     func posts(forumId: String, sort: String?, page: Int) async throws -> [ForumPost]
     func post(postId: String) async throws -> ForumPost
     func createPost(forumId: String, title: String, content: String) async throws
+    func editPost(postId: String, title: String, content: String) async throws
+    func removePost(postId: String) async throws
     func votePost(postId: String, vote: Int) async throws
     func bookmarkPost(postId: String, bookmarked: Bool) async throws
     func tags(forumId: String) async throws -> [ForumTag]
@@ -20,6 +22,14 @@ public struct LiveForumRepository: ForumRepository {
         let forumId: String
         let title: String
         let content: String
+    }
+    private struct EditPostBody: Encodable {
+        let postId: String
+        let title: String
+        let content: String
+    }
+    private struct RemovePostBody: Encodable {
+        let postId: String
     }
     private struct VotePostBody: Encodable {
         let postId: String
@@ -67,6 +77,21 @@ public struct LiveForumRepository: ForumRepository {
         try await client.postVoid(
             "/api/forum/createPost",
             json: CreatePostBody(forumId: forumId, title: title, content: content)
+        )
+    }
+
+    /// Server requires title >= 3 chars and content >= 2 chars.
+    public func editPost(postId: String, title: String, content: String) async throws {
+        try await client.postVoid(
+            "/api/forum/editPost",
+            json: EditPostBody(postId: postId, title: title, content: content)
+        )
+    }
+
+    public func removePost(postId: String) async throws {
+        try await client.postVoid(
+            "/api/forum/removePost",
+            json: RemovePostBody(postId: postId)
         )
     }
 

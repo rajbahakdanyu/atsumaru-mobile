@@ -112,6 +112,46 @@ import Testing
         #expect(bodyString.contains("Hello world"))
     }
 
+    @Test func editPostPostsJSON() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/editPost")
+            #expect(request.httpMethod == "POST")
+            captured.value = requestBody(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/editPost")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        try await repo.editPost(postId: "p1", title: "Edited title", content: "Edited body")
+        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"postId\":\"p1\""))
+        #expect(bodyString.contains("\"title\":\"Edited title\""))
+        #expect(bodyString.contains("\"content\":\"Edited body\""))
+    }
+
+    @Test func removePostPostsJSON() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/removePost")
+            #expect(request.httpMethod == "POST")
+            captured.value = requestBody(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/removePost")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        try await repo.removePost(postId: "p1")
+        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"postId\":\"p1\""))
+    }
+
     @Test func votePostPostsVoteDirectionStrings() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
