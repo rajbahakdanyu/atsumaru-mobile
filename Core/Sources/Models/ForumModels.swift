@@ -26,6 +26,10 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     /// Viewer-specific state from `/api/forum/getPost`: "up", "down" or "none"/null.
     public let viewerVote: String?
     public let viewerBookmarked: Bool?
+    /// Comment section reference from `/api/forum/getPost` (the server exposes
+    /// both shapes depending on endpoint).
+    public let sectionId: String?
+    public let commentSectionId: String?
 
     public var createdAtDate: Date? { createdAt?.dateFromEpochMs }
 
@@ -65,6 +69,7 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         case author, user
         case upVotes, upvotes, downVotes, downvotes
         case viewerVote, viewerBookmarked
+        case sectionId, commentSectionId
     }
 
     public init(from decoder: Decoder) throws {
@@ -86,6 +91,8 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
         viewerVote = try? c.decodeIfPresent(String.self, forKey: .viewerVote)
         viewerBookmarked = try? c.decodeIfPresent(Bool.self, forKey: .viewerBookmarked)
+        sectionId = try? c.decodeIfPresent(String.self, forKey: .sectionId)
+        commentSectionId = try? c.decodeIfPresent(String.self, forKey: .commentSectionId)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -102,6 +109,8 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         try? c.encodeIfPresent(pinned, forKey: .pinned)
         try? c.encodeIfPresent(locked, forKey: .locked)
         try? c.encodeIfPresent(commentCount, forKey: .commentCount)
+        try? c.encodeIfPresent(sectionId, forKey: .sectionId)
+        try? c.encodeIfPresent(commentSectionId, forKey: .commentSectionId)
     }
 }
 

@@ -1,9 +1,14 @@
 import Foundation
 
+public struct ForumPostDetail: Sendable {
+    public let post: ForumPost
+    public let sectionId: String?
+}
+
 public protocol ForumRepository: Sendable {
     func channels(includeAdult: Bool) async throws -> [ForumChannel]
     func posts(forumId: String, sort: String?, page: Int, tagId: String?) async throws -> [ForumPost]
-    func post(postId: String) async throws -> ForumPost
+    func postDetail(postId: String) async throws -> ForumPostDetail
     func createPost(forumId: String, title: String, content: String, spoiler: Bool, tagIds: [String]) async throws
     func editPost(postId: String, title: String, content: String) async throws
     func removePost(postId: String) async throws
@@ -15,8 +20,6 @@ public protocol ForumRepository: Sendable {
 public struct LiveForumRepository: ForumRepository {
     private let client: APIClient
     public init(client: APIClient) { self.client = client }
-
-    private struct PostEnvelope: Decodable { let post: ForumPost }
 
     private struct CreatePostBody: Encodable {
         let forumId: String
@@ -65,14 +68,19 @@ public struct LiveForumRepository: ForumRepository {
         return try TolerantDecoding.array(ForumPost.self, from: data, key: "posts")
     }
 
-    /// Tolerant decode: prefers `{"post":{...}}` then a bare object `{...}`.
-    public func post(postId: String) async throws -> ForumPost {
+    /// Tolerant decode: prefers `{"post":{...}, "sectionId": ...}` then a bare
+    /// `{...}`. The comment section id may arrive as `sectionId` at the top
+    /// level, or as `sectionId`/`commentSectionId` on the post itself.
+    public func postDetail(postId: String) async throws -> ForumPostDetail {
+        struct Envelope: Decodable { let post: ForumPost; let sectionId: String? }
         let data = try await client.getData("/api/forum/getPost", query: ["postId": postId])
-        if let env = try? JSONDecoder().decode(PostEnvelope.self, from: data) {
-            return env.post
+        if let env = try? JSONDecoder().decode(Envelope.self, from: data) {
+            let sid = env.sectionId ?? env.post.sectionId ?? env.post.commentSectionId
+            return ForumPostDetail(post: env.post, sectionId: sid.flatMap { $0.isEmpty ? nil : $0 })
         }
         if let p = try? JSONDecoder().decode(ForumPost.self, from: data) {
-            return p
+            let sid = p.sectionId ?? p.commentSectionId
+            return ForumPostDetail(post: p, sectionId: sid.flatMap { $0.isEmpty ? nil : $0 })
         }
         throw ApiError.decoding
     }

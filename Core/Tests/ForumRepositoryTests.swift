@@ -58,7 +58,7 @@ import Testing
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
-        let post = try await repo.post(postId: "p1")
+        let post = try await repo.postDetail(postId: "p1").post
         #expect(post.id == "p1")
         #expect(post.title == "Hello world")
         #expect(post.forumId == "ch1")
@@ -215,7 +215,7 @@ import Testing
         }
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
-        let post = try await repo.post(postId: "p1")
+        let post = try await repo.postDetail(postId: "p1").post
         #expect(post.viewerVote == "up")
         #expect(post.viewerBookmarked == true)
     }
@@ -238,5 +238,43 @@ import Testing
         #expect(tags.count == 3)
         #expect(tags.first { $0.id == "t2" }?.modOnly == true)
         #expect(tags.first { $0.id == "t3" }?.terminal == true)
+    }
+
+    @Test func postDetailCapturesSectionId() async throws {
+        let json = """
+        {"post":{"id":"p1","title":"T","content":"C","sectionId":"sec-9"},"mentionedUsers":[]}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/getPost")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "postId", value: "p1")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/getPost")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let detail = try await repo.postDetail(postId: "p1")
+        #expect(detail.post.id == "p1")
+        #expect(detail.sectionId == "sec-9")
+    }
+
+    @Test func postDetailFallsBackToCommentSectionId() async throws {
+        let json = """
+        {"post":{"id":"p2","title":"T2","content":"C2","commentSectionId":"sec-b"},"mentionedUsers":[]}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/getPost")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let detail = try await repo.postDetail(postId: "p2")
+        #expect(detail.sectionId == "sec-b")
     }
 }

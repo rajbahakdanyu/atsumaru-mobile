@@ -14,6 +14,8 @@ final class CommentsViewModel {
     var isPosting = false
     var postError = false
     var replyTarget: Comment?
+    var expandedReplies: [String: [Comment]] = [:]
+    var loadingReplies: Set<String> = []
 
     init(sectionId: String, repository: any CommentsRepository) {
         self.sectionId = sectionId
@@ -61,7 +63,7 @@ final class CommentsViewModel {
         do {
             try await repository.postComment(
                 sectionId: sectionId,
-                parentId: nil,
+                parentId: replyTarget.map { $0.parentId ?? $0.id },
                 replyingToId: replyTarget?.id,
                 content: content,
                 spoiler: false
@@ -86,5 +88,19 @@ final class CommentsViewModel {
 
     func cancelReply() {
         replyTarget = nil
+    }
+
+    func replies(parent: Comment) async {
+        guard expandedReplies[parent.id] == nil, !loadingReplies.contains(parent.id) else { return }
+        loadingReplies.insert(parent.id)
+        defer { loadingReplies.remove(parent.id) }
+        do {
+            let children = try await repository.threads(
+                sectionId: sectionId, parentId: parent.id, cursor: nil, sort: nil
+            )
+            expandedReplies[parent.id] = children
+        } catch {
+            expandedReplies[parent.id] = []
+        }
     }
 }

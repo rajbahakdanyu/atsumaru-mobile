@@ -9,6 +9,9 @@ public struct Comment: Codable, Identifiable, Sendable {
     public let score: Int?
     public let upvotes: Int?
     public let downvotes: Int?
+    public let parentId: String?
+    public let replies: [Comment]?
+    public let descendantCount: Int?
 
     public struct CommentUser: Codable, Sendable {
         public let id: String?
@@ -46,6 +49,7 @@ public struct Comment: Codable, Identifiable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case id, content, user, createdAt, spoiler, score
         case upVotes, upvotes, downVotes, downvotes
+        case parentId, replies, descendantCount
     }
     private enum WrapperKey: String, CodingKey { case comment }
 
@@ -69,6 +73,9 @@ public struct Comment: Codable, Identifiable, Sendable {
         downvotes = (try? c.decodeIfPresent(Int.self, forKey: .downVotes))
             ?? (try? c.decodeIfPresent(Int.self, forKey: .downvotes))
         createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
+        parentId = try? c.decodeIfPresent(String.self, forKey: .parentId)
+        replies = c.tolerantArray(Comment.self, forKey: .replies)
+        descendantCount = try? c.decodeIfPresent(Int.self, forKey: .descendantCount)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -81,14 +88,20 @@ public struct Comment: Codable, Identifiable, Sendable {
         try? c.encodeIfPresent(score, forKey: .score)
         try? c.encodeIfPresent(upvotes, forKey: .upvotes)
         try? c.encodeIfPresent(downvotes, forKey: .downvotes)
+        try? c.encodeIfPresent(parentId, forKey: .parentId)
+        try? c.encodeIfPresent(replies, forKey: .replies)
+        try? c.encodeIfPresent(descendantCount, forKey: .descendantCount)
     }
 
     public init(id: String, content: String?, user: CommentUser?, createdAt: Int? = nil,
                 spoiler: Bool? = nil, score: Int? = nil, upvotes: Int? = nil,
-                downvotes: Int? = nil) {
+                downvotes: Int? = nil, parentId: String? = nil, replies: [Comment]? = nil,
+                descendantCount: Int? = nil) {
         self.id = id; self.content = content; self.user = user; self.createdAt = createdAt
         self.spoiler = spoiler; self.score = score; self.upvotes = upvotes
         self.downvotes = downvotes
+        self.parentId = parentId; self.replies = replies
+        self.descendantCount = descendantCount
     }
 }
 

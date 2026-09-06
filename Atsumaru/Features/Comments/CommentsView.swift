@@ -68,11 +68,7 @@ struct CommentsView: View {
                         .padding(.vertical, 24)
                 }
                 ForEach(viewModel.comments) { comment in
-                    CommentRow(
-                        comment: comment,
-                        onReply: { viewModel.replyTarget = comment },
-                        onVote: { value in await viewModel.vote(comment: comment, vote: value) }
-                    )
+                    CommentThread(comment: comment, depth: 0, viewModel: viewModel)
                     Divider()
                 }
             }
@@ -126,6 +122,50 @@ struct CommentsView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+}
+
+struct CommentThread: View {
+    let comment: Comment
+    let depth: Int
+    @Bindable var viewModel: CommentsViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CommentRow(
+                comment: comment,
+                onReply: { viewModel.replyTarget = comment },
+                onVote: { value in await viewModel.vote(comment: comment, vote: value) }
+            )
+            let stored = viewModel.expandedReplies[comment.id]
+            if let replies = comment.replies, !replies.isEmpty, depth < 2 {
+                ForEach(replies) { reply in
+                    CommentThread(comment: reply, depth: depth + 1, viewModel: viewModel)
+                        .padding(.leading, 20)
+                }
+            } else if comment.replies?.isEmpty ?? true,
+                      (comment.descendantCount ?? 0) > 0,
+                      depth < 2 {
+                Button {
+                    Task { await viewModel.replies(parent: comment) }
+                } label: {
+                    if viewModel.loadingReplies.contains(comment.id) {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Text("Show \(comment.descendantCount ?? 0) replies")
+                            .font(.caption)
+                            .foregroundStyle(.tint)
+                    }
+                }
+                .buttonStyle(.plain)
+                if let loaded = stored, !loaded.isEmpty, depth < 2 {
+                    ForEach(loaded) { reply in
+                        CommentThread(comment: reply, depth: depth + 1, viewModel: viewModel)
+                            .padding(.leading, 20)
+                    }
+                }
+            }
+        }
     }
 }
 

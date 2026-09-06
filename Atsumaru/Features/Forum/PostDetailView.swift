@@ -7,6 +7,7 @@ import Core
 final class PostDetailViewModel {
     let postId: String
     var post: ForumPost
+    var sectionId: String?
     var tags: [ForumTag] = []
     var isLoading = false
     var loadFailed = false
@@ -21,6 +22,7 @@ final class PostDetailViewModel {
     init(post: ForumPost, repository: any ForumRepository) {
         self.post = post
         self.postId = post.id
+        self.sectionId = post.sectionId ?? post.commentSectionId
         self.localVote = Self.voteValue(from: post.viewerVote)
         self.bookmarked = post.viewerBookmarked ?? false
         self.repository = repository
@@ -83,11 +85,12 @@ final class PostDetailViewModel {
         isLoading = true
         defer { isLoading = false }
         do {
-            let fresh = try await repository.post(postId: postId)
-            post = fresh
+            let detail = try await repository.postDetail(postId: postId)
+            post = detail.post
+            sectionId = detail.sectionId
             loadFailed = false
-            syncViewerState(from: fresh)
-            if let forumId = fresh.forumId {
+            syncViewerState(from: detail.post)
+            if let forumId = detail.post.forumId {
                 tags = (try? await repository.tags(forumId: forumId)) ?? []
             }
         } catch is CancellationError {
@@ -126,6 +129,7 @@ struct PostDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: PostDetailViewModel?
     @State private var showEditSheet = false
+    @State private var showComments = false
     @State private var showDeleteConfirmation = false
 
     private var isOwnPost: Bool {
@@ -170,6 +174,15 @@ struct PostDetailView: View {
                 EditPostView(viewModel: viewModel)
                     .presentationDetents([.large])
                     .presentationDragIndicator(.visible)
+            }
+        }
+        .sheet(isPresented: $showComments) {
+            if let sectionId = viewModel?.sectionId {
+                NavigationStack {
+                    CommentsView(sectionId: sectionId)
+                }
+                .presentationDetents([.large])
+                .presentationDragIndicator(.visible)
             }
         }
         .confirmationDialog(
@@ -285,6 +298,16 @@ struct PostDetailView: View {
             Text("\(viewModel.score)").font(.body.monospacedDigit()).frame(minWidth: 24)
             voteButton(viewModel, value: -1, system: "arrow.down", active: viewModel.localVote == -1, color: VoteColors.down)
             Spacer()
+            Button {
+                if viewModel.sectionId != nil { showComments = true }
+            } label: {
+                Label(viewModel.post.commentCount.map { "\($0)" } ?? "Reply",
+                      systemImage: "bubble.left")
+                    .labelStyle(.titleAndIcon)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(viewModel.sectionId == nil ? Color.secondary : Color.primary)
+            .disabled(viewModel.sectionId == nil)
             Button {
                 Task { await viewModel.toggleBookmark() }
             } label: {

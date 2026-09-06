@@ -15,6 +15,7 @@
 		10ED766E319097C830D44269 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B63E54986F0D069FF0CC15 /* ComposeView.swift */; };
 		14CFE0D228F5CBB871529AE6 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEAC28F6E226CDB1CF73DBF0 /* FlowLayout.swift */; };
 		187DEF3B41EDF36023E28DCD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0F5476F1B7906FB1F6562EFE /* Assets.xcassets */; };
+		2241A622860FFB80D1FEFEB1 /* ChapterCommentsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86159C246C68569F7CE55E53 /* ChapterCommentsView.swift */; };
 		22A849BE9C6CC416B0261047 /* ForumRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52F229D9516A577866A7CF78 /* ForumRepositoryTests.swift */; };
 		254FBF6EC653BCE3A1A71FDF /* SignedOutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E1229A33D05017FF7623500 /* SignedOutView.swift */; };
 		27CA23EEB9F4E08B387632C2 /* FilterSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D923882712828D16B6B24168 /* FilterSheet.swift */; };
@@ -202,6 +203,7 @@
 		7BFE89EDBC3384AE198A92EE /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		80E99FC2EC2588ECC293EE4D /* BackgroundScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundScheduler.swift; sourceTree = "<group>"; };
 		828AA7FEE97ABAE13AE543DD /* MangaDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaDetailView.swift; sourceTree = "<group>"; };
+		86159C246C68569F7CE55E53 /* ChapterCommentsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterCommentsView.swift; sourceTree = "<group>"; };
 		8631056033DF538252F23E09 /* ProgressStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressStore.swift; sourceTree = "<group>"; };
 		87E551E77A8B22CF69541F84 /* DownloadManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadManagerTests.swift; sourceTree = "<group>"; };
 		891D58F2B42D4B808FB811A5 /* ChapterProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChapterProgressTests.swift; sourceTree = "<group>"; };
@@ -508,6 +510,7 @@
 		93FD9B3A6D6CA3F09CA19EFB /* Comments */ = {
 			isa = PBXGroup;
 			children = (
+				86159C246C68569F7CE55E53 /* ChapterCommentsView.swift */,
 				AB8B730516B104F4F60A5471 /* CommentsView.swift */,
 				F23BE2DD845902C0F23C5EB1 /* CommentsViewModel.swift */,
 				92341C477A82E9D68F8DAC9C /* ParagraphCommentsSheet.swift */,
@@ -756,6 +759,7 @@
 				4F3FD695B2B4BA0E9EACEA57 /* AuthModifier.swift in Sources */,
 				DC8A5394F843D356B0D0123E /* BrowseView.swift in Sources */,
 				F91EC36E681D9239AE6E88A4 /* BrowseViewModel.swift in Sources */,
+				2241A622860FFB80D1FEFEB1 /* ChapterCommentsView.swift in Sources */,
 				0E5EAD4057AE27454CD0A585 /* CommentsView.swift in Sources */,
 				0E72599FE56BAB6735A0531E /* CommentsViewModel.swift in Sources */,
 				10ED766E319097C830D44269 /* ComposeView.swift in Sources */,

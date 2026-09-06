@@ -75,7 +75,7 @@ struct MangaReaderView: View {
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {
-                CommentsView(sectionId: "manga:\(mangaId)")
+                ChapterCommentsView(chapterId: viewModel?.readChapter?.id ?? chapter.id)
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)

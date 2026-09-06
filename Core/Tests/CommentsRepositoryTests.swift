@@ -119,4 +119,64 @@ import Testing
         #expect(section.comments?.first?.id == "c3")
         #expect(section.comments?.first?.user?.username == "carol")
     }
+
+    @Test func voteSendsDirectionString() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/comments/v2/vote")
+            #expect(request.httpMethod == "POST")
+            captured.value = try requestBody(of: request)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/comments/v2/vote")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data("{}".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveCommentsRepository(client: client)
+        try await repo.vote(commentId: "c1", vote: 1)
+        var body = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(body.contains("\"vote\":\"up\""))
+        try await repo.vote(commentId: "c1", vote: -1)
+        body = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(body.contains("\"vote\":\"down\""))
+        try await repo.vote(commentId: "c1", vote: 0)
+        body = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(body.contains("\"vote\":\"none\""))
+    }
+
+    @Test func commentSectionDecodesChapterEnvelope() async throws {
+        let json = #"{"section":{"id":"sec-abc","chapterId":"ch1","commentCount":3}}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/comments/commentSections/getCommentSection")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "chapterId", value: "ch1")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/comments/commentSections/getCommentSection")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveCommentsRepository(client: client)
+        let section = try await repo.commentSection(chapterId: "ch1")
+        #expect(section.id == "sec-abc")
+    }
+
+    @Test func threadsDecodeNestedReplies() async throws {
+        let json = #"{"comments":[{"id":"c1","content":"top","replies":[{"id":"r1","content":"nested","replies":[],"descendantCount":0}],"descendantCount":2}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/comments/v2/threads")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/comments/v2/threads")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveCommentsRepository(client: client)
+        let threads = try await repo.threads(sectionId: "s", parentId: nil, cursor: nil, sort: nil)
+        #expect(threads.first?.replies?.first?.id == "r1")
+        #expect(threads.first?.descendantCount == 2)
+    }
 }
