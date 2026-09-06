@@ -5,6 +5,8 @@ import Core
 struct ContinueReadingView: View {
     let items: [ContinueReadingItem]
 
+    @Environment(\.displayScale) private var displayScale
+
     var body: some View {
         if items.isEmpty {
             ContentUnavailableView {
@@ -27,8 +29,7 @@ struct ContinueReadingView: View {
     @ViewBuilder
     private func row(for item: ContinueReadingItem) -> some View {
         HStack(spacing: 14) {
-            KFImage(item.image.flatMap(ImageURLBuilder.poster))
-                .resizable()
+            KFImage.poster(item.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 64, height: 92)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))

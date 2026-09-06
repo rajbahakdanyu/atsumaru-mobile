@@ -6,10 +6,11 @@ struct Poster: View {
     let item: HomeItem
     var showsTitle = false
 
+    @Environment(\.displayScale) private var displayScale
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            KFImage(ImageURLBuilder.poster(item.image))
-                .resizable()
+            KFImage.poster(ImageURLBuilder.poster(item.image), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 108, height: 154)
                 .background(Color.secondary.opacity(0.15))

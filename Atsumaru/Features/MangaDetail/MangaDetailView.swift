@@ -5,6 +5,7 @@ import Kingfisher
 struct MangaDetailView: View {
     let mangaId: String
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.displayScale) private var displayScale
     @State private var viewModel: MangaDetailViewModel?
     @State private var detailsExpanded = false
     @State private var selectedScanlatorId: String?
@@ -65,8 +66,7 @@ struct MangaDetailView: View {
     private func header(_ manga: MangaPage) -> some View {
         HStack(alignment: .top, spacing: 16) {
             if let path = manga.poster?.image, let url = ImageURLBuilder.poster(path) {
-                KFImage(url)
-                    .resizable()
+                KFImage.poster(url, displayScale: displayScale)
                     .scaledToFill()
                     .frame(width: 110, height: 160)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -201,7 +201,7 @@ struct MangaDetailView: View {
     @ViewBuilder
     private func chapterSection(_ manga: MangaPage) -> some View {
         if !manga.chapters.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            LazyVStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text("Chapters")
                         .font(.headline)

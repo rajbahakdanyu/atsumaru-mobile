@@ -4,6 +4,7 @@ import Core
 
 struct LibraryView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.displayScale) private var displayScale
     @State private var viewModel: LibraryViewModel?
     @State private var showingNewList = false
     @State private var showAuth = false
@@ -172,8 +173,7 @@ struct LibraryView: View {
     @ViewBuilder
     private func bookmarkCell(_ bookmark: Bookmark) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            KFImage(bookmark.image.flatMap(ImageURLBuilder.poster))
-                .resizable()
+            KFImage.poster(bookmark.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 108, height: 154)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
@@ -186,8 +186,7 @@ struct LibraryView: View {
     @ViewBuilder
     private func historyRow(_ entry: HistoryEntry) -> some View {
         HStack(spacing: 12) {
-            KFImage(entry.image.flatMap(ImageURLBuilder.poster))
-                .resizable()
+            KFImage.poster(entry.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
                 .frame(width: 48, height: 68)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))

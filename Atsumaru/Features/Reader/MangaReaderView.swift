@@ -7,6 +7,7 @@ struct MangaReaderView: View {
     let chapter: Chapter
 
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.displayScale) private var displayScale
 
     @AppStorage("readerMode") private var storedMode: ReaderMode = .paged
     @AppStorage("readingDirection") private var readingDirection: String = "ltr"
@@ -72,10 +73,12 @@ struct MangaReaderView: View {
     private func readerContent(viewModel: ReaderViewModel, pages: [PageImage]) -> some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            if viewModel.mode == .strip {
-                stripReader(viewModel: viewModel, pages: pages)
-            } else {
-                pagedReader(viewModel: viewModel, pages: pages)
+            GeometryReader { viewport in
+                if viewModel.mode == .strip {
+                    stripReader(viewModel: viewModel, pages: pages, viewportWidth: viewport.size.width)
+                } else {
+                    pagedReader(viewModel: viewModel, pages: pages)
+                }
             }
             if pages.count > 1 {
                 VStack {
@@ -111,12 +114,17 @@ struct MangaReaderView: View {
     }
 
     @ViewBuilder
-    private func stripReader(viewModel: ReaderViewModel, pages: [PageImage]) -> some View {
+    private func stripReader(viewModel: ReaderViewModel, pages: [PageImage], viewportWidth: CGFloat) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                        fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
+                        fitImage(KFImage.readerPage(
+                            ImageURLBuilder.page(page.image),
+                            viewportWidth: viewportWidth,
+                            aspectRatio: page.aspectRatio,
+                            displayScale: displayScale
+                        ))
                             .frame(maxWidth: .infinity)
                             .clipped()
                             .id(page.id)
@@ -247,7 +255,12 @@ struct MangaReaderView: View {
                 ? proxy.size.height
                 : baseWidth / CGFloat(page.aspectRatio)
             ScrollView([.vertical]) {
-                fitImage(KFImage(ImageURLBuilder.page(page.image)).resizable())
+                fitImage(KFImage.readerPage(
+                    ImageURLBuilder.page(page.image),
+                    viewportWidth: proxy.size.width,
+                    aspectRatio: page.aspectRatio,
+                    displayScale: displayScale
+                ))
                     .frame(width: baseWidth * zoomScale, height: baseHeight * zoomScale)
                     .clipped()
                     .gesture(zoomGesture)

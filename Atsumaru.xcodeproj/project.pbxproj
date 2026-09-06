@@ -34,6 +34,7 @@
 		40009BB793F321FA13B6C076 /* AuthRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51506EF3A92B7CD7CECE2754 /* AuthRepositoryTests.swift */; };
 		40756789AAB4FF9F7857D8D1 /* SearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56783B4504D2E645F341B44 /* SearchSheet.swift */; };
 		4127ECA60599DD51DCC7EC09 /* TestSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B97B2FD55280C2CE5290A65 /* TestSupport.swift */; };
+		4520EA5F89771EC180DC041B /* KFImage+Downsampling.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCD22D167BB7BD24E384A708 /* KFImage+Downsampling.swift */; };
 		48B0D3698DCDFE58EA232D08 /* NovelModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E11651E633A7DC931BCDB5E /* NovelModels.swift */; };
 		48CC5373FEFC4BF8058AEFC9 /* MangaRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9FC13A238E85086176C735C /* MangaRepository.swift */; };
 		4A62A2580996E7F68C0193FD /* NovelRepositoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B553432E7083E203925428A /* NovelRepositoryTests.swift */; };
@@ -228,6 +229,7 @@
 		B9FC13A238E85086176C735C /* MangaRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MangaRepository.swift; sourceTree = "<group>"; };
 		BCBDB45BD660672A175CB860 /* ImageURLBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageURLBuilder.swift; sourceTree = "<group>"; };
 		BCD189EE04D60EE213E7F9F0 /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
+		BCD22D167BB7BD24E384A708 /* KFImage+Downsampling.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "KFImage+Downsampling.swift"; sourceTree = "<group>"; };
 		BDE7E2502D9D82A6ECE6AD72 /* AuthRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthRepository.swift; sourceTree = "<group>"; };
 		BE3313ECFE6124E4332E951B /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForgotPasswordView.swift; sourceTree = "<group>"; };
 		C6089522D39262793D06E10A /* FilterModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterModels.swift; sourceTree = "<group>"; };
@@ -421,6 +423,7 @@
 				48E45EE92764F8AA4A51ED16 /* ErrorStateView.swift */,
 				EEAC28F6E226CDB1CF73DBF0 /* FlowLayout.swift */,
 				C81B97BCED8E057D67859F6F /* Glass.swift */,
+				BCD22D167BB7BD24E384A708 /* KFImage+Downsampling.swift */,
 				F3460BACE72D9FF32F908234 /* LoadingSkeletonView.swift */,
 				16FC2E6CF7CE4F3442B1BF2C /* Poster.swift */,
 				5E1229A33D05017FF7623500 /* SignedOutView.swift */,
@@ -760,6 +763,7 @@
 				BF923B3F01E600A95244F24B /* ForgotPasswordView.swift in Sources */,
 				28DFF61776A30845F0963F71 /* ForumView.swift in Sources */,
 				3B20D28DEB7F37228A68935D /* Glass.swift in Sources */,
+				4520EA5F89771EC180DC041B /* KFImage+Downsampling.swift in Sources */,
 				CE4828DD028512E8CC596089 /* LibraryView.swift in Sources */,
 				323A3CFC211A469241D7DFFD /* LibraryViewModel.swift in Sources */,
 				4D76306D6F161490DE6A5395 /* LoadingSkeletonView.swift in Sources */,
