@@ -173,10 +173,11 @@ struct CommentRow: View {
         if let raw = comment.content, !raw.isEmpty {
             if comment.spoiler == true && !spoilerRevealed {
                 ZStack {
+                    // Kept in the layout at opacity 0 so the row height is
+                    // stable; no blur needed since it's fully invisible.
                     InlineText(markdown: MarkdownSanitizer.sanitizeImages(raw))
                         .font(.subheadline)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .blur(radius: 10)
                         .opacity(0.0)
                     Button { spoilerRevealed = true } label: {
                         Label("Spoiler", systemImage: "eye.slash")
@@ -209,7 +210,7 @@ struct CommentRow: View {
             } label: {
                 Image(systemName: "arrow.up")
                     .font(.caption)
-                    .foregroundStyle(localVote == 1 ? .yellow : .secondary)
+                    .foregroundStyle(localVote == 1 ? VoteColors.up : Color.secondary)
             }
             .buttonStyle(.plain)
 
@@ -227,7 +228,7 @@ struct CommentRow: View {
             } label: {
                 Image(systemName: "arrow.down")
                     .font(.caption)
-                    .foregroundStyle(localVote == -1 ? .blue : .secondary)
+                    .foregroundStyle(localVote == -1 ? VoteColors.down : Color.secondary)
             }
             .buttonStyle(.plain)
         }

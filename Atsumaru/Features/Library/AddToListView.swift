@@ -11,6 +11,7 @@ struct AddToListView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var lists: [UserList] = []
     @State private var isLoading = true
+    @State private var loadError: ApiError?
     @State private var statuses: [String: String] = [:]
     @State private var inFlight: Set<String> = []
 
@@ -20,6 +21,8 @@ struct AddToListView: View {
                 if isLoading {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if lists.isEmpty, let loadError {
+                    ErrorStateView(error: loadError) { Task { await load() } }
                 } else if lists.isEmpty {
                     ContentUnavailableView(
                         "No lists yet",
@@ -48,10 +51,17 @@ struct AddToListView: View {
                 }
             }
         }
-        .task {
-            lists = (try? await environment.libraryRepository.lists()) ?? []
-            isLoading = false
+        .task { if isLoading { await load() } }
+    }
+
+    private func load() async {
+        do {
+            lists = try await environment.libraryRepository.lists()
+            loadError = nil
+        } catch {
+            loadError = (error as? ApiError) ?? .decoding
         }
+        isLoading = false
     }
 
     @ViewBuilder
@@ -71,9 +81,9 @@ struct AddToListView: View {
             }
             Spacer()
             if list.pinned {
-                Image(systemName: "star.fill")
+                Image(systemName: "pin.fill")
                     .font(.caption)
-                    .foregroundStyle(.yellow)
+                    .foregroundStyle(.tint)
             }
         }
         .contentShape(Rectangle())

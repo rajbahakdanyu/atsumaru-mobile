@@ -5,12 +5,14 @@ struct SearchSheet: View {
     @Bindable var viewModel: BrowseViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
+    @FocusState private var fieldFocused: Bool
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Search") {
                     TextField("Search manga", text: $text)
+                        .focused($fieldFocused)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .submitLabel(.search)
@@ -24,8 +26,15 @@ struct SearchSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Search") { apply() }.bold()
+                    // An empty search silently wiped every filter before;
+                    // require text to search.
+                    Button("Search") { apply() }
+                        .bold()
+                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
+            .onAppear {
+                fieldFocused = true
             }
         }
     }

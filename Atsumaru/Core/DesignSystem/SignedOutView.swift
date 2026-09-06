@@ -7,7 +7,7 @@ struct SignedOutView: View {
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "person.crop.circle.badge.questionmark")
-                .font(.system(size: 52))
+                .font(.largeTitle)
                 .foregroundStyle(.secondary)
             Text("Please sign in")
                 .font(.title2.bold())

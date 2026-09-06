@@ -54,6 +54,7 @@ struct ForgotPasswordView: View {
             }
         }
         .navigationTitle("Forgot password")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func send() async {
@@ -79,7 +80,10 @@ struct ResetPasswordView: View {
     var body: some View {
         Form {
             if done {
-                Section { Text("Password updated. You can now sign in.").foregroundStyle(.green) }
+                Section {
+                    Label("Password updated. You can now sign in.", systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 Section {
                     Button {
@@ -98,7 +102,7 @@ struct ResetPasswordView: View {
                 Section { Text(errorMessage).foregroundStyle(.red) }
             }
         }
-        .navigationTitle("Reset")
+        .navigationTitle("Reset password")
     }
 
     private func reset() async {

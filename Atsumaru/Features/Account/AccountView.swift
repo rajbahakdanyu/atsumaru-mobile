@@ -5,6 +5,7 @@ import Kingfisher
 struct AccountView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var showAuth = false
+    @State private var showSignOutConfirmation = false
     @State private var viewModel: AccountViewModel?
 
     var body: some View {
@@ -46,11 +47,23 @@ struct AccountView: View {
             .padding(.vertical, 20)
         }
         .navigationTitle("Profile")
-        .onAppear {
+        .task {
             if viewModel == nil {
                 viewModel = AccountViewModel(userRepository: environment.userRepository)
             }
-            Task { await viewModel?.load() }
+            await viewModel?.load()
+        }
+        .confirmationDialog(
+            "Sign out of atsumaru?",
+            isPresented: $showSignOutConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Sign out", role: .destructive) {
+                Task { try? await environment.logout() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("You'll keep your downloads, but library sync pauses until you sign in again.")
         }
     }
 
@@ -143,7 +156,7 @@ struct AccountView: View {
     @ViewBuilder
     private var signOutButton: some View {
         Button(role: .destructive) {
-            Task { try? await environment.logout() }
+            showSignOutConfirmation = true
         } label: {
             Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
                 .frame(maxWidth: .infinity)

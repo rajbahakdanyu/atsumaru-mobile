@@ -32,20 +32,20 @@ struct FilterSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 32)
             }
-            .background(Color.clear)
             .navigationTitle("Filter")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Clear", role: .destructive) { viewModel.clearFilters() }
+                    // Resetting filters isn't data loss; plain button.
+                    Button("Clear") { viewModel.clearFilters() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Apply") {
-                        if viewModel.hasActiveFilters {
-                            viewModel.prepareFilteredReload()
-                        }
+                        viewModel.prepareFilteredReload()
                         dismiss()
-                    }.bold()
+                    }
+                    .disabled(!viewModel.hasActiveFilters)
+                    .bold()
                 }
             }
             .task { await viewModel.loadFilters() }
@@ -137,6 +137,7 @@ struct FilterSheet: View {
                 TextField("Search tags", text: $tagSearch)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .submitLabel(.search)
                 if !tagSearch.isEmpty {
                     Button {
                         tagSearch = ""

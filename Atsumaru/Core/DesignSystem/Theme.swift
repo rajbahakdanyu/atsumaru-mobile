@@ -15,3 +15,11 @@ enum AppTheme: String, CaseIterable, Identifiable {
         }
     }
 }
+
+/// Shared vote/bookmark semantic colors (PostDetailView + CommentsView).
+/// Orange keeps up-votes distinct from the yellow pin/star/bookmark family.
+enum VoteColors {
+    static let up = Color.orange
+    static let down = Color.blue
+    static let bookmark = Color.yellow
+}

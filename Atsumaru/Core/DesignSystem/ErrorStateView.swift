@@ -1,37 +1,41 @@
 import SwiftUI
 import Core
 
+/// Retryable load-failure state, native ContentUnavailableView so it styles
+/// correctly in ScrollViews and List rows without a heavy glass card
+/// (audit: glass card + glassProminent Retry = glass-on-glass).
 struct ErrorStateView: View {
     let error: ApiError
     let retry: () -> Void
 
     var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label(Self.title(for: error), systemImage: "exclamationmark.triangle")
+        } description: {
             Text(Self.message(for: error))
-                .font(.body)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+        } actions: {
             Button("Retry", action: retry)
-                .buttonStyle(.glassProminent)
         }
-        .padding(24)
         .frame(maxWidth: .infinity)
-        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .padding(.horizontal, 16)
+    }
+
+    static func title(for error: ApiError) -> String {
+        switch error {
+        case .offline: "You're offline"
+        case .http(401): "Session expired"
+        default: "Something went wrong"
+        }
     }
 
     static func message(for error: ApiError) -> String {
         switch error {
-        case .http(401): "Session expired"
-        case .http(403): "Permission denied"
-        case .http(429): "Rate limited, try again later"
-        case .offline: "You're offline"
-        case .decoding: "Something went wrong"
+        case .offline: "Check your connection and try again."
+        case .http(401): "Sign in again to continue."
+        case .http(403): "You don't have permission to view this."
+        case .http(429): "Rate limited, try again later."
+        case .decoding: "Please try again."
         case .server(let message): message
-        default: "Something went wrong"
+        default: "Please try again."
         }
     }
 }

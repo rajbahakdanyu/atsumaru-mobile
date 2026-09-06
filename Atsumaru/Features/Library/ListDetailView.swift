@@ -1,5 +1,4 @@
 import SwiftUI
-import Kingfisher
 import Core
 
 /// One user list's content: a poster grid of its manga; tapping a poster
@@ -8,9 +7,9 @@ struct ListDetailView: View {
     let listId: String
 
     @Environment(AppEnvironment.self) private var environment
-    @Environment(\.displayScale) private var displayScale
     @State private var detail: ListDetail?
     @State private var loadFailed = false
+    @State private var loadError: ApiError?
 
     var body: some View {
         Group {
@@ -19,10 +18,10 @@ struct ListDetailView: View {
                     ContentUnavailableView("Empty list", systemImage: "list.bullet")
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: PosterGrid.columns, spacing: 12) {
+                        LazyVGrid(columns: PosterGrid.columns, spacing: PosterGrid.spacing) {
                             ForEach(detail.items) { item in
                                 NavigationLink(value: item.mangaId) {
-                                    posterCard(item)
+                                    Poster(title: item.title ?? "Untitled", image: item.poster)
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -30,9 +29,10 @@ struct ListDetailView: View {
                         .padding(16)
                     }
                     .navigationTitle(detail.title ?? "List")
+                    .refreshable { await load() }
                 }
             } else if loadFailed {
-                ErrorStateView(error: .decoding) { Task { await load() } }
+                ErrorStateView(error: loadError ?? .decoding) { Task { await load() } }
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,20 +48,8 @@ struct ListDetailView: View {
             detail = try await environment.libraryRepository.listDetail(id: listId)
             loadFailed = false
         } catch {
+            loadError = (error as? ApiError) ?? .decoding
             loadFailed = true
-        }
-    }
-
-    @ViewBuilder
-    private func posterCard(_ item: ListItem) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            KFImage.poster(item.poster.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
-                .scaledToFill()
-                .frame(width: 108, height: 154)
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-            Text(item.title ?? "Untitled")
-                .font(.caption)
-                .lineLimit(1)
         }
     }
 }

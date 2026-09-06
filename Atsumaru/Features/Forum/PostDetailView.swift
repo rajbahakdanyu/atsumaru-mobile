@@ -14,6 +14,7 @@ final class PostDetailViewModel {
     var bookmarked = false
     var didRemove = false
     var actionError: String?
+    var actionErrorTitle = "Something went wrong"
 
     private let repository: any ForumRepository
 
@@ -42,7 +43,8 @@ final class PostDetailViewModel {
             await load()
             return true
         } catch {
-            actionError = "Couldn't save changes. Please try again."
+            actionErrorTitle = "Couldn't save changes"
+            actionError = "Please try again."
             return false
         }
     }
@@ -52,7 +54,8 @@ final class PostDetailViewModel {
             try await repository.removePost(postId: postId)
             didRemove = true
         } catch {
-            actionError = "Couldn't delete post. Please try again."
+            actionErrorTitle = "Couldn't delete post"
+            actionError = "Please try again."
         }
     }
 
@@ -185,7 +188,7 @@ struct PostDetailView: View {
             Text("This post will be permanently removed.")
         }
         .alert(
-            "Error",
+            viewModel?.actionErrorTitle ?? "Something went wrong",
             isPresented: Binding(
                 get: { viewModel?.actionError != nil },
                 set: { if !$0 { viewModel?.actionError = nil } }
@@ -278,15 +281,15 @@ struct PostDetailView: View {
     @ViewBuilder
     private func actionBar(viewModel: PostDetailViewModel) -> some View {
         HStack(spacing: 18) {
-            voteButton(viewModel, value: 1, system: "arrow.up", active: viewModel.localVote == 1, color: .yellow)
+            voteButton(viewModel, value: 1, system: "arrow.up", active: viewModel.localVote == 1, color: VoteColors.up)
             Text("\(viewModel.score)").font(.body.monospacedDigit()).frame(minWidth: 24)
-            voteButton(viewModel, value: -1, system: "arrow.down", active: viewModel.localVote == -1, color: .blue)
+            voteButton(viewModel, value: -1, system: "arrow.down", active: viewModel.localVote == -1, color: VoteColors.down)
             Spacer()
             Button {
                 Task { await viewModel.toggleBookmark() }
             } label: {
                 Image(systemName: viewModel.bookmarked ? "bookmark.fill" : "bookmark")
-                    .foregroundStyle(viewModel.bookmarked ? .yellow : .secondary)
+                    .foregroundStyle(viewModel.bookmarked ? VoteColors.bookmark : Color.secondary)
             }
             .buttonStyle(.plain)
         }
@@ -318,11 +321,20 @@ struct EditPostView: View {
     @State private var title: String
     @State private var content: String
     @State private var isSaving = false
+    @State private var originalTitle: String
+    @State private var originalContent: String
+    @State private var showDiscardConfirmation = false
 
     init(viewModel: PostDetailViewModel) {
         self.viewModel = viewModel
         _title = State(initialValue: viewModel.post.title ?? "")
         _content = State(initialValue: viewModel.post.content ?? "")
+        _originalTitle = State(initialValue: viewModel.post.title ?? "")
+        _originalContent = State(initialValue: viewModel.post.content ?? "")
+    }
+
+    private var hasEdits: Bool {
+        title != originalTitle || content != originalContent
     }
 
     var body: some View {
@@ -356,7 +368,13 @@ struct EditPostView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        if hasEdits {
+                            showDiscardConfirmation = true
+                        } else {
+                            dismiss()
+                        }
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -375,6 +393,16 @@ struct EditPostView: View {
                     }
                     .disabled(!PostDetailViewModel.isValidEdit(title: title, content: content) || isSaving)
                 }
+            }
+            .confirmationDialog(
+                "Discard changes?",
+                isPresented: $showDiscardConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Discard", role: .destructive) { dismiss() }
+                Button("Keep editing", role: .cancel) {}
+            } message: {
+                Text("Your edits haven't been saved yet.")
             }
         }
         .interactiveDismissDisabled(isSaving)
