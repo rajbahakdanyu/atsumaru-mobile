@@ -213,30 +213,34 @@ extension UserList {
 }
 
 /// A single list's content for `getList`. Decoded tolerantly: the envelope may
-/// be `{"list": {...}}` or a bare list object; items may be flat
-/// (`{mangaId, title}`) or nested (`{mangaId, manga: {title, poster: {image}}}`).
+/// be `{"list": {...}}` or a bare list object; the verified `members` array is
+/// preferred and legacy `items` is the fallback; entries may key the manga by
+/// `id` or `mangaId` and may be flat or nested.
 public struct ListDetail: Decodable, Sendable {
     public let id: String
     public let title: String?
     public let visibility: String?
     public let items: [ListItem]
 
-    private enum Keys: String, CodingKey { case id, title, visibility, items }
+    private enum Keys: String, CodingKey { case id, title, visibility, items, members }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = (try? c.decode(String.self, forKey: .id)) ?? ""
         title = try? c.decodeIfPresent(String.self, forKey: .title)
         visibility = try? c.decodeIfPresent(String.self, forKey: .visibility)
-        items = c.tolerantArray(ListItem.self, forKey: .items)
+        let members = c.tolerantArray(ListItem.self, forKey: .members)
+        let legacyItems = c.tolerantArray(ListItem.self, forKey: .items)
+        items = members.isEmpty ? legacyItems : members
     }
 }
 
-/// One manga inside a list detail. The wire shape is UNVERIFIED, so decoding
-/// prefers flat keys first (`mangaId`/`title`/`poster`/`note`), then falls
-/// back to a nested `manga` object (`title`, `poster: {image}`); every field
-/// is `try?`-wrapped and nothing force-unwraps. `id` is the mangaId (falls
-/// back to "" so the item stays `Identifiable`).
+/// One manga inside a list detail. Verified member shape keys the manga by
+/// `id`; legacy `mangaId` is the fallback. `poster` may be a bare string, an
+/// object (`{id, smallUrl, mediumUrl, largeUrl}` or `{image}`), or absent; a
+/// nested `manga` object (`{title, poster: {image}}`) is also tolerated. Every
+/// field is `try?`-wrapped and nothing force-unwraps. `id` is the mangaId
+/// (falls back to "" so the item stays `Identifiable`).
 public struct ListItem: Decodable, Identifiable, Hashable, Sendable {
     public let mangaId: String
     public let title: String?
@@ -244,12 +248,15 @@ public struct ListItem: Decodable, Identifiable, Hashable, Sendable {
     public let note: String?
     public var id: String { mangaId }
 
-    private enum Keys: String, CodingKey { case mangaId, title, poster, note, manga }
+    private enum Keys: String, CodingKey { case id, mangaId, title, poster, note, manga }
 
     /// Poster path may be a bare string (`"poster": "posters/x.jpg"`) or an
-    /// object (`"poster": {"image": "posters/x.jpg"}`).
+    /// object (`"poster": {"id": ...}` / `{"image": ...}` / `{"smallUrl": ...}`).
     private struct PosterBox: Decodable {
+        let id: String?
         let image: String?
+        let smallUrl: String?
+        let mediumUrl: String?
     }
 
     /// Nested manga object: `{title, poster: {image}}`.
@@ -260,14 +267,15 @@ public struct ListItem: Decodable, Identifiable, Hashable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
-        mangaId = (try? c.decode(String.self, forKey: .mangaId)) ?? ""
+        mangaId = (try? c.decode(String.self, forKey: .id))
+            ?? (try? c.decode(String.self, forKey: .mangaId)) ?? ""
         note = try? c.decodeIfPresent(String.self, forKey: .note)
 
         // Flat item shape first.
         var resolvedTitle: String? = try? c.decodeIfPresent(String.self, forKey: .title)
         var resolvedPoster: String? = try? c.decodeIfPresent(String.self, forKey: .poster)
         if resolvedPoster == nil, let box = try? c.decodeIfPresent(PosterBox.self, forKey: .poster) {
-            resolvedPoster = box.image
+            resolvedPoster = box.id ?? box.image ?? box.mediumUrl ?? box.smallUrl
         }
 
         // Nested `manga` object fallback.

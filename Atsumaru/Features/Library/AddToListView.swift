@@ -14,6 +14,7 @@ struct AddToListView: View {
     @State private var loadError: ApiError?
     @State private var statuses: [String: String] = [:]
     @State private var inFlight: Set<String> = []
+    @State private var memberOf: Set<String> = []
 
     var body: some View {
         NavigationStack {
@@ -37,7 +38,7 @@ struct AddToListView: View {
                             } label: {
                                 row(list)
                             }
-                            .disabled(inFlight.contains(list.id))
+                            .disabled(memberOf.contains(list.id) || inFlight.contains(list.id))
                         }
                     }
                     .listStyle(.plain)
@@ -62,6 +63,25 @@ struct AddToListView: View {
             loadError = (error as? ApiError) ?? .decoding
         }
         isLoading = false
+        if !lists.isEmpty { await prefetchMembership() }
+    }
+
+    private func prefetchMembership() async {
+        await withTaskGroup(of: (String, Bool).self) { group in
+            for list in lists {
+                group.addTask {
+                    do {
+                        let detail = try await environment.libraryRepository.listDetail(id: list.id)
+                        return (list.id, detail.items.contains { $0.mangaId == mangaId })
+                    } catch {
+                        return (list.id, false)
+                    }
+                }
+            }
+            for await (listId, contains) in group where contains {
+                memberOf.insert(listId)
+            }
+        }
     }
 
     @ViewBuilder
@@ -73,7 +93,11 @@ struct AddToListView: View {
                 Text(list.name ?? "Untitled list")
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                if let status = statuses[list.id] {
+                if memberOf.contains(list.id) {
+                    Text("Already in this list")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if let status = statuses[list.id] {
                     Text(status)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -85,12 +109,16 @@ struct AddToListView: View {
                     .font(.caption)
                     .foregroundStyle(.tint)
             }
+            if memberOf.contains(list.id) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
         }
         .contentShape(Rectangle())
     }
 
     private func add(to list: UserList) {
-        guard !inFlight.contains(list.id) else { return }
+        guard !memberOf.contains(list.id), !inFlight.contains(list.id) else { return }
         inFlight.insert(list.id)
         statuses[list.id] = nil
         Task {

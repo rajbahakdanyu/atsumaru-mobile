@@ -166,11 +166,15 @@ import Testing
     @Test func listDetailTolerantDecode() async throws {
         // Shape unverified from the wire — decode MUST tolerate both a flat item
         // shape {mangaId, title} and a nested {mangaId, manga:{title, poster:{image}}}.
+        // When the verified `members` key is present alongside legacy `items`,
+        // `members` wins (members has 2 entries, items 3 → count == 2).
         let json = """
         {"list":{"id":"l1","title":"My List","visibility":"Private",
-          "items":[{"mangaId":"m1","title":"Flat T"},
-                   {"mangaId":"m2","manga":{"title":"Nested T","poster":{"image":"posters/n.jpg"}}},
-                   {"mangaId":"m3","note":"reading next"}]}}
+          "members":[{"mangaId":"m1","title":"Flat T","note":"reading next"},
+                     {"mangaId":"m2","manga":{"title":"Nested T","poster":{"image":"posters/n.jpg"}}}],
+          "items":[{"mangaId":"x1","title":"Legacy 1"},
+                   {"mangaId":"x2","title":"Legacy 2"},
+                   {"mangaId":"x3","title":"Legacy 3"}]}}
         """
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
@@ -189,13 +193,14 @@ import Testing
         #expect(detail.id == "l1")
         #expect(detail.title == "My List")
         #expect(detail.visibility == "Private")
-        #expect(detail.items.count == 3)
+        #expect(detail.items.count == 2)
+        #expect(detail.items[0].mangaId == "m1")
         #expect(detail.items[0].title == "Flat T")
         #expect(detail.items[0].poster == nil)
+        #expect(detail.items[0].note == "reading next")
+        #expect(detail.items[1].mangaId == "m2")
         #expect(detail.items[1].title == "Nested T")
         #expect(detail.items[1].poster == "posters/n.jpg")
-        #expect(detail.items[2].note == "reading next")
-        #expect(detail.items[2].title == nil)
     }
 
     @Test func listDetailAcceptsBareListShape() async throws {
@@ -218,6 +223,39 @@ import Testing
         let detail = try await repo.listDetail(id: "l2")
         #expect(detail.title == "Bare")
         #expect(detail.items.isEmpty)
+    }
+
+    @Test func listDetailDecodesMembersShape() async throws {
+        // Verified wire shape: {"list": {id, title, visibility, members: [<manga-like>]}}
+        // member: {id, title, medium, poster: {id, smallUrl, mediumUrl, largeUrl}, ...}
+        let json = """
+        {"list":{"id":"l1","title":"My List","visibility":"Private",
+          "members":[
+            {"id":"m1","title":"Knight","medium":"Comic",
+             "poster":{"id":"posters/k1.webp","smallUrl":"posters/k1.webp","mediumUrl":"posters/k1.webp"}},
+            {"id":"m2","title":"No Poster","medium":"Novel"},
+            {"id":"m3","title":"Legacy","poster":"posters/legacy.webp"}]}}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getList")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "listId", value: "l1")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getList")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let detail = try await repo.listDetail(id: "l1")
+        #expect(detail.items.count == 3)
+        #expect(detail.items[0].mangaId == "m1")
+        #expect(detail.items[0].title == "Knight")
+        #expect(detail.items[0].poster == "posters/k1.webp")
+        #expect(detail.items[1].mangaId == "m2")
+        #expect(detail.items[1].poster == nil)
+        #expect(detail.items[2].poster == "posters/legacy.webp")
     }
 
     @Test func listsThrowsWhenNoEnvelopeDecodes() async throws {
