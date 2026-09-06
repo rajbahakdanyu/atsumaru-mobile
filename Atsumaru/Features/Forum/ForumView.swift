@@ -35,7 +35,8 @@ struct ForumView: View {
     @State private var viewModel: ForumViewModel?
     @State private var showAuth = false
     @State private var showingCompose = false
-    @AppStorage("forum.includeAdult") private var includeAdult = true
+    // Safer default: adult channels stay hidden until opted in (audit low fix).
+    @AppStorage("forum.includeAdult") private var includeAdult = false
 
     var body: some View {
         NavigationStack {
@@ -48,25 +49,29 @@ struct ForumView: View {
             }
             .navigationTitle("Forum")
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button { showingCompose = true } label: {
-                        Image(systemName: "square.and.pencil")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Menu {
-                        Toggle(isOn: Binding(
-                            get: { includeAdult },
-                            set: { newValue in
-                                includeAdult = newValue
-                                viewModel?.includeAdult = newValue
-                                Task { await viewModel?.load(force: true) }
-                            }
-                        )) {
-                            Text("Adult channels")
+                // Compose and the adult-channels menu only make sense signed
+                // in; the signed-out screen shows the sign-in prompt instead.
+                if environment.currentUser != nil {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button { showingCompose = true } label: {
+                            Image(systemName: "square.and.pencil")
                         }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Toggle(isOn: Binding(
+                                get: { includeAdult },
+                                set: { newValue in
+                                    includeAdult = newValue
+                                    viewModel?.includeAdult = newValue
+                                    Task { await viewModel?.load(force: true) }
+                                }
+                            )) {
+                                Text("Adult channels")
+                            }
+                        } label: {
+                            Image(systemName: "eye.circle")
+                        }
                     }
                 }
             }

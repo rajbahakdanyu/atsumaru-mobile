@@ -66,15 +66,20 @@ struct BrowseView: View {
                 }
             }
             .navigationTitle("Browse")
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker("Display", selection: $displayMode) {
-                        ForEach(BrowseDisplayMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
+            // Pinned display-mode header: lives outside the nav bar so it
+            // stays visible under the large title and while scrolled.
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Picker("Display", selection: $displayMode) {
+                    ForEach(BrowseDisplayMode.allCases) { mode in
+                        Text(mode.label).tag(mode)
                     }
-                    .pickerStyle(.segmented)
                 }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .background(.bar)
+            }
+            .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showingSearch = true } label: {
                         Image(systemName: "magnifyingglass")
@@ -166,7 +171,7 @@ struct BrowseView: View {
                     .padding(.top, 40)
             }
         } else {
-            LazyVGrid(columns: columns, spacing: 16) {
+            LazyVGrid(columns: columns, spacing: PosterGrid.spacing) {
                 ForEach(items) { item in
                     NavigationLink(value: item.id) {
                         Poster(item: item, showsTitle: true)
