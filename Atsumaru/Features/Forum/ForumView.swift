@@ -35,7 +35,7 @@ struct ForumView: View {
     @State private var viewModel: ForumViewModel?
     @State private var showAuth = false
     @State private var showingCompose = false
-    // Safer default: adult channels stay hidden until opted in (audit low fix).
+    // Adult channels visible by default (user preference); toggle in the forum menu.
     @AppStorage("forum.includeAdult") private var includeAdult = true
 
     var body: some View {

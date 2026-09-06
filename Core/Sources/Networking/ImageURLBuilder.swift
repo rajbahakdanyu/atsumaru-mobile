@@ -5,6 +5,7 @@ public enum ImageURLBuilder {
     /// - `/static/posters/...` or `/static/banners/...` (already rooted)
     /// - `posters/...` or `banners/...` (bare, need the `/static/` prefix)
     public static func poster(_ path: String) -> URL? {
+        guard !path.isEmpty else { return nil }
         var path = path
         if path.hasPrefix("/") { path.removeFirst() }
         if path.hasPrefix("posters/") || path.hasPrefix("banners/") {

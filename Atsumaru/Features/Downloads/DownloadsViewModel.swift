@@ -171,11 +171,6 @@ final class DownloadsViewModel {
         return Double(match.1)
     }
 
-    func delete(_ chapterId: String) async {
-        await downloadManager.deleteChapter(chapterId)
-        await refresh()
-    }
-
     func deleteAll() async {
         await downloadManager.deleteAll()
         await refresh()
