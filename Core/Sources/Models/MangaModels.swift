@@ -74,6 +74,23 @@ public struct Chapter: Codable, Identifiable, Hashable, Sendable {
         case id, title, number, index, pageCount, scanlationMangaId, createdAt, progress
     }
 
+    /// Memberwise init for locally-synthesized chapters (e.g. resume targets,
+    /// offline reads) where the real metadata is fetched later.
+    public init(
+        id: String, title: String = "", number: Double = 0, index: Int? = nil,
+        pageCount: Int = 0, scanlationMangaId: String? = nil,
+        createdAt: Int? = nil, progress: ChapterProgress? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.number = number
+        self.index = index
+        self.pageCount = pageCount
+        self.scanlationMangaId = scanlationMangaId
+        self.createdAt = createdAt
+        self.progress = progress
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(String.self, forKey: .id)

@@ -17,17 +17,47 @@ struct ContinueReadingView: View {
         } else {
             LazyVStack(spacing: 12) {
                 ForEach(items) { item in
-                    NavigationLink(value: item.id) {
-                        row(for: item)
-                    }
-                    .buttonStyle(.plain)
+                    resumeRow(item)
                 }
             }
         }
     }
 
+    /// Mirrors the website: tapping the row opens the manga detail, the play
+    /// button resumes directly into the reader at the saved chapter.
     @ViewBuilder
-    private func row(for item: ContinueReadingItem) -> some View {
+    private func resumeRow(_ item: ContinueReadingItem) -> some View {
+        if let chapterId = item.continueReading?.chapterId {
+            HStack(spacing: 10) {
+                NavigationLink(value: item.id) {
+                    rowContent(for: item, showsChevron: false)
+                }
+                .buttonStyle(.plain)
+                NavigationLink(value: ReaderResume(
+                    mangaId: item.id,
+                    chapter: Chapter(id: chapterId),
+                    isNovel: item.medium == "Novel"
+                )) {
+                    Image(systemName: "play.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color.accentColor)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Resume reading")
+            }
+            .padding(.horizontal, 12)
+            .glassCapsule()
+        } else {
+            NavigationLink(value: item.id) {
+                rowContent(for: item, showsChevron: true)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func rowContent(for item: ContinueReadingItem, showsChevron: Bool) -> some View {
         HStack(spacing: 14) {
             KFImage.poster(item.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
                 .scaledToFill()
@@ -59,13 +89,14 @@ struct ContinueReadingView: View {
 
             Spacer(minLength: 0)
 
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
+            if showsChevron {
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+            }
         }
-        .padding(12)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCapsule()
     }
 
     private func resumeLabel(_ progress: ContinueReadingItem.ContinueReadingProgress) -> String {

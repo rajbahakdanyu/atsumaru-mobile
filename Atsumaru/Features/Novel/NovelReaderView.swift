@@ -46,7 +46,8 @@ struct NovelReaderView: View {
                     chapter: chapter,
                     novelRepository: environment.novelRepository,
                     readRepository: environment.readRepository,
-                    progressStore: environment.progressStore
+                    progressStore: environment.progressStore,
+                    downloadManager: environment.downloadManager
                 )
             }
             await viewModel?.load()

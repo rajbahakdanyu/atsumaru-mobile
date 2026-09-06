@@ -26,7 +26,7 @@ public struct LiveLibraryRepository: LibraryRepository {
     public func continueReading() async throws -> [ContinueReadingItem] {
         let page: ItemsEnvelope<ContinueReadingItem> = try await client.get(
             "/api/infinite/continueReading",
-            query: ["page": "0", "perPage": "20"]
+            query: ["page": "0", "perPage": "40"]
         )
         return page.items ?? []
     }
@@ -44,17 +44,23 @@ public struct LiveLibraryRepository: LibraryRepository {
     }
 
     public func createList(name: String) async throws {
-        struct NameBody: Encodable { let name: String }
+        // Verified contract: the endpoint requires {"title": ..., "visibility": ...}.
+        struct CreateBody: Encodable {
+            let title: String
+            let visibility: String
+        }
         try await client.postVoid(
             "/api/user/userMangaLists/create",
-            json: NameBody(name: name)
+            json: CreateBody(title: name, visibility: "Private")
         )
     }
 
     public func deleteList(id: String) async throws {
-        try await client.deleteVoid(
+        // Verified contract: DELETE with a JSON body {"listId": ...}.
+        struct DeleteBody: Encodable { let listId: String }
+        try await client.deleteJSON(
             "/api/user/userMangaLists/deleteList",
-            query: ["id": id]
+            json: DeleteBody(listId: id)
         )
     }
 }

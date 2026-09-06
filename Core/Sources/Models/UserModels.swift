@@ -126,55 +126,68 @@ public struct Bookmark: Codable, Identifiable, Sendable {
     }
 }
 
-/// Tolerant history entry. Field names for `chapterId`/`chapterTitle`/`readAt`
-/// are best-effort (UNVERIFIED from the site client); all are optional so
-/// shape drift won't break decoding. `id` falls back to "".
-public struct HistoryEntry: Codable, Identifiable, Sendable {
+/// Tolerant history entry. Verified live shape: `id` IS the manga id (there
+/// is no `mangaId` key); `readAt` is an epoch-ms number (ISO8601 strings are
+/// also tolerated); the chapter title/number live inside a nested
+/// `continueReading` object (`title`/`number`/`page`/`chapterId`). `id` falls
+/// back to "".
+public struct HistoryEntry: Decodable, Identifiable, Sendable {
     public let id: String
-    public let mangaId: String?
     public let title: String?
     public let image: String?
     public let chapterId: String?
     public let chapterTitle: String?
-    public let readAt: String?
+    public let chapterNumber: Double?
+    public let readAt: Int?
+
+    private struct ContinueReading: Decodable, Sendable {
+        let chapterId: String?
+        let title: String?
+        let number: Double?
+    }
 
     enum CodingKeys: String, CodingKey {
-        case id, mangaId, title, image, chapterId, chapterTitle, readAt
+        case id, title, image, chapterId, chapterTitle, chapterNumber
+        case readAt, continueReading
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
-        mangaId = try c.decodeIfPresent(String.self, forKey: .mangaId)
         title = try c.decodeIfPresent(String.self, forKey: .title)
         image = try c.decodeIfPresent(String.self, forKey: .image)
-        chapterId = try c.decodeIfPresent(String.self, forKey: .chapterId)
-        chapterTitle = try c.decodeIfPresent(String.self, forKey: .chapterTitle)
-        readAt = try c.decodeIfPresent(String.self, forKey: .readAt)
+        let nested = try c.decodeIfPresent(ContinueReading.self, forKey: .continueReading)
+        chapterId = (try? c.decodeIfPresent(String.self, forKey: .chapterId)) ?? nil ?? nested?.chapterId
+        chapterTitle = (try? c.decodeIfPresent(String.self, forKey: .chapterTitle)) ?? nil ?? nested?.title
+        chapterNumber = nested?.number
+        readAt = DateParsing.decodeEpochMs(c, forKey: .readAt)
     }
 
-    public init(id: String, mangaId: String? = nil, title: String? = nil, image: String? = nil,
-                chapterId: String? = nil, chapterTitle: String? = nil, readAt: String? = nil) {
+    public init(id: String, title: String? = nil, image: String? = nil,
+                chapterId: String? = nil, chapterTitle: String? = nil,
+                chapterNumber: Double? = nil, readAt: Int? = nil) {
         self.id = id
-        self.mangaId = mangaId
         self.title = title
         self.image = image
         self.chapterId = chapterId
         self.chapterTitle = chapterTitle
+        self.chapterNumber = chapterNumber
         self.readAt = readAt
     }
+
+    public var readAtDate: Date? { readAt.flatMap { $0.dateFromEpochMs } }
 }
 
-/// Tolerant user manga list. `itemCount` key name is UNVERIFIED from the
-/// site client; kept optional. `id` falls back to "".
+/// Tolerant user manga list. Verified live shape: the display name arrives
+/// under the `title` key (mapped onto the app-facing `name` property); there
+/// is no `itemCount`. `id` falls back to "".
 public struct UserList: Codable, Identifiable, Sendable {
     public let id: String
     public let name: String?
     public let description: String?
-    public let itemCount: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, description, itemCount
+        case id, name = "title", description
     }
 
     public init(from decoder: Decoder) throws {
@@ -182,15 +195,12 @@ public struct UserList: Codable, Identifiable, Sendable {
         id = try c.decodeIfPresent(String.self, forKey: .id) ?? ""
         name = try c.decodeIfPresent(String.self, forKey: .name)
         description = try c.decodeIfPresent(String.self, forKey: .description)
-        itemCount = try c.decodeIfPresent(Int.self, forKey: .itemCount)
     }
 
-    public init(id: String, name: String? = nil, description: String? = nil,
-                itemCount: Int? = nil) {
+    public init(id: String, name: String? = nil, description: String? = nil) {
         self.id = id
         self.name = name
         self.description = description
-        self.itemCount = itemCount
     }
 }
 

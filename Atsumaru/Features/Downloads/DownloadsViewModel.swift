@@ -78,7 +78,7 @@ final class DownloadsViewModel {
         var updated: [DownloadRow] = []
         for record in snapshots {
             let live = await downloadManager.state(for: record.chapterId)
-            let effective = Self.effectiveState(live: live, persisted: record.state)
+            let effective = DownloadState.effective(live: live, persisted: record.state)
             updated.append(DownloadRow(
                 chapterId: record.chapterId,
                 mangaTitle: record.mangaTitle,
@@ -101,15 +101,6 @@ final class DownloadsViewModel {
     func deleteAll() async {
         await downloadManager.deleteAll()
         await refresh()
-    }
-
-    private static func effectiveState(live: DownloadState, persisted: String) -> DownloadState {
-        switch live {
-        case .queued: return persisted == "completed" ? .completed : .queued
-        case .downloading(let fraction): return .downloading(fraction)
-        case .completed: return .completed
-        case .failed(let message): return .failed(message)
-        }
     }
 
     private func startEventStream() {

@@ -2,12 +2,21 @@ import SwiftUI
 import Kingfisher
 import Core
 
+/// Direct-into-reader resume target for a continue-reading item
+/// (website parity: /read/{mangaId}/{chapterId} or /novel/{mangaId}/{chapterId}).
+struct ReaderResume: Hashable {
+    let mangaId: String
+    let chapter: Chapter
+    let isNovel: Bool
+}
+
 struct LibraryView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.displayScale) private var displayScale
     @State private var viewModel: LibraryViewModel?
     @State private var showingNewList = false
     @State private var showAuth = false
+    @State private var listToDelete: UserList?
 
     private let columns = PosterGrid.columns
 
@@ -60,18 +69,27 @@ struct LibraryView: View {
                             if viewModel.isLoading && viewModel.continueReading.isEmpty {
                                 LoadingSkeletonView()
                                     .padding(.top, 20)
+                            } else if viewModel.continueReading.isEmpty, let error = viewModel.error {
+                                ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+                                    .padding(.top, 20)
                             } else {
                                 ContinueReadingView(items: viewModel.continueReading)
                                     .padding(.horizontal, 16)
                                     .padding(.bottom, 24)
                             }
                         }
+                        .refreshable { await viewModel.load(force: true) }
 
                     case .bookmarks:
                         ScrollView {
                             if viewModel.bookmarks.isEmpty && !viewModel.isLoading {
-                                EmptyStateView(message: "No bookmarks")
-                                    .padding(.top, 20)
+                                if let error = viewModel.error {
+                                    ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+                                        .padding(.top, 20)
+                                } else {
+                                    EmptyStateView(message: "No bookmarks")
+                                        .padding(.top, 20)
+                                }
                             } else {
                                 LazyVGrid(columns: columns, spacing: 16) {
                                     ForEach(viewModel.bookmarks) { bookmark in
@@ -85,31 +103,32 @@ struct LibraryView: View {
                                 .padding(.bottom, 24)
                             }
                         }
+                        .refreshable { await viewModel.load(force: true) }
 
                     case .history:
                         ScrollView {
                             if viewModel.history.isEmpty && !viewModel.isLoading {
-                                EmptyStateView(message: "No history")
-                                    .padding(.top, 20)
+                                if let error = viewModel.error {
+                                    ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+                                        .padding(.top, 20)
+                                } else {
+                                    EmptyStateView(message: "No history")
+                                        .padding(.top, 20)
+                                }
                             } else {
                                 LazyVStack(spacing: 10) {
                                     ForEach(viewModel.history) { entry in
-                                        Group {
-                                            if let mangaId = entry.mangaId {
-                                                NavigationLink(value: mangaId) {
-                                                    historyRow(entry)
-                                                }
-                                                .buttonStyle(.plain)
-                                            } else {
-                                                historyRow(entry)
-                                            }
+                                        NavigationLink(value: entry.id) {
+                                            historyRow(entry)
                                         }
+                                        .buttonStyle(.plain)
                                     }
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 24)
                             }
                         }
+                        .refreshable { await viewModel.load(force: true) }
 
                     case .lists:
                         List {
@@ -118,7 +137,7 @@ struct LibraryView: View {
                                     listRow(list)
                                         .swipeActions(edge: .trailing) {
                                             Button(role: .destructive) {
-                                                Task { await viewModel.deleteList(list) }
+                                                listToDelete = list
                                             } label: {
                                                 Label("Delete", systemImage: "trash")
                                             }
@@ -127,12 +146,17 @@ struct LibraryView: View {
                             }
                             if viewModel.lists.isEmpty && !viewModel.isLoading {
                                 Section {
-                                    EmptyStateView(message: "No lists yet")
+                                    if let error = viewModel.error {
+                                        ErrorStateView(error: error) { Task { await viewModel.load(force: true) } }
+                                    } else {
+                                        EmptyStateView(message: "No lists yet")
+                                    }
                                 }
                                 .listRowBackground(Color.clear)
                             }
                         }
                         .listStyle(.plain)
+                        .refreshable { await viewModel.load(force: true) }
                     }
                 }
             }
@@ -140,6 +164,13 @@ struct LibraryView: View {
         .navigationTitle("Library")
         .navigationDestination(for: String.self) { id in
             MangaDetailView(mangaId: id)
+        }
+        .navigationDestination(for: ReaderResume.self) { resume in
+            if resume.isNovel {
+                NovelReaderView(mangaId: resume.mangaId, chapter: resume.chapter)
+            } else {
+                MangaReaderView(mangaId: resume.mangaId, chapter: resume.chapter)
+            }
         }
         .toolbar {
             if viewModel.segment == .lists {
@@ -160,6 +191,36 @@ struct LibraryView: View {
             Button("Cancel", role: .cancel) {
                 viewModel.newListName = ""
             }
+        }
+        .confirmationDialog(
+            "Delete list?",
+            isPresented: Binding(
+                get: { listToDelete != nil },
+                set: { if !$0 { listToDelete = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let list = listToDelete else { return }
+                listToDelete = nil
+                Task { await viewModel.deleteList(list) }
+            }
+            Button("Cancel", role: .cancel) {
+                listToDelete = nil
+            }
+        } message: {
+            Text("This can't be undone.")
+        }
+        .alert(
+            "Something went wrong",
+            isPresented: Binding(
+                get: { viewModel.actionError != nil },
+                set: { if !$0 { viewModel.actionError = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { viewModel.actionError = nil }
+        } message: {
+            Text(viewModel.actionError ?? "")
         }
     }
 
@@ -195,14 +256,14 @@ struct LibraryView: View {
                 Text(entry.title ?? "Untitled")
                     .font(.subheadline)
                     .lineLimit(1)
-                if let chapter = entry.chapterTitle {
+                if let chapter = chapterSubtitle(for: entry) {
                     Text(chapter)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
-                if let readAt = entry.readAt {
-                    Text(readAt)
+                if let date = entry.readAtDate {
+                    Text(date.relativeLabel)
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -212,6 +273,17 @@ struct LibraryView: View {
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassCapsule()
+    }
+
+    private func chapterSubtitle(for entry: HistoryEntry) -> String? {
+        if let title = entry.chapterTitle, !title.isEmpty { return title }
+        if let number = entry.chapterNumber {
+            let value = number.truncatingRemainder(dividingBy: 1) == 0
+                ? String(Int(number))
+                : String(number)
+            return "Chapter \(value)"
+        }
+        return nil
     }
 
     @ViewBuilder
@@ -230,11 +302,6 @@ struct LibraryView: View {
                 }
             }
             Spacer()
-            if let count = list.itemCount {
-                Text("\(count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
     }
 }

@@ -9,6 +9,13 @@ struct MangaDetailView: View {
     @State private var viewModel: MangaDetailViewModel?
     @State private var detailsExpanded = false
     @State private var selectedScanlatorId: String?
+    /// Per-chapter download state for chapters that HAVE a download record.
+    /// A missing key means "not downloaded". Values fold the live DownloadManager
+    /// state onto the persisted record via `DownloadState.effective`.
+    @State private var downloadStates: [String: DownloadState] = [:]
+    @State private var isPollingDownloads = false
+    @State private var pendingDeleteChapter: Chapter?
+    @State private var showDeleteConfirmation = false
 
     var body: some View {
         Group {
@@ -59,6 +66,14 @@ struct MangaDetailView: View {
                 chapterSection(manga)
             }
             .padding(.bottom, 24)
+        }
+        .task { await pollUntilIdle() }
+        .confirmationDialog("Delete downloaded chapter?", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+            Button("Delete Download", role: .destructive) {
+                Task { await deletePendingChapter() }
+            }
+        } message: {
+            Text("Only the offline copy is removed. You can download it again later.")
         }
     }
 
@@ -266,41 +281,145 @@ struct MangaDetailView: View {
 
     @ViewBuilder
     private func chapterRow(_ chapter: Chapter, manga: MangaPage) -> some View {
-        NavigationLink(value: chapter) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(chapter.title)
-                        .font(.body)
-                        .lineLimit(1)
-                    HStack(spacing: 6) {
-                        if let created = chapter.createdAt?.dateFromEpochMs {
-                            Text(created.relativeLabel)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        if let translator = manga.translatorName(for: chapter) {
-                            Text("·")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text(translator)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
+        HStack(spacing: 12) {
+            NavigationLink(value: chapter) {
+                HStack(alignment: .top, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(chapter.title)
+                            .font(.body)
+                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            if let created = chapter.createdAt?.dateFromEpochMs {
+                                Text(created.relativeLabel)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let translator = manga.translatorName(for: chapter) {
+                                Text("·")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Text(translator)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
                         }
                     }
+                    Spacer()
+                    if chapter.progress != nil {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(.tint)
+                            .padding(.top, 2)
+                    }
                 }
-                Spacer()
-                if chapter.progress != nil {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.subheadline)
-                        .foregroundStyle(.tint)
-                        .padding(.top, 2)
-                }
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            downloadIndicator(chapter, manga: manga)
         }
-        .buttonStyle(.plain)
+    }
+
+    /// Trailing download control for a chapter row. Deliberately a SIBLING of
+    /// the chapter's NavigationLink (not inside it), so tapping it never
+    /// navigates to the reader.
+    @ViewBuilder
+    private func downloadIndicator(_ chapter: Chapter, manga: MangaPage) -> some View {
+        switch downloadStates[chapter.id] {
+        case nil:
+            Button {
+                enqueueDownload(chapter, manga: manga)
+            } label: {
+                Image(systemName: "arrow.down.circle")
+                    .foregroundStyle(.secondary)
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        case .some(.queued):
+            // No cancel API on DownloadManager — non-interactive placeholder.
+            Image(systemName: "clock")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .padding(6)
+        case .some(.downloading(let fraction)):
+            ProgressView(value: fraction)
+                .padding(6)
+        case .some(.completed):
+            Button {
+                pendingDeleteChapter = chapter
+                showDeleteConfirmation = true
+            } label: {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        case .some(.failed):
+            Button {
+                enqueueDownload(chapter, manga: manga)
+            } label: {
+                Image(systemName: "exclamationmark.triangle")
+                    .foregroundStyle(.red)
+                    .padding(6)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func enqueueDownload(_ chapter: Chapter, manga: MangaPage) {
+        let item = HomeItem(
+            id: manga.id,
+            title: manga.title,
+            image: manga.poster?.image ?? "",
+            medium: manga.medium ?? "Comic"
+        )
+        Task {
+            await environment.downloadManager.enqueue(manga: item, chapter: chapter)
+            await pollUntilIdle()
+        }
+    }
+
+    private func deletePendingChapter() async {
+        guard let chapter = pendingDeleteChapter else { return }
+        pendingDeleteChapter = nil
+        await environment.downloadManager.deleteChapter(chapter.id)
+        await refreshDownloadStates()
+    }
+
+    /// Refreshes the per-chapter download map, then polls once per second
+    /// while any chapter is queued/in flight so a finished download flips to
+    /// "completed" without an event-stream subscription on this screen.
+    private func pollUntilIdle() async {
+        guard !isPollingDownloads else { return }
+        isPollingDownloads = true
+        defer { isPollingDownloads = false }
+        await refreshDownloadStates()
+        while !Task.isCancelled, downloadStates.values.contains(where: isInFlight) {
+            try? await Task.sleep(for: .seconds(1))
+            await refreshDownloadStates()
+        }
+    }
+
+    private func isInFlight(_ state: DownloadState) -> Bool {
+        switch state {
+        case .queued, .downloading: return true
+        case .completed, .failed: return false
+        }
+    }
+
+    private func refreshDownloadStates() async {
+        let records = await environment.downloadManager.listChapters()
+            .filter { $0.mangaId == mangaId }
+        var updated: [String: DownloadState] = [:]
+        for record in records {
+            let live = await environment.downloadManager.state(for: record.chapterId)
+            updated[record.chapterId] = DownloadState.effective(live: live, persisted: record.state)
+        }
+        downloadStates = updated
     }
 }

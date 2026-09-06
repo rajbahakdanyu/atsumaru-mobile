@@ -34,7 +34,7 @@ import Testing
             #expect(request.httpMethod == "GET")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
             #expect(items.contains(URLQueryItem(name: "page", value: "0")))
-            #expect(items.contains(URLQueryItem(name: "perPage", value: "20")))
+            #expect(items.contains(URLQueryItem(name: "perPage", value: "40")))
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/infinite/continueReading")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data(json.utf8))
@@ -49,7 +49,8 @@ import Testing
     }
 
     @Test func listsToleratesArrayEnvelope() async throws {
-        let json = #"[{"id":"list1","name":"Favorites","description":"Best reads","itemCount":12,"isPublic":true}]"#
+        // Real API shape: `title` (not `name`), no `itemCount`.
+        let json = #"[{"id":"list1","title":"Favorites","description":"Best reads","isPublic":true}]"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
@@ -64,6 +65,25 @@ import Testing
         let lists = try await repo.lists()
         #expect(lists.count == 1)
         #expect(lists.first?.name == "Favorites")
+    }
+
+    @Test func listsDecodeNameFromTitleKey() async throws {
+        let json = #"{"lists":[{"id":"list2","title":"To Read","description":"Queue"}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getLists")
+            #expect(request.httpMethod == "GET")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getLists")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let lists = try await repo.lists()
+        #expect(lists.count == 1)
+        #expect(lists.first?.name == "To Read")
+        #expect(lists.first?.description == "Queue")
     }
 
     @Test func listsThrowsWhenNoEnvelopeDecodes() async throws {
@@ -83,6 +103,8 @@ import Testing
     }
 
     @Test func createListPostsJSON() async throws {
+        // Verified contract: POST /api/user/userMangaLists/create requires
+        // {"title": ..., "visibility": "Public"|"Private"}.
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         let captured = Box<Data?>(nil)
@@ -98,19 +120,24 @@ import Testing
         let repo = LiveLibraryRepository(client: client)
         try await repo.createList(name: "Reading List")
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"name\""))
-        #expect(bodyString.contains("Reading List"))
+        #expect(bodyString.contains("\"title\":\"Reading List\""))
+        #expect(bodyString.contains("\"visibility\":\"Private\""))
+        #expect(!bodyString.contains("\"name\""))
     }
 
-    @Test func deleteListDeletes() async throws {
+    @Test func deleteListSendsJSONBody() async throws {
+        // Verified contract: DELETE /api/user/userMangaLists/deleteList requires
+        // a JSON body {"listId": ...}; no query params.
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         let capturedMethod = Box<String?>(nil)
+        let captured = Box<Data?>(nil)
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/user/userMangaLists/deleteList")
             capturedMethod.value = request.httpMethod
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
-            #expect(items.contains(URLQueryItem(name: "id", value: "list1")))
+            #expect(items.isEmpty)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/deleteList")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -119,5 +146,51 @@ import Testing
         let repo = LiveLibraryRepository(client: client)
         try await repo.deleteList(id: "list1")
         #expect(capturedMethod.value == "DELETE")
+        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"listId\":\"list1\""))
+    }
+
+    @Test func historyDecodesEpochMsReadAtAndNestedChapter() async throws {
+        // Real history shape: `id` IS the manga id, `readAt` is epoch-ms, and
+        // the chapter title/number live inside `continueReading`.
+        let json = #"{"items":[{"id":"m1","title":"Solo Leveling","image":"posters/sl.jpg","readAt":1725148800000,"continueReading":{"chapterId":"c9","title":"Chapter 99","number":99,"page":3}}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/history")
+            #expect(request.httpMethod == "GET")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/history")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let entries = try await repo.history()
+        #expect(entries.count == 1)
+        let entry = try #require(entries.first)
+        #expect(entry.id == "m1")
+        #expect(entry.title == "Solo Leveling")
+        #expect(entry.chapterId == "c9")
+        #expect(entry.chapterTitle == "Chapter 99")
+        #expect(entry.chapterNumber == 99)
+        #expect(entry.readAt == 1_725_148_800_000)
+        #expect(entry.readAtDate != nil)
+    }
+
+    @Test func historyReadAtAcceptsISO8601String() throws {
+        let json = #"{"id":"m1","readAt":"2024-09-01T00:00:00.000Z","continueReading":{"title":"Chapter 1"}}"#
+        let entry = try JSONDecoder().decode(HistoryEntry.self, from: Data(json.utf8))
+        #expect(entry.readAtDate?.timeIntervalSince1970 == 1_725_148_800.0)
+        #expect(entry.chapterTitle == "Chapter 1")
+    }
+
+    @Test func historyEntryWithoutContinueReadingDecodes() throws {
+        let json = #"{"id":"m2","title":"Berserk"}"#
+        let entry = try JSONDecoder().decode(HistoryEntry.self, from: Data(json.utf8))
+        #expect(entry.id == "m2")
+        #expect(entry.chapterTitle == nil)
+        #expect(entry.chapterNumber == nil)
+        #expect(entry.readAt == nil)
+        #expect(entry.readAtDate == nil)
     }
 }

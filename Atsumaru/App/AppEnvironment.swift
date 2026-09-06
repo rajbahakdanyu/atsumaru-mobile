@@ -43,6 +43,7 @@ final class AppEnvironment {
         }
         let downloadMgr = DownloadManager(
             readRepository: readRepository,
+            novelRepository: novelRepository,
             store: downloadStore,
             allowsCellularAccess: UserDefaults.standard.bool(forKey: "dev.atsumaru.app.autoDownloadAnyNetwork")
         )
@@ -63,6 +64,10 @@ final class AppEnvironment {
     }
 
     func bootstrap() async {
+        // Records left queued/downloading by a previous session can never
+        // resume on their own; surface them as failed instead of stale
+        // "Queued" rows.
+        await downloadManager.restoreInterruptedDownloads()
         if let saved = keychainStore.load(key: "auth-user"),
            let user = try? JSONDecoder().decode(AuthUser.self, from: saved) {
             currentUser = user

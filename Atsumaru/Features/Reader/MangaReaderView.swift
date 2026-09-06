@@ -49,7 +49,8 @@ struct MangaReaderView: View {
                     mangaId: mangaId,
                     chapter: chapter,
                     readRepository: environment.readRepository,
-                    progressStore: environment.progressStore
+                    progressStore: environment.progressStore,
+                    downloadManager: environment.downloadManager
                 )
                 vm.mode = storedMode
                 viewModel = vm
@@ -99,7 +100,7 @@ struct MangaReaderView: View {
                 set: { viewModel.currentPage = $0 }
             )) {
                 ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                    pageCell(page)
+                    pageCell(page, index: index, viewModel: viewModel)
                         .tag(index)
                 }
             }
@@ -119,11 +120,11 @@ struct MangaReaderView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                        fitImage(KFImage.readerPage(
-                            ImageURLBuilder.page(page.image),
-                            viewportWidth: viewportWidth,
-                            aspectRatio: page.aspectRatio,
-                            displayScale: displayScale
+                        fitImage(readerPageImage(
+                            viewModel: viewModel,
+                            page: page,
+                            index: index,
+                            viewportWidth: viewportWidth
                         ))
                             .frame(maxWidth: .infinity)
                             .clipped()
@@ -248,18 +249,18 @@ struct MangaReaderView: View {
     }
 
     @ViewBuilder
-    private func pageCell(_ page: PageImage) -> some View {
+    private func pageCell(_ page: PageImage, index: Int, viewModel: ReaderViewModel) -> some View {
         GeometryReader { proxy in
             let baseWidth = proxy.size.width
             let baseHeight: CGFloat = readerFit == .fill
                 ? proxy.size.height
                 : baseWidth / CGFloat(page.aspectRatio)
             ScrollView([.vertical]) {
-                fitImage(KFImage.readerPage(
-                    ImageURLBuilder.page(page.image),
-                    viewportWidth: proxy.size.width,
-                    aspectRatio: page.aspectRatio,
-                    displayScale: displayScale
+                fitImage(readerPageImage(
+                    viewModel: viewModel,
+                    page: page,
+                    index: index,
+                    viewportWidth: proxy.size.width
                 ))
                     .frame(width: baseWidth * zoomScale, height: baseHeight * zoomScale)
                     .clipped()
@@ -267,6 +268,26 @@ struct MangaReaderView: View {
                     .frame(maxWidth: .infinity)
             }
         }
+    }
+
+    /// Builds the page image for a row: local file URLs are served from disk
+    /// via `LocalFileImageDataProvider`, remote pages go through the network
+    /// URL builder. Both share the same downsampling/layout pipeline.
+    private func readerPageImage(viewModel: ReaderViewModel, page: PageImage, index: Int, viewportWidth: CGFloat) -> KFImage {
+        if let localPageURLs = viewModel.localPageURLs, localPageURLs.indices.contains(index) {
+            return KFImage.readerPage(
+                localFile: localPageURLs[index],
+                viewportWidth: viewportWidth,
+                aspectRatio: page.aspectRatio,
+                displayScale: displayScale
+            )
+        }
+        return KFImage.readerPage(
+            ImageURLBuilder.page(page.image),
+            viewportWidth: viewportWidth,
+            aspectRatio: page.aspectRatio,
+            displayScale: displayScale
+        )
     }
 
     @ViewBuilder

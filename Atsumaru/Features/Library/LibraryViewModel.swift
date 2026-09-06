@@ -25,6 +25,7 @@ final class LibraryViewModel {
     var creatingList = false
     var newListName = ""
     var error: ApiError?
+    var actionError: String?
 
     private let repository: any LibraryRepository
     private var loaded = false
@@ -64,9 +65,10 @@ final class LibraryViewModel {
         do {
             try await repository.createList(name: name)
             newListName = ""
+            actionError = nil
             if let refreshed = try? await repository.lists() { lists = refreshed }
         } catch {
-            // best-effort: leave existing lists; surface nothing for now
+            actionError = "Couldn't create list. Try again."
         }
     }
 
@@ -74,8 +76,9 @@ final class LibraryViewModel {
         do {
             try await repository.deleteList(id: list.id)
             lists.removeAll { $0.id == list.id }
+            actionError = nil
         } catch {
-            // best-effort: keep the list
+            actionError = "Couldn't delete list. Try again."
         }
     }
 }

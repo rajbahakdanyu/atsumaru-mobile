@@ -23,7 +23,7 @@ extension KFImage {
     /// viewportWidth stays the long side, so the decoded width is still
     /// viewportWidth × scale without over-decoding the height. A nil/zero or
     /// non-finite aspect falls back to the square cap.
-    static func readerPage(_ source: URL?, viewportWidth: CGFloat, aspectRatio: Double?, displayScale: CGFloat) -> KFImage {
+    static func readerPage(_ source: Source?, viewportWidth: CGFloat, aspectRatio: Double?, displayScale: CGFloat) -> KFImage {
         let width = max(viewportWidth, 1)
         let capHeight: CGFloat
         if let aspectRatio, aspectRatio.isFinite, aspectRatio > 0 {
@@ -31,9 +31,23 @@ extension KFImage {
         } else {
             capHeight = width
         }
-        return KFImage(source)
+        return KFImage(source: source)
             .downsampling(size: CGSize(width: width, height: capHeight))
             .scaleFactor(max(displayScale, 1))
             .resizable()
+    }
+
+    /// Remote reader page.
+    static func readerPage(_ url: URL?, viewportWidth: CGFloat, aspectRatio: Double?, displayScale: CGFloat) -> KFImage {
+        readerPage(url?.convertToSource(), viewportWidth: viewportWidth, aspectRatio: aspectRatio, displayScale: displayScale)
+    }
+
+    /// Locally downloaded reader page: served straight from disk through
+    /// `LocalFileImageDataProvider` (Kingfisher's provider source — no network
+    /// request, no disk-cache round trip), keeping the exact same downsampling
+    /// cap and layout as remote pages.
+    static func readerPage(localFile fileURL: URL, viewportWidth: CGFloat, aspectRatio: Double?, displayScale: CGFloat) -> KFImage {
+        readerPage(.provider(LocalFileImageDataProvider(fileURL: fileURL)),
+                   viewportWidth: viewportWidth, aspectRatio: aspectRatio, displayScale: displayScale)
     }
 }

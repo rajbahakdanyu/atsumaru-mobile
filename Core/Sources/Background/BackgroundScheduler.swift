@@ -1,16 +1,36 @@
 import Foundation
 import BackgroundTasks
 import UserNotifications
+import os
 
 /// Wraps a non-Sendable reference so it can cross an isolation boundary.
 /// `BGTask` instances are safe to call `setTaskCompleted(success:)` on from
 /// any queue per Apple's BackgroundTasks sample code; we mark unchecked to
 /// satisfy Swift 6 strict concurrency without an actual race.
 private struct UnsafeSendableBox<T>: @unchecked Sendable {
-    let value: T
+    var value: T
+}
+
+/// Thread-safe mutable slot so the expiration handler can cancel the work
+/// task that is started after the handler is installed.
+private final class ExpirableWork: @unchecked Sendable {
+    private let lock = NSLock()
+    private var work: Task<Bool, Never>?
+    func set(_ work: Task<Bool, Never>) {
+        lock.lock()
+        self.work = work
+        lock.unlock()
+    }
+    func cancel() {
+        lock.lock()
+        work?.cancel()
+        lock.unlock()
+    }
 }
 
 public final class BackgroundScheduler: Sendable {
+    private static let log = Logger(subsystem: "dev.atsumaru.app", category: "background")
+
     public static let refreshIdentifier = "dev.atsumaru.app.refresh"
     public static let backgroundRefreshKey = "dev.atsumaru.app.backgroundRefresh"
     public static let notificationsKey = "dev.atsumaru.app.newChapterNotifications"
@@ -77,8 +97,15 @@ public final class BackgroundScheduler: Sendable {
     }
 
     public func handleRefresh(task: BGAppRefreshTask) async {
+        // The expiration handler must be installed BEFORE any work starts so
+        // an early expiration is never missed (Apple's required pattern).
+        let expirable = ExpirableWork()
+        task.expirationHandler = {
+            Self.log.notice("Background refresh expired")
+            expirable.cancel()
+        }
         let work = Task { await self.refreshAndDownload() }
-        task.expirationHandler = { work.cancel() }
+        expirable.set(work)
         let success = await work.value
         task.setTaskCompleted(success: success)
         // Reschedule regardless of success so one failure doesn't kill the
@@ -88,10 +115,12 @@ public final class BackgroundScheduler: Sendable {
 
     @discardableResult
     public func refreshAndDownload() async -> Bool {
+        Self.log.info("Background refresh started")
         let bookmarks: [Bookmark]
         do {
             bookmarks = try await libraryRepository.bookmarks(offset: 0, limit: 40)
         } catch {
+            Self.log.error("Background refresh could not fetch bookmarks: \(error.localizedDescription, privacy: .public)")
             return false
         }
         guard !bookmarks.isEmpty else {
@@ -99,7 +128,9 @@ public final class BackgroundScheduler: Sendable {
             return true
         }
         let snapshots = await downloadManager.listChapters()
-        let downloadedIds = Set(snapshots.map { $0.chapterId })
+        // Only completed records block a re-download; a failed record must be
+        // retried instead of being skipped forever.
+        let downloadedIds = Set(snapshots.filter { $0.state == "completed" }.map { $0.chapterId })
 
         var newChaptersEnqueued = 0
         var chapterTitles: [String] = []
@@ -118,9 +149,13 @@ public final class BackgroundScheduler: Sendable {
             }
             if newChaptersEnqueued >= 5 { break }
         }
-        if Task.isCancelled { return false }
+        if Task.isCancelled {
+            Self.log.notice("Background refresh cancelled before completion")
+            return false
+        }
         await downloadManager.awaitCompletion(enqueuedIds)
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Self.lastRefreshKey)
+        Self.log.info("Background refresh done (\(newChaptersEnqueued, privacy: .public) new chapter(s))")
         if newChaptersEnqueued > 0 && Self.notificationsEnabled {
             let title = newChaptersEnqueued == 1 ? "New chapter downloaded" : "New chapters available"
             let body = chapterTitles.first ?? "\(newChaptersEnqueued) new chapter(s) are now available offline."

@@ -129,6 +129,16 @@ extension APIClient {
         try await send(method: "DELETE", path: path, query: query, contentType: nil, body: nil)
     }
 
+    /// DELETEs with a JSON body and checks the HTTP status, discarding the
+    /// response body. For delete endpoints that require a JSON payload
+    /// instead of query parameters.
+    public func deleteJSON<Body: Encodable & Sendable>(
+        _ path: String, json body: Body
+    ) async throws {
+        try await send(method: "DELETE", path: path, query: [:],
+                       contentType: "application/json", body: try JSONEncoder().encode(body))
+    }
+
     /// POSTs form fields and checks the HTTP status, discarding the response body.
     public func postFormVoid(_ path: String, fields: [String: String]) async throws {
         try await send(method: "POST", path: path, query: [:],

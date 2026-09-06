@@ -19,7 +19,7 @@ struct DownloadSettingsView: View {
                             environment.backgroundScheduler.cancelRefresh()
                         }
                     }
-                Toggle("Auto-download new chapters (any network)", isOn: $autoDownloadAnyNetwork)
+                Toggle("Download over cellular", isOn: $autoDownloadAnyNetwork)
                     .onChange(of: autoDownloadAnyNetwork) { _, newValue in
                         Task { await environment.downloadManager.setAllowsCellularAccess(newValue) }
                     }

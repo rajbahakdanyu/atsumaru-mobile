@@ -5,6 +5,10 @@ public struct ReadChapter: Decodable, Sendable {
     public let title: String
     public let scanlationMangaId: String
     public let pages: [PageImage]
+
+    public init(id: String, title: String, scanlationMangaId: String, pages: [PageImage]) {
+        self.id = id; self.title = title; self.scanlationMangaId = scanlationMangaId; self.pages = pages
+    }
 }
 
 public struct PageImage: Codable, Identifiable, Hashable, Sendable {
