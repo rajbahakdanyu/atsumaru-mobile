@@ -54,35 +54,32 @@ struct DownloadsView: View {
     @ViewBuilder
     private var content: some View {
         if let viewModel {
-            @Bindable var vm = viewModel
-            List {
-                Section {
-                    if vm.sections.isEmpty {
-                        ContentUnavailableView(
-                            "No downloads",
-                            systemImage: "arrow.down.circle",
-                            description: Text("Download chapters from a manga page to keep them offline.")
-                        )
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
-                    } else {
-                        ForEach(vm.sections) { section in
-                            seriesSection(section)
-                                .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        Task { await viewModel.delete(mangaId: section.mangaId) }
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+            if viewModel.sections.isEmpty {
+                ContentUnavailableView(
+                    "No downloads",
+                    systemImage: "arrow.down.circle",
+                    description: Text("Download chapters from a manga page to keep them offline.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .refreshable { await viewModel.refresh() }
+            } else {
+                List {
+                    ForEach(viewModel.sections) { section in
+                        seriesSection(section)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    Task { await viewModel.delete(mangaId: section.mangaId) }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
                                 }
-                        }
+                            }
                     }
                 }
+                .listStyle(.plain)
+                .refreshable { await viewModel.refresh() }
             }
-            .listStyle(.plain)
-            .refreshable { await viewModel.refresh() }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         }
