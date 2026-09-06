@@ -112,7 +112,7 @@ import Testing
         #expect(bodyString.contains("Hello world"))
     }
 
-    @Test func votePostPostsJSON() async throws {
+    @Test func votePostPostsVoteDirectionStrings() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         let captured = Box<Data?>(nil)
@@ -127,10 +127,33 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
         try await repo.votePost(postId: "p1", vote: 1)
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        var bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString.contains("\"postId\""))
-        #expect(bodyString.contains("\"vote\""))
-        #expect(bodyString.contains("p1"))
-        #expect(bodyString.contains("\"vote\":1"))
+        #expect(bodyString.contains("\"p1\""))
+        #expect(bodyString.contains("\"vote\":\"up\""))
+
+        try await repo.votePost(postId: "p1", vote: -1)
+        bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"vote\":\"down\""))
+
+        try await repo.votePost(postId: "p1", vote: 0)
+        bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
+        #expect(bodyString.contains("\"vote\":\"none\""))
+    }
+
+    @Test func postDecodesViewerState() async throws {
+        let json = #"{"post":{"id":"p1","forumId":"ch1","title":"T","score":3,"viewerVote":"up","viewerBookmarked":true,"viewerSeen":true}}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/getPost")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let post = try await repo.post(postId: "p1")
+        #expect(post.viewerVote == "up")
+        #expect(post.viewerBookmarked == true)
     }
 }

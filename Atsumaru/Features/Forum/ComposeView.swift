@@ -49,6 +49,9 @@ struct ComposeView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ComposeViewModel?
+    @FocusState private var focusedField: Field?
+
+    private enum Field { case title, body }
 
     var body: some View {
         NavigationStack {
@@ -80,6 +83,16 @@ struct ComposeView: View {
                     }
                     .disabled(viewModel?.canSubmit == false)
                 }
+                ToolbarItem(placement: .keyboard) {
+                    HStack {
+                        Spacer()
+                        Button {
+                            focusedField = nil
+                        } label: {
+                            Image(systemName: "keyboard.chevron.compact.down")
+                        }
+                    }
+                }
             }
         }
         .task {
@@ -90,40 +103,53 @@ struct ComposeView: View {
                 )
             }
         }
+        .onAppear {
+            focusedField = .title
+        }
+        .interactiveDismissDisabled(viewModel?.isSubmitting == true)
     }
 
     @ViewBuilder
     private func content(viewModel: ComposeViewModel) -> some View {
         @Bindable var viewModel = viewModel
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(channel.name ?? "Forum")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let errorMessage = viewModel.errorMessage {
-                    Text(errorMessage)
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                TextField("Title", text: $viewModel.title, axis: .vertical)
-                    .lineLimit(1...2)
-                    .textFieldStyle(.plain)
-                    .font(.body.bold())
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .glassCapsule()
-                Text("Body (Markdown)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextEditor(text: $viewModel.content)
-                    .scrollContentBackground(.hidden)
-                    .frame(minHeight: 220)
-                    .padding(8)
-                    .glassCapsule()
+        Form {
+            Section {
+                TextField("Title", text: $viewModel.title)
+                    .font(.headline)
+                    .focused($focusedField, equals: .title)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .body }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            Section {
+                ZStack(alignment: .topLeading) {
+                    TextEditor(text: $viewModel.content)
+                        .focused($focusedField, equals: .body)
+                        .frame(minHeight: 180)
+                        .scrollDismissesKeyboard(.interactively)
+                    if viewModel.content.isEmpty {
+                        Text("Start writing…")
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 8)
+                            .padding(.leading, 4)
+                            .allowsHitTesting(false)
+                    }
+                }
+            } header: {
+                Text("Body")
+            } footer: {
+                Text("Markdown formatting is supported.")
+            }
+        }
+        .alert(
+            "Couldn't post",
+            isPresented: Binding(
+                get: { viewModel.errorMessage != nil },
+                set: { if !$0 { viewModel.errorMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(viewModel.errorMessage ?? "")
         }
     }
 }

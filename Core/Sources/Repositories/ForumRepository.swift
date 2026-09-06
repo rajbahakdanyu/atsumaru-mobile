@@ -23,7 +23,7 @@ public struct LiveForumRepository: ForumRepository {
     }
     private struct VotePostBody: Encodable {
         let postId: String
-        let vote: Int
+        let vote: String
     }
     private struct BookmarkBody: Encodable {
         let postId: String
@@ -71,9 +71,16 @@ public struct LiveForumRepository: ForumRepository {
     }
 
     public func votePost(postId: String, vote: Int) async throws {
+        // Server Zod schema requires vote to be one of "up" | "down" | "none".
+        let direction: String
+        switch vote {
+        case ..<0: direction = "down"
+        case 0: direction = "none"
+        default: direction = "up"
+        }
         try await client.postVoid(
             "/api/forum/votePost",
-            json: VotePostBody(postId: postId, vote: vote)
+            json: VotePostBody(postId: postId, vote: direction)
         )
     }
 

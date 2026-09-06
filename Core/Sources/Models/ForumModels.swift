@@ -20,6 +20,9 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
     public let pinned: Bool?
     public let locked: Bool?
     public let commentCount: Int?
+    /// Viewer-specific state from `/api/forum/getPost`: "up", "down" or "none"/null.
+    public let viewerVote: String?
+    public let viewerBookmarked: Bool?
 
     public var createdAtDate: Date? { createdAt?.dateFromEpochMs }
 
@@ -58,6 +61,7 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         case id, forumId, title, content, createdAt, score, pinned, locked, commentCount
         case author, user
         case upVotes, upvotes, downVotes, downvotes
+        case viewerVote, viewerBookmarked
     }
 
     public init(from decoder: Decoder) throws {
@@ -77,6 +81,8 @@ public struct ForumPost: Codable, Identifiable, Sendable, Hashable {
         downvotes = (try? c.decodeIfPresent(Int.self, forKey: .downVotes))
             ?? (try? c.decodeIfPresent(Int.self, forKey: .downvotes))
         createdAt = DateParsing.decodeEpochMs(c, forKey: .createdAt)
+        viewerVote = try? c.decodeIfPresent(String.self, forKey: .viewerVote)
+        viewerBookmarked = try? c.decodeIfPresent(Bool.self, forKey: .viewerBookmarked)
     }
 
     public func encode(to encoder: Encoder) throws {

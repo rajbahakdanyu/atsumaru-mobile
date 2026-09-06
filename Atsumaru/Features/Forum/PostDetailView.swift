@@ -18,7 +18,25 @@ final class PostDetailViewModel {
     init(post: ForumPost, repository: any ForumRepository) {
         self.post = post
         self.postId = post.id
+        self.localVote = Self.voteValue(from: post.viewerVote)
+        self.bookmarked = post.viewerBookmarked ?? false
         self.repository = repository
+    }
+
+    /// Maps the API's viewerVote ("up"/"down"/"none"/nil) to the UI's ±1/0 domain.
+    private static func voteValue(from viewerVote: String?) -> Int {
+        switch viewerVote {
+        case "up": return 1
+        case "down": return -1
+        default: return 0
+        }
+    }
+
+    private func syncViewerState(from fresh: ForumPost) {
+        localVote = Self.voteValue(from: fresh.viewerVote)
+        if let bookmarked = fresh.viewerBookmarked {
+            self.bookmarked = bookmarked
+        }
     }
 
     var score: Int {
@@ -32,6 +50,7 @@ final class PostDetailViewModel {
             let fresh = try await repository.post(postId: postId)
             post = fresh
             loadFailed = false
+            syncViewerState(from: fresh)
             if let forumId = fresh.forumId {
                 tags = (try? await repository.tags(forumId: forumId)) ?? []
             }
@@ -187,8 +206,8 @@ struct PostDetailView: View {
         _ viewModel: PostDetailViewModel, value: Int, system: String, active: Bool, color: Color
     ) -> some View {
         Button {
-            guard viewModel.localVote != value else { return }
-            Task { await viewModel.vote(value) }
+            // Tapping the active direction un-votes (server accepts "none").
+            Task { await viewModel.vote(viewModel.localVote == value ? 0 : value) }
         } label: {
             Image(systemName: system)
                 .foregroundStyle(active ? color : .secondary)
