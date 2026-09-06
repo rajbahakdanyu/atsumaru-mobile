@@ -306,8 +306,8 @@ struct PostDetailView: View {
                     .labelStyle(.titleAndIcon)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(viewModel.sectionId == nil ? Color.secondary : Color.primary)
-            .disabled(viewModel.sectionId == nil)
+            .foregroundStyle(viewModel.sectionId == nil || viewModel.post.locked == true ? Color.secondary : Color.primary)
+            .disabled(viewModel.sectionId == nil || viewModel.post.locked == true)
             Button {
                 Task { await viewModel.toggleBookmark() }
             } label: {
