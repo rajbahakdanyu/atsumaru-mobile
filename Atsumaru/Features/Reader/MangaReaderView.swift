@@ -79,10 +79,15 @@ struct MangaReaderView: View {
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {
-                ChapterCommentsView(chapterId: viewModel?.readChapter?.id ?? chapter.id)
+                ChapterCommentsView(chapterId: viewModel?.chapter.id ?? chapter.id)
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)
+        }
+        // Reading the comments shouldn't auto-advance the chapter out from
+        // under the sheet; the user re-arms advance naturally by turning pages.
+        .onChange(of: showComments) { _, presenting in
+            if presenting { advanceTask?.cancel() }
         }
     }
 
