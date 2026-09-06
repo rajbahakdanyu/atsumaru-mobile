@@ -24,6 +24,8 @@ struct MangaReaderView: View {
     // auto-hides after ~3s without interaction.
     @State private var showChrome = true
     @State private var chromeHideTask: Task<Void, Never>?
+    // Pending auto-advance to the next chapter when lingering on the last page.
+    @State private var advanceTask: Task<Void, Never>?
 
     var body: some View {
         Group {
@@ -58,7 +60,8 @@ struct MangaReaderView: View {
                     chapter: chapter,
                     readRepository: environment.readRepository,
                     progressStore: environment.progressStore,
-                    downloadManager: environment.downloadManager
+                    downloadManager: environment.downloadManager,
+                    mangaRepository: environment.mangaRepository
                 )
                 vm.mode = storedMode
                 viewModel = vm
@@ -72,6 +75,7 @@ struct MangaReaderView: View {
         .onDisappear {
             viewModel?.saveProgressNow()
             chromeHideTask?.cancel()
+            advanceTask?.cancel()
         }
         .sheet(isPresented: $showComments) {
             NavigationStack {
@@ -127,6 +131,7 @@ struct MangaReaderView: View {
                 viewModel.scheduleProgressSave()
                 zoomScale = 1.0
                 scheduleChromeHide()
+                handlePageChange(viewModel: viewModel, total: pages.count)
             }
 
             tapZones(viewModel: viewModel, total: pages.count)
@@ -187,15 +192,16 @@ struct MangaReaderView: View {
             }
             .onScrollPhaseChange { _, newPhase in
                 switch newPhase {
-                case .tracking, .interacting:
+                case .tracking, .interacting, .decelerating:
                     // The user has seized the scroll view — hand control back so
                     // their manual scroll updates the page immediately.
                     stripScrollTarget = nil
                     stripScrollActive = true
-                    scheduleChromeHide()
+                    hideChromeNow()
                 case .idle:
                     stripScrollActive = false
                     stripScrollTarget = nil
+                    showChromeAndScheduleHide()
                 default:
                     stripScrollActive = true
                 }
@@ -223,6 +229,7 @@ struct MangaReaderView: View {
               index != viewModel.currentPage else { return }
         viewModel.currentPage = index
         viewModel.scheduleProgressSave()
+        handlePageChange(viewModel: viewModel, total: viewModel.readChapter?.pages.count ?? 0)
     }
 
     private func stripCenterIndex(frames: [Int: CGRect], centerY: CGFloat) -> Int? {
@@ -348,6 +355,23 @@ struct MangaReaderView: View {
         }
     }
 
+    /// When the reader lands on the final page and a next chapter exists,
+    /// auto-advance after a short pause; any page change away from the last
+    /// page cancels the pending advance.
+    private func handlePageChange(viewModel: ReaderViewModel, total: Int) {
+        let onLastPage = total > 0 && viewModel.currentPage == total - 1
+        if onLastPage, let next = viewModel.nextChapter {
+            advanceTask?.cancel()
+            advanceTask = Task {
+                try? await Task.sleep(for: .seconds(1.5))
+                guard !Task.isCancelled else { return }
+                await viewModel.switchChapter(to: next)
+            }
+        } else {
+            advanceTask?.cancel()
+        }
+    }
+
     private func toggleChrome() {
         withAnimation(.easeInOut(duration: 0.2)) {
             showChrome.toggle()
@@ -358,6 +382,21 @@ struct MangaReaderView: View {
             chromeHideTask?.cancel()
             chromeHideTask = nil
         }
+    }
+
+    /// Scroll feedback: chrome vanishes the moment scrolling starts.
+    private func hideChromeNow() {
+        chromeHideTask?.cancel()
+        chromeHideTask = nil
+        if showChrome {
+            withAnimation(.easeInOut(duration: 0.2)) { showChrome = false }
+        }
+    }
+
+    /// Scroll settled: chrome returns and re-arms the 3 s auto-hide.
+    private func showChromeAndScheduleHide() {
+        withAnimation(.easeInOut(duration: 0.2)) { showChrome = true }
+        scheduleChromeHide()
     }
 
     /// Auto-hides the chrome ~3s after the last reading interaction; every
@@ -407,7 +446,7 @@ struct MangaReaderView: View {
         .font(.subheadline)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .glassCapsule(interactive: true)
+        .background(.thinMaterial, in: Capsule())
     }
 
     @ToolbarContentBuilder

@@ -6,16 +6,20 @@ import ImageIO
 @MainActor
 final class ReaderViewModel {
     let mangaId: String
-    let chapter: Chapter
+    private(set) var chapter: Chapter
     private let readRepository: any ReadRepository
     private let progressStore: ProgressStore?
     private let downloadManager: DownloadManager
+    private let mangaRepository: any MangaRepository
 
     var readChapter: ReadChapter?
     var mode: ReaderMode = .paged
     var currentPage: Int = 0
     var isLoading = false
     var loadFailed = false
+    /// The chapter that follows the current one in reading order; nil while
+    /// unknown (still loading, offline, or last chapter).
+    private(set) var nextChapter: Chapter?
 
     /// File URLs of the locally downloaded pages; nil while reading over the
     /// network. The view loads these directly from disk instead of fetching.
@@ -24,12 +28,14 @@ final class ReaderViewModel {
     private var saveTask: Task<Void, Never>?
 
     init(mangaId: String, chapter: Chapter, readRepository: any ReadRepository,
-         progressStore: ProgressStore?, downloadManager: DownloadManager) {
+         progressStore: ProgressStore?, downloadManager: DownloadManager,
+         mangaRepository: any MangaRepository) {
         self.mangaId = mangaId
         self.chapter = chapter
         self.readRepository = readRepository
         self.progressStore = progressStore
         self.downloadManager = downloadManager
+        self.mangaRepository = mangaRepository
     }
 
     var pageCount: Int { readChapter?.pages.count ?? 0 }
@@ -42,6 +48,7 @@ final class ReaderViewModel {
         let local = await downloadManager.localContent(for: chapter.id)
         if case .pages(let urls)? = local {
             loadLocalPages(urls)
+            await resolveNextChapter()
             return
         }
         do {
@@ -62,6 +69,7 @@ final class ReaderViewModel {
         } catch {
             loadFailed = true
         }
+        await resolveNextChapter()
     }
 
     /// Builds the reader's page model from local page files. `image` stays
@@ -115,6 +123,14 @@ final class ReaderViewModel {
         Task { await self.saveProgress() }
     }
 
+    /// Awaitable variant of `saveProgressNow` for paths that must persist the
+    /// outgoing state before moving on (e.g. switching chapters).
+    func saveProgressNowAsync() async {
+        saveTask?.cancel()
+        saveTask = nil
+        await saveProgress()
+    }
+
     @MainActor
     func saveProgress() async {
         guard let readChapter, pageCount > 0 else { return }
@@ -136,5 +152,37 @@ final class ReaderViewModel {
         try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: readChapter.id, pageIndex: page, updatedAt: Date()))
         guard !readChapter.scanlationMangaId.isEmpty else { return }
         try? await readRepository.updateProgress(update)
+    }
+
+    /// Site parity (`filter(scanId) → findIndex(current) → [idx+1]`), made
+    /// order safe: chapters are sorted ascending by index/number first, so
+    /// the next element is always the next chapter in READING order
+    /// regardless of the array's original direction.
+    private func resolveNextChapter() async {
+        nextChapter = nil
+        guard let scanId = chapter.scanlationMangaId, !scanId.isEmpty else { return }
+        do {
+            let page = try await mangaRepository.page(id: mangaId)
+            let ordered = page.chapters
+                .filter { $0.scanlationMangaId == scanId }
+                .sorted { ($0.index ?? Int($0.number), $0.number) < ($1.index ?? Int($1.number), $1.number) }
+            guard let idx = ordered.firstIndex(where: { $0.id == chapter.id }),
+                  ordered.indices.contains(idx + 1) else { return }
+            nextChapter = ordered[idx + 1]
+        } catch {
+            nextChapter = nil  // offline: no auto-advance, current chapter still readable
+        }
+    }
+
+    /// Loads another chapter in place (auto-advance). Saves the outgoing
+    /// chapter's progress first, then resets and reloads.
+    func switchChapter(to newChapter: Chapter) async {
+        await saveProgressNowAsync()
+        chapter = newChapter
+        readChapter = nil
+        localPageURLs = nil
+        currentPage = 0
+        loadFailed = false
+        await load()
     }
 }
