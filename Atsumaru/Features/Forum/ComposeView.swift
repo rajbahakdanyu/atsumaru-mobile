@@ -1,5 +1,8 @@
 import SwiftUI
 import Core
+import os
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "compose")
 
 @Observable
 @MainActor
@@ -14,6 +17,10 @@ final class ComposeViewModel {
     var isSubmitting = false
     var didSubmit = false
     var errorMessage: String?
+
+    var usableTags: [ForumTag] {
+        tags.filter { $0.modOnly != true && $0.terminal != true }
+    }
 
     private let repository: any ForumRepository
 
@@ -45,7 +52,9 @@ final class ComposeViewModel {
     func load(initialChannel: ForumChannel?) async {
         do {
             channels = try await repository.channels(includeAdult: true)
+            logger.info("channels loaded: \(self.channels.count)")
         } catch {
+            logger.error("channels failed to load: \(error.localizedDescription, privacy: .public)")
             errorMessage = "Couldn't load channels. Please try again."
         }
         if selectedChannel == nil {
@@ -76,6 +85,7 @@ final class ComposeViewModel {
             return
         }
         tags = (try? await repository.tags(forumId: forumId)) ?? []
+        logger.info("tags for \(forumId, privacy: .public): \(self.tags.count) usable \(self.usableTags.count)")
         selectedTagIds = selectedTagIds.filter { id in tags.contains(where: { $0.id == id }) }
     }
 
@@ -217,13 +227,15 @@ struct ComposeView: View {
     @ViewBuilder
     private func channelPicker(viewModel: ComposeViewModel) -> some View {
         Picker("Channel", selection: Binding(
-            get: { viewModel.selectedChannel?.id },
+            get: { viewModel.selectedChannel?.id ?? "" },
             set: { newValue in
-                if let channel = viewModel.channels.first(where: { $0.id == newValue }) {
-                    Task { await viewModel.select(channel: channel) }
-                }
+                guard let channel = viewModel.channels.first(where: { $0.id == newValue }) else { return }
+                Task { await viewModel.select(channel: channel) }
             }
         )) {
+            if viewModel.selectedChannel == nil {
+                Text("Select a channel").tag("")
+            }
             ForEach(viewModel.channels) { channel in
                 Text(channel.name ?? "Untitled").tag(channel.id)
             }
@@ -233,12 +245,12 @@ struct ComposeView: View {
     @ViewBuilder
     private func tagSection(viewModel: ComposeViewModel) -> some View {
         Section {
-            if viewModel.tags.isEmpty {
+            if viewModel.usableTags.isEmpty {
                 Text("No tags in this channel")
                     .foregroundStyle(.secondary)
             } else {
                 FlowLayout(spacing: 8) {
-                    ForEach(viewModel.tags) { tag in
+                    ForEach(viewModel.usableTags) { tag in
                         Button {
                             viewModel.toggle(tag: tag)
                         } label: {

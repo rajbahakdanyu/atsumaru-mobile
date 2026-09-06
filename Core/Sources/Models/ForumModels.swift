@@ -109,4 +109,6 @@ public struct ForumTag: Codable, Identifiable, Sendable, Hashable {
     public let id: String
     public let name: String?
     public let emoji: String?
+    public let modOnly: Bool?
+    public let terminal: Bool?
 }

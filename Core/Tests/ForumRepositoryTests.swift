@@ -219,4 +219,24 @@ import Testing
         #expect(post.viewerVote == "up")
         #expect(post.viewerBookmarked == true)
     }
+
+    @Test func tagsDecodeModOnlyAndTerminal() async throws {
+        let json = #"{"tags":[{"id":"t1","name":"Discussion"},{"id":"t2","name":"Mod only","modOnly":true},{"id":"t3","name":"Completed","terminal":true}]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/tags")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "forumId", value: "f1")))
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/tags")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let tags = try await repo.tags(forumId: "f1")
+        #expect(tags.count == 3)
+        #expect(tags.first { $0.id == "t2" }?.modOnly == true)
+        #expect(tags.first { $0.id == "t3" }?.terminal == true)
+    }
 }
