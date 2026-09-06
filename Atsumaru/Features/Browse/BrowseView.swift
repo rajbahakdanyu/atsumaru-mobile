@@ -29,25 +29,37 @@ struct BrowseView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                switch displayMode {
-                case .recentlyUpdated:
-                    feedContent(items: viewModel?.recentlyUpdated ?? [],
-                                error: viewModel?.recentlyUpdatedError,
-                                isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
-                                loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
-                case .popular:
-                    feedContent(items: viewModel?.popular ?? [],
-                                error: viewModel?.popularError,
-                                isLoading: viewModel?.isLoadingPopular ?? false,
-                                loadMore: { Task { await viewModel?.loadPopular() } })
-                case .filtered:
-                    if let viewModel, viewModel.hasActiveFilters {
-                        feedContent(items: viewModel.filteredResults,
-                                    error: viewModel.filteredError,
-                                    isLoading: viewModel.isLoadingFiltered,
-                                    loadMore: { Task { await viewModel.loadMoreFiltered() } })
-                    } else {
-                        filteredEmptyState
+                VStack(spacing: 0) {
+                    Picker("Display", selection: $displayMode) {
+                        ForEach(BrowseDisplayMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 4)
+                    .padding(.bottom, 10)
+
+                    switch displayMode {
+                    case .recentlyUpdated:
+                        feedContent(items: viewModel?.recentlyUpdated ?? [],
+                                    error: viewModel?.recentlyUpdatedError,
+                                    isLoading: viewModel?.isLoadingRecentlyUpdated ?? false,
+                                    loadMore: { Task { await viewModel?.loadRecentlyUpdated() } })
+                    case .popular:
+                        feedContent(items: viewModel?.popular ?? [],
+                                    error: viewModel?.popularError,
+                                    isLoading: viewModel?.isLoadingPopular ?? false,
+                                    loadMore: { Task { await viewModel?.loadPopular() } })
+                    case .filtered:
+                        if let viewModel, viewModel.hasActiveFilters {
+                            feedContent(items: viewModel.filteredResults,
+                                        error: viewModel.filteredError,
+                                        isLoading: viewModel.isLoadingFiltered,
+                                        loadMore: { Task { await viewModel.loadMoreFiltered() } })
+                        } else {
+                            filteredEmptyState
+                        }
                     }
                 }
             }
@@ -66,19 +78,6 @@ struct BrowseView: View {
                 }
             }
             .navigationTitle("Browse")
-            // Pinned display-mode header: lives outside the nav bar so it
-            // stays visible under the large title and while scrolled.
-            .safeAreaInset(edge: .top, spacing: 0) {
-                Picker("Display", selection: $displayMode) {
-                    ForEach(BrowseDisplayMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(.bar)
-            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button { showingSearch = true } label: {

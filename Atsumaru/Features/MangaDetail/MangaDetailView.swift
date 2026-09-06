@@ -329,11 +329,18 @@ struct MangaDetailView: View {
                         }
                     }
                     Spacer()
-                    if chapter.progress != nil {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.subheadline)
-                            .foregroundStyle(.tint)
-                            .padding(.top, 2)
+                    if let progress = chapter.progress {
+                        if progress.isComplete {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                        } else {
+                            Image(systemName: "circle.lefthalf.filled")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 2)
+                        }
                     }
                 }
                 .padding(.vertical, 6)

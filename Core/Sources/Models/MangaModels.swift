@@ -240,4 +240,12 @@ public struct ChapterProgress: Codable, Hashable, Sendable {
         self.strip = strip
         self.frac = frac
     }
+
+    public var fraction: Double {
+        if let frac { return min(max(frac, 0), 1) }
+        guard let page, let pages, pages > 0 else { return 0 }
+        return min(max(Double(page) / Double(pages), 0), 1)
+    }
+
+    public var isComplete: Bool { fraction >= 0.95 }
 }
