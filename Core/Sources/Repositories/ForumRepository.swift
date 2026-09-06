@@ -31,10 +31,14 @@ public struct LiveForumRepository: ForumRepository {
     }
 
     /// Tolerant decode: prefers `{"channels":[...]}` then a bare array `[...]`.
+    /// The server's Zod schema only accepts `adult=1` or the param's absence
+    /// (`adult=false`/`adult=true` are rejected with 400).
     public func channels(includeAdult: Bool) async throws -> [ForumChannel] {
+        var query: [String: String] = [:]
+        if includeAdult { query["adult"] = "1" }
         let data = try await client.getData(
             "/api/forum/forums/channels",
-            query: ["adult": includeAdult ? "true" : "false"]
+            query: query
         )
         return try TolerantDecoding.array(ForumChannel.self, from: data, key: "channels")
     }

@@ -12,7 +12,7 @@ import Testing
             #expect(request.url?.path == "/api/forum/forums/channels")
             #expect(request.httpMethod == "GET")
             let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
-            #expect(items.contains(URLQueryItem(name: "adult", value: "true")))
+            #expect(items.contains(URLQueryItem(name: "adult", value: "1")))
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/forums/channels")!,
                                         statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data(json.utf8))
@@ -24,6 +24,23 @@ import Testing
         #expect(channels.first?.id == "ch1")
         #expect(channels.first?.name == "General")
         #expect(channels.first?.postCount == 42)
+    }
+
+    @Test func channelsOmitAdultParamWhenDisabled() async throws {
+        let json = #"{"channels":[]}"#
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.first(where: { $0.name == "adult" }) == nil)
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/forum/forums/channels")!,
+                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveForumRepository(client: client)
+        let channels = try await repo.channels(includeAdult: false)
+        #expect(channels.isEmpty)
     }
 
     @Test func postDecodesTolerantEnvelope() async throws {
