@@ -17,6 +17,9 @@ struct AccountView: View {
             }
         }
         .authSheet(isPresented: $showAuth, environment: environment)
+        .onChange(of: environment.currentUser?.id) { _, _ in
+            viewModel = nil
+        }
     }
 
     @ViewBuilder

@@ -19,7 +19,7 @@ final class NovelReaderViewModel {
     var loadFailed = false
     var currentParagraph: Int = 0
 
-    private var saveTask: Task<Void, Never>?
+    private let saveDebouncer = ProgressSaveDebouncer()
 
     init(mangaId: String,
          chapter: Chapter,
@@ -84,17 +84,13 @@ final class NovelReaderViewModel {
     }
 
     func scheduleProgressSave() {
-        saveTask?.cancel()
-        saveTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
-            if Task.isCancelled { return }
+        saveDebouncer.schedule { [weak self] in
             await self?.saveProgress()
         }
     }
 
     func saveProgressNow() {
-        saveTask?.cancel()
-        saveTask = nil
+        saveDebouncer.cancel()
         Task { await self.saveProgress() }
     }
 
@@ -117,7 +113,14 @@ final class NovelReaderViewModel {
             readMs: 0,
             completed: frac >= 0.999
         )
-        try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: novel.id, pageIndex: index, updatedAt: Date()))
+        do {
+            try progressStore?.save(ProgressState(
+                mangaId: mangaId, chapterId: novel.id,
+                pageIndex: index, updatedAt: Date()
+            ))
+        } catch {
+            logger.error("local progress save failed for chapter \(novel.id, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
         guard !novel.scanlationMangaId.isEmpty else { return }
         do {
             try await readRepository.updateProgress(update)

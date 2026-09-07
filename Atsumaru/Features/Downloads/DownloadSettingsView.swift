@@ -14,7 +14,9 @@ struct DownloadSettingsView: View {
                 Toggle("Background refresh", isOn: $backgroundRefreshEnabled)
                     .onChange(of: backgroundRefreshEnabled) { _, newValue in
                         if newValue {
-                            Task { await environment.backgroundScheduler.requestNotificationAuthorization() }
+                            if newChapterNotifications {
+                                Task { await environment.backgroundScheduler.requestNotificationAuthorization() }
+                            }
                             environment.backgroundScheduler.scheduleRefresh()
                         } else {
                             environment.backgroundScheduler.cancelRefresh()
@@ -33,7 +35,7 @@ struct DownloadSettingsView: View {
             } header: {
                 Text("Downloads")
             } footer: {
-                Text("Background refresh checks your library for new chapters about every 15 minutes. Cellular applies to all download traffic. Notifications require system permission.")
+                Text("Background refresh periodically checks your library for newly published chapters. Timing is controlled by iOS. Cellular applies to all download traffic. Notifications require system permission.")
             }
 
             Section("Storage") {

@@ -156,6 +156,29 @@ import Testing
         }
     }
 
+    @Test func logoutClearsLocalSessionWhenOffline() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
+        let client = APIClient(session: URLSession(configuration: config))
+        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        try keychain.save(Data(#"{"id":"u1"}"#.utf8), key: "auth-user")
+        defer { try? keychain.delete(key: "auth-user") }
+        let cookie = try #require(HTTPCookie(properties: [
+            .domain: ".atsu.moe", .path: "/", .name: "session", .value: "test",
+            .secure: "TRUE"
+        ]))
+        HTTPCookieStorage.shared.setCookie(cookie)
+        let repo = LiveAuthRepository(client: client, keychain: keychain)
+
+        await #expect(throws: ApiError.offline) {
+            try await repo.logout()
+        }
+
+        #expect(keychain.load(key: "auth-user") == nil)
+        #expect(!(HTTPCookieStorage.shared.cookies ?? []).contains { $0.name == "session" && $0.domain == ".atsu.moe" })
+    }
+
     @Test func postFormPercentEncodesAmpersandAndEqualsInValues() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]

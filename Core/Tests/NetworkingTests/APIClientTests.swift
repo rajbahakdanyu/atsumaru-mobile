@@ -8,6 +8,9 @@ struct APIClientTests {
         #expect(ImageURLBuilder.poster("banners/b.jpg")?.absoluteString == "https://atsu.moe/static/banners/b.jpg")
         #expect(ImageURLBuilder.poster("/static/posters/c.jpg")?.absoluteString == "https://atsu.moe/static/posters/c.jpg")
         #expect(ImageURLBuilder.page("/static/pages/x/1.webp")?.absoluteString == "https://atsu.moe/static/pages/x/1.webp")
+        #expect(ImageURLBuilder.page("@evil.example/x")?.host != "evil.example")
+        #expect(ImageURLBuilder.page(":443@evil.example/x")?.host != "evil.example")
+        #expect(ImageURLBuilder.page("https://cdn.atsu.moe/pages/x.webp")?.host == "cdn.atsu.moe")
     }
 
     @Test func avatarURLsPinAtsumoeHost() {
@@ -20,8 +23,8 @@ struct APIClientTests {
     @Test func avatarURLsRejectAttackerHTTPAndEmptyInput() {
         #expect(ImageURLBuilder.avatar("https://evil.example/x.jpg") == nil)
         #expect(ImageURLBuilder.avatar("http://evil.example/x.jpg") == nil)
-        #expect(ImageURLBuilder.avatar("http://atsu.moe/pfp/x.webp")?.absoluteString == "http://atsu.moe/pfp/x.webp")
-        #expect(ImageURLBuilder.avatar("pfp/abc.webp") == nil)
+        #expect(ImageURLBuilder.avatar("http://atsu.moe/pfp/x.webp") == nil)
+        #expect(ImageURLBuilder.avatar("pfp/abc.webp")?.absoluteString == "https://atsu.moe/pfp/abc.webp")
         #expect(ImageURLBuilder.avatar("") == nil)
         #expect(ImageURLBuilder.avatar(nil) == nil)
     }

@@ -5,6 +5,25 @@ import os
 
 private let logger = Logger(subsystem: "dev.atsumaru.app", category: "progress")
 
+@MainActor
+final class ProgressSaveDebouncer {
+    private var task: Task<Void, Never>?
+
+    func schedule(_ operation: @escaping @MainActor () async -> Void) {
+        task?.cancel()
+        task = Task {
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled else { return }
+            await operation()
+        }
+    }
+
+    func cancel() {
+        task?.cancel()
+        task = nil
+    }
+}
+
 @Observable
 @MainActor
 final class ReaderViewModel {
@@ -28,7 +47,7 @@ final class ReaderViewModel {
     /// network. The view loads these directly from disk instead of fetching.
     private(set) var localPageURLs: [URL]?
 
-    private var saveTask: Task<Void, Never>?
+    private let saveDebouncer = ProgressSaveDebouncer()
 
     init(mangaId: String, chapter: Chapter, readRepository: any ReadRepository,
          progressStore: ProgressStore?, downloadManager: DownloadManager,
@@ -119,25 +138,20 @@ final class ReaderViewModel {
     }
 
     func scheduleProgressSave() {
-        saveTask?.cancel()
-        saveTask = Task { [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
-            if Task.isCancelled { return }
+        saveDebouncer.schedule { [weak self] in
             await self?.saveProgress()
         }
     }
 
     func saveProgressNow() {
-        saveTask?.cancel()
-        saveTask = nil
+        saveDebouncer.cancel()
         Task { await self.saveProgress() }
     }
 
     /// Awaitable variant of `saveProgressNow` for paths that must persist the
     /// outgoing state before moving on (e.g. switching chapters).
     func saveProgressNowAsync() async {
-        saveTask?.cancel()
-        saveTask = nil
+        saveDebouncer.cancel()
         await saveProgress()
     }
 
@@ -162,7 +176,14 @@ final class ReaderViewModel {
             // Continue Reading / history and the row's read state.
             completed: frac >= 0.999
         )
-        try? progressStore?.save(ProgressState(mangaId: mangaId, chapterId: readChapter.id, pageIndex: page, updatedAt: Date()))
+        do {
+            try progressStore?.save(ProgressState(
+                mangaId: mangaId, chapterId: readChapter.id,
+                pageIndex: page, updatedAt: Date()
+            ))
+        } catch {
+            logger.error("local progress save failed for chapter \(readChapter.id, privacy: .public): \(String(describing: error), privacy: .public)")
+        }
         guard !readChapter.scanlationMangaId.isEmpty else { return }
         do {
             try await readRepository.updateProgress(update)

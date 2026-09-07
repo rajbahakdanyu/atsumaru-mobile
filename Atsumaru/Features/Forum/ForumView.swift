@@ -85,8 +85,9 @@ struct ForumView: View {
                 await viewModel?.load()
             }
         }
-        .onChange(of: environment.currentUser) { _, user in
-            if user != nil {
+        .onChange(of: environment.currentUser?.id) { _, userId in
+            viewModel = ForumViewModel(repository: environment.forumRepository)
+            if userId != nil {
                 Task {
                     viewModel?.includeAdult = includeAdult
                     await viewModel?.load(force: true)
@@ -185,6 +186,7 @@ final class ChannelPostsViewModel {
     var tagId: String?
 
     private let repository: any ForumRepository
+    private var loadGeneration = 0
 
     init(channel: ForumChannel, repository: any ForumRepository) {
         self.channel = channel
@@ -192,12 +194,23 @@ final class ChannelPostsViewModel {
     }
 
     func load() async {
+        loadGeneration += 1
+        let generation = loadGeneration
+        let requestedSort = sort
+        let requestedTagId = tagId
         isLoading = true
-        defer { isLoading = false }
+        defer {
+            if generation == loadGeneration { isLoading = false }
+        }
         do {
-            posts = try await repository.posts(forumId: channel.id, sort: sort, page: 0, tagId: tagId)
+            let fetched = try await repository.posts(
+                forumId: channel.id, sort: requestedSort, page: 0, tagId: requestedTagId
+            )
+            guard generation == loadGeneration else { return }
+            posts = fetched
             error = nil
         } catch {
+            guard generation == loadGeneration else { return }
             self.error = (error as? ApiError) ?? .decoding
         }
     }

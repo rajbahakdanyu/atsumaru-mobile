@@ -86,7 +86,10 @@ final class AppEnvironment {
         if UserDefaults.standard.object(forKey: "dev.atsumaru.app.backgroundRefresh") == nil
             || UserDefaults.standard.bool(forKey: "dev.atsumaru.app.backgroundRefresh") {
             backgroundScheduler.scheduleRefresh()
-            await backgroundScheduler.requestNotificationAuthorization()
+            if UserDefaults.standard.object(forKey: BackgroundScheduler.notificationsKey) == nil
+                || UserDefaults.standard.bool(forKey: BackgroundScheduler.notificationsKey) {
+                await backgroundScheduler.requestNotificationAuthorization()
+            }
         }
     }
 
@@ -95,7 +98,7 @@ final class AppEnvironment {
     }
 
     func logout() async throws {
+        defer { currentUser = nil }
         try await authRepository.logout()
-        currentUser = nil
     }
 }

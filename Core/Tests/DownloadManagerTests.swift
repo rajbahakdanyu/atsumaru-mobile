@@ -252,6 +252,35 @@ struct DownloadManagerTests {
         #expect(DownloadManager.pathExtension(from: "/static/pages/x/.hidden") == nil)
     }
 
+    @Test func pathTraversalIdentifiersCannotEscapeDownloadRoot() async throws {
+        let json = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
+        Self.makeStubURLProtocol(json: json)
+        let config = makeBetaURLConfiguration()
+        let repo = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let store = try await DownloadStore.makeInMemory()
+        let parent = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-parent-\(UUID().uuidString)", isDirectory: true)
+        let root = parent.appendingPathComponent("downloads", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+        let manager = DownloadManager(readRepository: repo, store: store,
+                                      baseDirectory: root, sessionConfiguration: config)
+        let manga = HomeItem(id: "..", title: "Traversal", image: "", medium: "Comic")
+        let chapter = try JSONDecoder().decode(
+            Chapter.self,
+            from: Data(#"{"id":"escaped","title":"Chapter","number":1,"pageCount":1}"#.utf8)
+        )
+
+        let event = try await Self.collectTerminalEvent(manager: manager, chapterId: "escaped") {
+            await manager.enqueue(manga: manga, chapter: chapter)
+        }
+
+        guard case .failed = event else {
+            Issue.record("Expected traversal download to fail")
+            return
+        }
+        #expect(!FileManager.default.fileExists(atPath: parent.appendingPathComponent("escaped").path))
+    }
+
     // MARK: - Novel download pipeline
 
     @Test func enqueueDownloadsNovelChapterToContentJSON() async throws {
@@ -470,6 +499,58 @@ struct DownloadManagerTests {
         let second = try await Self.withTimeout(seconds: 10) { await scheduler.refreshAndDownload() }
         #expect(second)
         #expect(chapterReads.count == 1, "completed record must be skipped, not re-downloaded")
+    }
+
+    @Test func refreshEstablishesBaselineThenDownloadsOnlyNewChapters() async throws {
+        let mangaId = "baseline-\(UUID().uuidString)"
+        let seenKey = "dev.atsumaru.app.seenChapters.\(mangaId)"
+        UserDefaults.standard.removeObject(forKey: seenKey)
+        defer { UserDefaults.standard.removeObject(forKey: seenKey) }
+        let pageJSON = Box("""
+        {"mangaPage":{"id":"\(mangaId)","title":"M1","genres":[],"tags":[],"authors":[],"chapters":[{"id":"old","title":"Old","number":1,"pageCount":1}],"recommendations":[],"relations":[]}}
+        """)
+        let chapterReads = RequestCounter()
+        let config = makeBetaURLConfiguration()
+        StubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            switch url.path {
+            case "/api/home2/bookmarks":
+                return (response, Data(#"{"items":[{"id":"\#(mangaId)","title":"M1","medium":"Comic"}]}"#.utf8))
+            case "/api/manga/page":
+                return (response, Data(pageJSON.value.utf8))
+            case "/api/read/chapter":
+                chapterReads.increment()
+                return (response, Data(#"{"readChapter":{"id":"new","title":"New","scanlationMangaId":"sm1","pages":[{"id":"new-0","image":"/static/pages/new/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#.utf8))
+            default:
+                return (response, Data(repeating: 0xFF, count: 64))
+            }
+        }
+        let repo = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let store = try await DownloadStore.makeInMemory()
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
+        let manager = DownloadManager(readRepository: repo, store: store,
+                                      baseDirectory: tmpDir, sessionConfiguration: config)
+        let scheduler = BackgroundScheduler(
+            downloadManager: manager,
+            libraryRepository: LiveLibraryRepository(client: APIClient(session: URLSession(configuration: config))),
+            mangaRepository: LiveMangaRepository(client: APIClient(session: URLSession(configuration: config))))
+
+        #expect(await scheduler.refreshAndDownload())
+        #expect(chapterReads.count == 0, "the first observation establishes a baseline")
+
+        pageJSON.value = """
+        {"mangaPage":{"id":"\(mangaId)","title":"M1","genres":[],"tags":[],"authors":[],"chapters":[{"id":"new","title":"New","number":2,"pageCount":1},{"id":"old","title":"Old","number":1,"pageCount":1}],"recommendations":[],"relations":[]}}
+        """
+        #expect(await scheduler.refreshAndDownload())
+        #expect(chapterReads.count == 1)
+        #expect(await manager.listChapters().map(\.chapterId) == ["new"])
+
+        await manager.deleteChapter("new")
+        #expect(await scheduler.refreshAndDownload())
+        #expect(chapterReads.count == 1, "a manually deleted chapter must remain seen")
     }
 
     // MARK: - Delete races

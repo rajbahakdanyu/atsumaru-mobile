@@ -31,6 +31,13 @@ struct StoreSeparationTests {
         let savedProgress = try #require(progress.progress(mangaId: "sep-m1", chapterId: "sep-c1"))
         #expect(savedProgress.pageIndex == 2)
 
+        try progress.save(ProgressState(
+            mangaId: "sep-m1", chapterId: "sep-c2", pageIndex: 4,
+            updatedAt: Date(timeIntervalSince1970: 300)))
+        let indexedProgress = progress.progressByChapter(mangaId: "sep-m1")
+        #expect(indexedProgress["sep-c1"]?.pageIndex == 2)
+        #expect(indexedProgress["sep-c2"]?.pageIndex == 4)
+
         try downloads.delete(chapterId: "sep-ch1")
     }
 }

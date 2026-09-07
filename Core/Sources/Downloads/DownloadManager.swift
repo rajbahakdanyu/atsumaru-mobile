@@ -100,8 +100,16 @@ public actor DownloadManager {
         tasks[chapterId]?.task.cancel()
         states[chapterId] = .queued
         pageProgress[chapterId] = nil
-        await persist(chapterId: chapterId, manga: manga, chapter: chapter,
-                      pageCount: chapter.pageCount, totalBytes: 0, state: "queued")
+        do {
+            try await persist(chapterId: chapterId, manga: manga, chapter: chapter,
+                              pageCount: chapter.pageCount, totalBytes: 0, state: "queued")
+        } catch {
+            let message = error.localizedDescription
+            states[chapterId] = .failed(message)
+            Self.log.error("Could not persist queued chapter \(chapterId, privacy: .public): \(message, privacy: .public)")
+            emit(.failed(chapterId: chapterId, message: message))
+            return
+        }
         Self.log.info("Enqueued \(Self.kind(for: manga), privacy: .public) chapter \(chapterId, privacy: .public)")
         emit(.progress(chapterId: chapterId, fraction: 0))
         let entryID = UUID()
@@ -139,9 +147,8 @@ public actor DownloadManager {
     public func localContent(for chapterId: String) async -> DownloadedContent? {
         guard let store,
               let record = await store.all().first(where: { $0.chapterId == chapterId }),
-              record.state == "completed" else { return nil }
-        let dir = baseDirectory.appendingPathComponent(record.mangaId, isDirectory: true)
-            .appendingPathComponent(chapterId, isDirectory: true)
+              record.state == "completed",
+              let dir = try? chapterDirectory(mangaId: record.mangaId, chapterId: chapterId) else { return nil }
         if record.kind == "novel" {
             let url = dir.appendingPathComponent(Self.novelContentFileName, isDirectory: false)
             guard let data = try? Data(contentsOf: url),
@@ -261,6 +268,10 @@ public actor DownloadManager {
         }
         var fetchedCount = 0
         do {
+            let chapterDir = try chapterDirectory(mangaId: manga.id, chapterId: chapterId)
+            if FileManager.default.fileExists(atPath: chapterDir.path) {
+                try FileManager.default.removeItem(at: chapterDir)
+            }
             let totalBytes: Int64
             if kind == "novel" {
                 (fetchedCount, totalBytes) = try await downloadNovelContent(manga: manga, chapterId: chapterId)
@@ -273,20 +284,24 @@ public actor DownloadManager {
                 Self.log.info("Download of \(chapterId, privacy: .public) cancelled before completion")
                 return
             }
+            try await persist(chapterId: chapterId, manga: manga, chapter: chapter,
+                              pageCount: fetchedCount, totalBytes: totalBytes, state: "completed")
             states[chapterId] = .completed
-            await persist(chapterId: chapterId, manga: manga, chapter: chapter,
-                          pageCount: fetchedCount, totalBytes: totalBytes, state: "completed")
             Self.log.info("Chapter \(chapterId, privacy: .public) downloaded (\(totalBytes, privacy: .public) bytes)")
             emit(.completed(chapterId: chapterId))
         } catch {
             if Task.isCancelled { return }
-            let chapterDir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
-                .appendingPathComponent(chapterId, isDirectory: true)
-            try? FileManager.default.removeItem(at: chapterDir)
+            if let chapterDir = try? chapterDirectory(mangaId: manga.id, chapterId: chapterId) {
+                try? FileManager.default.removeItem(at: chapterDir)
+            }
             let message = error.localizedDescription
             states[chapterId] = .failed(message)
-            await persist(chapterId: chapterId, manga: manga, chapter: chapter,
-                          pageCount: fetchedCount, totalBytes: 0, state: "failed")
+            do {
+                try await persist(chapterId: chapterId, manga: manga, chapter: chapter,
+                                  pageCount: fetchedCount, totalBytes: 0, state: "failed")
+            } catch {
+                Self.log.error("Could not persist failed chapter \(chapterId, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            }
             Self.log.error("Chapter \(chapterId, privacy: .public) download failed: \(message, privacy: .public)")
             emit(.failed(chapterId: chapterId, message: message))
         }
@@ -313,8 +328,7 @@ public actor DownloadManager {
             states[chapterId] = .downloading(fraction)
             emit(.progress(chapterId: chapterId, fraction: fraction))
         }
-        let dir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
-            .appendingPathComponent(chapterId, isDirectory: true)
+        let dir = try chapterDirectory(mangaId: manga.id, chapterId: chapterId)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try Self.excludeFromBackup(dir)
         let data = try JSONEncoder().encode(paragraphs)
@@ -372,8 +386,7 @@ public actor DownloadManager {
         }
         guard !Task.isCancelled else { throw CancellationError() }
         let ext = Self.pathExtension(from: page.image) ?? "webp"
-        let dir = baseDirectory.appendingPathComponent(manga.id, isDirectory: true)
-            .appendingPathComponent(chapterId, isDirectory: true)
+        let dir = try chapterDirectory(mangaId: manga.id, chapterId: chapterId)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         try Self.excludeFromBackup(dir)
         let dest = dir.appendingPathComponent("\(page.number)", isDirectory: false)
@@ -406,8 +419,14 @@ public actor DownloadManager {
     }
 
     private func persist(chapterId: String, manga: HomeItem, chapter: Chapter,
-                         pageCount: Int, totalBytes: Int64, state: String) async {
-        guard let store else { return }
+                         pageCount: Int, totalBytes: Int64, state: String) async throws {
+        guard let store else {
+            throw NSError(
+                domain: "dev.atsumaru.DownloadManager",
+                code: 6,
+                userInfo: [NSLocalizedDescriptionKey: "Download storage is unavailable"]
+            )
+        }
         let snapshot = DownloadedChapterSnapshot(
             chapterId: chapterId,
             mangaId: manga.id,
@@ -419,7 +438,7 @@ public actor DownloadManager {
             completedAt: Date(),
             state: state
         )
-        try? await store.save(snapshot)
+        try await store.save(snapshot)
     }
 
     private func evictChapter(_ record: DownloadedChapterSnapshot) async {
@@ -428,13 +447,13 @@ public actor DownloadManager {
         tasks[record.chapterId]?.task.cancel()
         tasks[record.chapterId] = nil
         pageProgress[record.chapterId] = nil
-        let chapterDir = baseDirectory.appendingPathComponent(record.mangaId, isDirectory: true)
-            .appendingPathComponent(record.chapterId, isDirectory: true)
-        try? FileManager.default.removeItem(at: chapterDir)
-        let mangaDir = chapterDir.deletingLastPathComponent()
-        if let contents = try? FileManager.default.contentsOfDirectory(atPath: mangaDir.path),
-           contents.isEmpty {
-            try? FileManager.default.removeItem(at: mangaDir)
+        if let chapterDir = try? chapterDirectory(mangaId: record.mangaId, chapterId: record.chapterId) {
+            try? FileManager.default.removeItem(at: chapterDir)
+            let mangaDir = chapterDir.deletingLastPathComponent()
+            if let contents = try? FileManager.default.contentsOfDirectory(atPath: mangaDir.path),
+               contents.isEmpty {
+                try? FileManager.default.removeItem(at: mangaDir)
+            }
         }
         try? await store?.delete(chapterId: record.chapterId)
         states[record.chapterId] = nil
@@ -444,6 +463,23 @@ public actor DownloadManager {
     private static func kind(for manga: HomeItem) -> String {
         let medium = manga.medium.lowercased()
         return medium.contains("novel") ? "novel" : "manga"
+    }
+
+    private func chapterDirectory(mangaId: String, chapterId: String) throws -> URL {
+        let root = baseDirectory.standardizedFileURL
+        let candidate = root
+            .appendingPathComponent(mangaId, isDirectory: true)
+            .appendingPathComponent(chapterId, isDirectory: true)
+            .standardizedFileURL
+        let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        guard candidate.path.hasPrefix(rootPrefix) else {
+            throw NSError(
+                domain: "dev.atsumaru.DownloadManager",
+                code: 5,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid download identifier"]
+            )
+        }
+        return candidate
     }
 
     public static func defaultDownloadsURL() -> URL {

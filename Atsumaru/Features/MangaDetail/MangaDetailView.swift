@@ -58,7 +58,7 @@ struct MangaDetailView: View {
             await viewModel?.load()
         }
         .onAppear {
-            Task { await viewModel?.refreshLocalProgress() }
+            viewModel?.refreshLocalProgress()
         }
     }
 

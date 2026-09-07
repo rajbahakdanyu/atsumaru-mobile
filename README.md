@@ -9,8 +9,8 @@ A native iOS client for [atsu.moe](https://atsu.moe) — read, track, and downlo
 - **Browse & discover** — home feed rails, full browse grid, search with filters and sorting (genres, tags, types, statuses, ratings)
 - **Manga reader** — paged and vertical-strip modes, reading direction, data-saver image variants, reading progress sync
 - **Novel reader** — light-novel reading with adjustable typography and paragraph-level comments
-- **Offline downloads** — download chapters for offline reading, with storage management and LRU eviction
-- **Background auto-update** — refresh your library and auto-download new chapters in the background via BGTaskScheduler (BGAppRefreshTask / BGProcessingTask) with local notifications
+- **Offline downloads** — download chapters for offline reading, inspect storage use, and remove chapters or series
+- **Background auto-update** — check for newly published chapters with BGAppRefreshTask and download them with local notifications
 - **Accounts** — login, signup, OAuth (Google/Discord/AniList/MangaBaka), email verification, password reset, profile & settings management
 - **Library & tracking** — bookmarks, reading history, custom lists, continue-reading shelf
 - **Community** — chapter/paragraph comments, forum, user profiles, follows, and groups

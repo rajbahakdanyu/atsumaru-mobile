@@ -51,9 +51,18 @@ public struct LiveAuthRepository: AuthRepository {
     }
 
     public func logout() async throws {
+        defer { clearLocalSession() }
         try await client.postVoid("/api/auth/logout/self", json: EmptyBody())
+    }
+
+    private func clearLocalSession() {
         try? keychain.delete(key: Self.storedUserKey)
-        for cookie in HTTPCookieStorage.shared.cookies(for: APIClient.baseURL) ?? [] {
+        let baseHost = APIClient.baseURL.host?.lowercased() ?? "atsu.moe"
+        for cookie in HTTPCookieStorage.shared.cookies ?? []
+        where {
+            let domain = cookie.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+            return domain == baseHost || domain.hasSuffix("." + baseHost)
+        }() {
             HTTPCookieStorage.shared.deleteCookie(cookie)
         }
     }

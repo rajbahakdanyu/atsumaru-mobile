@@ -152,7 +152,9 @@ struct CommentThread: View {
                     if viewModel.loadingReplies.contains(comment.id) {
                         ProgressView().controlSize(.small)
                     } else {
-                        Text("Show \(comment.descendantCount ?? 0) replies")
+                        Text(viewModel.failedReplies.contains(comment.id)
+                             ? "Retry replies"
+                             : "Show \(comment.descendantCount ?? 0) replies")
                             .font(.caption)
                             .foregroundStyle(.tint)
                     }

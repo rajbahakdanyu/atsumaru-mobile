@@ -9,6 +9,8 @@ public enum MarkdownSanitizer {
 
     private static let inlineImage = #"!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*"|\s+'[^']*'|\s+\([^)]*\))?\s*\)"#
     private static let referenceImage = #"!\[([^\]]*)\]\[([^\]]*)\]"#
+    private static let inlineExpression = try? NSRegularExpression(pattern: inlineImage)
+    private static let referenceExpression = try? NSRegularExpression(pattern: referenceImage)
 
     /// `![alt](url)` → `[alt](url)` (and reference-style/nested forms) unless
     /// the image URL's host is allowlisted. Runs to a fixpoint so nested image
@@ -27,12 +29,9 @@ public enum MarkdownSanitizer {
         let ns = markdown as NSString
         let range = NSRange(location: 0, length: ns.length)
 
-        let inline = try? NSRegularExpression(pattern: inlineImage)
-        let reference = try? NSRegularExpression(pattern: referenceImage)
-
         var result = markdown
         // Demote inline images with non-allowlisted (or malformed) URLs.
-        if let inline {
+        if let inline = inlineExpression {
             for match in inline.matches(in: markdown, options: [], range: range).reversed() {
                 guard match.numberOfRanges >= 3 else { continue }
                 let alt = ns.substring(with: match.range(at: 1))
@@ -45,7 +44,7 @@ public enum MarkdownSanitizer {
         }
         // Demote reference-style images (the reference is opaque to us, so we
         // can't introspect its host — demote all of them to links).
-        if let reference {
+        if let reference = referenceExpression {
             let nsResult = result as NSString
             let resultRange = NSRange(location: 0, length: nsResult.length)
             for match in reference.matches(in: result, options: [], range: resultRange).reversed() {

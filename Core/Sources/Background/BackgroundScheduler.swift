@@ -16,15 +16,23 @@ private struct UnsafeSendableBox<T>: @unchecked Sendable {
 private final class ExpirableWork: @unchecked Sendable {
     private let lock = NSLock()
     private var work: Task<Bool, Never>?
+    private var isCancelled = false
     func set(_ work: Task<Bool, Never>) {
         lock.lock()
+        if isCancelled {
+            lock.unlock()
+            work.cancel()
+            return
+        }
         self.work = work
         lock.unlock()
     }
     func cancel() {
         lock.lock()
-        work?.cancel()
+        isCancelled = true
+        let work = self.work
         lock.unlock()
+        work?.cancel()
     }
 }
 
@@ -34,6 +42,7 @@ public final class BackgroundScheduler: Sendable {
     public static let refreshIdentifier = "dev.atsumaru.app.refresh"
     public static let backgroundRefreshKey = "dev.atsumaru.app.backgroundRefresh"
     public static let notificationsKey = "dev.atsumaru.app.newChapterNotifications"
+    private static let seenChaptersPrefix = "dev.atsumaru.app.seenChapters."
 
     /// Defaults to enabled when the preference key has never been written.
     private static var refreshEnabled: Bool {
@@ -73,6 +82,9 @@ public final class BackgroundScheduler: Sendable {
             let box = UnsafeSendableBox(value: refreshTask)
             Task { await self.handleRefresh(task: box.value) }
         }
+        if !refreshOK {
+            Self.log.error("Background refresh task registration failed")
+        }
         return refreshOK
     }
 
@@ -83,7 +95,7 @@ public final class BackgroundScheduler: Sendable {
         do {
             try BGTaskScheduler.shared.submit(request)
         } catch {
-            // best-effort: device may not allow background scheduling right now.
+            Self.log.error("Background refresh scheduling failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -130,7 +142,7 @@ public final class BackgroundScheduler: Sendable {
         let snapshots = await downloadManager.listChapters()
         // Only completed records block a re-download; a failed record must be
         // retried instead of being skipped forever.
-        let downloadedIds = Set(snapshots.filter { $0.state == "completed" }.map { $0.chapterId })
+        let recordsById = Dictionary(snapshots.map { ($0.chapterId, $0) }, uniquingKeysWith: { first, _ in first })
 
         var newChaptersEnqueued = 0
         var chapterTitles: [String] = []
@@ -140,13 +152,29 @@ public final class BackgroundScheduler: Sendable {
             if Task.isCancelled { return false }
             guard let page = try? await mangaRepository.page(id: bookmark.id) else { continue }
             let home = Self.homeItem(from: bookmark)
-            for chapter in page.chapters where !downloadedIds.contains(chapter.id) {
+            var seen = Self.seenChapterIds(mangaId: bookmark.id)
+            let currentIds = Set(page.chapters.map(\.id))
+            let candidates: [Chapter]
+            if seen.isEmpty {
+                seen.formUnion(currentIds)
+                candidates = page.chapters.filter { recordsById[$0.id]?.state == "failed" }
+            } else {
+                candidates = page.chapters.filter { chapter in
+                    if let record = recordsById[chapter.id] {
+                        return record.state == "failed"
+                    }
+                    return !seen.contains(chapter.id)
+                }
+            }
+            for chapter in candidates {
                 guard newChaptersEnqueued < 5 else { break }
                 await downloadManager.enqueue(manga: home, chapter: chapter)
+                seen.insert(chapter.id)
                 enqueuedIds.append(chapter.id)
                 newChaptersEnqueued += 1
                 chapterTitles.append(chapter.title)
             }
+            Self.storeSeenChapterIds(seen, mangaId: bookmark.id)
             if newChaptersEnqueued >= 5 { break }
         }
         if Task.isCancelled {
@@ -183,6 +211,14 @@ public final class BackgroundScheduler: Sendable {
     }
 
     private static let lastRefreshKey = "dev.atsumaru.app.lastRefresh"
+
+    private static func seenChapterIds(mangaId: String) -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: seenChaptersPrefix + mangaId) ?? [])
+    }
+
+    private static func storeSeenChapterIds(_ ids: Set<String>, mangaId: String) {
+        UserDefaults.standard.set(ids.sorted(), forKey: seenChaptersPrefix + mangaId)
+    }
 
     private static func homeItem(from bookmark: Bookmark) -> HomeItem {
         HomeItem(id: bookmark.id, title: bookmark.title, image: bookmark.image ?? "",

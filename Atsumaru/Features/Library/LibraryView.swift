@@ -41,8 +41,9 @@ struct LibraryView: View {
                 await viewModel?.load()
             }
         }
-        .onChange(of: environment.currentUser) { _, user in
-            if user != nil {
+        .onChange(of: environment.currentUser?.id) { _, userId in
+            viewModel = LibraryViewModel(repository: environment.libraryRepository)
+            if userId != nil {
                 Task { await viewModel?.load(force: true) }
             }
         }

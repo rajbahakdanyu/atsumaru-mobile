@@ -59,8 +59,9 @@ final class MangaDetailViewModel {
     /// than (or absent from) the server state.
     func refreshLocalProgress() {
         guard let current = manga else { return }
+        let progressByChapter = progressStore?.progressByChapter(mangaId: mangaId) ?? [:]
         let nowChapters = current.chapters.map { chapter -> Chapter in
-            guard let local = progressStore?.progress(mangaId: mangaId, chapterId: chapter.id) else {
+            guard let local = progressByChapter[chapter.id] else {
                 return chapter
             }
             let pages = max(chapter.pageCount, local.pageIndex + 1)

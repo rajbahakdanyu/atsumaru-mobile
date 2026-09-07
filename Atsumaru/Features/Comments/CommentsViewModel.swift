@@ -16,6 +16,7 @@ final class CommentsViewModel {
     var replyTarget: Comment?
     var expandedReplies: [String: [Comment]] = [:]
     var loadingReplies: Set<String> = []
+    var failedReplies: Set<String> = []
 
     init(sectionId: String, repository: any CommentsRepository) {
         self.sectionId = sectionId
@@ -98,9 +99,10 @@ final class CommentsViewModel {
             let children = try await repository.threads(
                 sectionId: sectionId, parentId: parent.id, cursor: nil, sort: nil
             )
+            failedReplies.remove(parent.id)
             expandedReplies[parent.id] = children
         } catch {
-            expandedReplies[parent.id] = []
+            failedReplies.insert(parent.id)
         }
     }
 }

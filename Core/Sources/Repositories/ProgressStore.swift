@@ -64,6 +64,22 @@ public final class ProgressStore {
         return ProgressState(mangaId: record.mangaId, chapterId: record.chapterId, pageIndex: record.pageIndex, updatedAt: record.updatedAt)
     }
 
+    public func progressByChapter(mangaId: String) -> [String: ProgressState] {
+        let context = container.mainContext
+        let descriptor = FetchDescriptor<ProgressRecord>(
+            predicate: #Predicate { $0.mangaId == mangaId }
+        )
+        guard let records = try? context.fetch(descriptor) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: records.map { record in
+            (record.chapterId, ProgressState(
+                mangaId: record.mangaId,
+                chapterId: record.chapterId,
+                pageIndex: record.pageIndex,
+                updatedAt: record.updatedAt
+            ))
+        })
+    }
+
     private func fetch(mangaId: String, chapterId: String, in context: ModelContext) throws -> ProgressRecord? {
         var descriptor = FetchDescriptor<ProgressRecord>(
             predicate: #Predicate { $0.mangaId == mangaId && $0.chapterId == chapterId }

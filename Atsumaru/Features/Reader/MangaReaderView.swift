@@ -217,6 +217,13 @@ struct MangaReaderView: View {
                 stripScrollTarget = nil
                 stripSeekGateResetTask?.cancel()
             }
+            .task(id: viewModel.readChapter?.id) {
+                try? await Task.sleep(for: .milliseconds(50))
+                guard !Task.isCancelled,
+                      pages.indices.contains(viewModel.currentPage),
+                      viewModel.currentPage > 0 else { return }
+                proxy.scrollTo(pages[viewModel.currentPage].id, anchor: .top)
+            }
             .onDisappear {
                 stripSeekGateResetTask?.cancel()
             }
