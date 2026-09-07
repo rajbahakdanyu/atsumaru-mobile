@@ -65,27 +65,37 @@ struct DownloadsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .refreshable { await viewModel.refresh() }
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(viewModel.sections) { section in
-                            NavigationLink(value: section.mangaId) {
-                                seriesHeader(section)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .contentShape(Rectangle())
+                // List with zero row insets: separators span the full width
+                // (they follow the insets) while padding lives inside the
+                // row — and native swipe-to-delete keeps working.
+                List {
+                    ForEach(viewModel.sections) { section in
+                        NavigationLink(value: section.mangaId) {
+                            seriesHeader(section)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets())
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                Task { await viewModel.delete(mangaId: section.mangaId) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
                             }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    Task { await viewModel.delete(mangaId: section.mangaId) }
-                                } label: {
-                                    Label("Remove all downloads", systemImage: "trash")
-                                }
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                Task { await viewModel.delete(mangaId: section.mangaId) }
+                            } label: {
+                                Label("Remove all downloads", systemImage: "trash")
                             }
-                            Divider()
                         }
                     }
+                    .listRowSeparator(.visible)
                 }
+                .listStyle(.plain)
                 .refreshable { await viewModel.refresh() }
             }
         } else {
