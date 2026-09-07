@@ -187,9 +187,17 @@ public struct UserList: Codable, Identifiable, Sendable {
     public let name: String?
     public let description: String?
     public let pinnedAt: String?
+    /// Manga ids embedded in each list by `getLists` (verified live shape):
+    /// enables instant membership checks without per-list detail fetches.
+    public let mangaIds: [String]
+
+    private struct MangaIdBox: Decodable {
+        let id: String?
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, name = "title", description, pinnedAt
+        case mangaIds = "manga"
     }
 
     public init(from decoder: Decoder) throws {
@@ -198,13 +206,16 @@ public struct UserList: Codable, Identifiable, Sendable {
         name = try c.decodeIfPresent(String.self, forKey: .name)
         description = try c.decodeIfPresent(String.self, forKey: .description)
         pinnedAt = try c.decodeIfPresent(String.self, forKey: .pinnedAt)
+        mangaIds = ((try? c.decodeIfPresent([MangaIdBox].self, forKey: .mangaIds)) ?? [])
+            .compactMap(\.id)
     }
 
-    public init(id: String, name: String? = nil, description: String? = nil, pinnedAt: String? = nil) {
+    public init(id: String, name: String? = nil, description: String? = nil, pinnedAt: String? = nil, mangaIds: [String] = []) {
         self.id = id
         self.name = name
         self.description = description
         self.pinnedAt = pinnedAt
+        self.mangaIds = mangaIds
     }
 }
 
@@ -213,25 +224,26 @@ extension UserList {
 }
 
 /// A single list's content for `getList`. Decoded tolerantly: the envelope may
-/// be `{"list": {...}}` or a bare list object; the verified `members` array is
-/// preferred and legacy `items` is the fallback; entries may key the manga by
-/// `id` or `mangaId` and may be flat or nested.
+/// be `{"list": {...}}` or a bare list object; the verified `manga` array is
+/// preferred, `members` and legacy `items` are fallbacks; entries may key the
+/// manga by `id` or `mangaId` and may be flat or nested.
 public struct ListDetail: Decodable, Sendable {
     public let id: String
     public let title: String?
     public let visibility: String?
     public let items: [ListItem]
 
-    private enum Keys: String, CodingKey { case id, title, visibility, items, members }
+    private enum Keys: String, CodingKey { case id, title, visibility, items, members, manga }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: Keys.self)
         id = (try? c.decode(String.self, forKey: .id)) ?? ""
         title = try? c.decodeIfPresent(String.self, forKey: .title)
         visibility = try? c.decodeIfPresent(String.self, forKey: .visibility)
+        let wire = c.tolerantArray(ListItem.self, forKey: .manga)
         let members = c.tolerantArray(ListItem.self, forKey: .members)
         let legacyItems = c.tolerantArray(ListItem.self, forKey: .items)
-        items = members.isEmpty ? legacyItems : members
+        items = !wire.isEmpty ? wire : (!members.isEmpty ? members : legacyItems)
     }
 }
 

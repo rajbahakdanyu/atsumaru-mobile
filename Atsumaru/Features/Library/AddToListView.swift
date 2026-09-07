@@ -63,25 +63,9 @@ struct AddToListView: View {
             loadError = (error as? ApiError) ?? .decoding
         }
         isLoading = false
-        if !lists.isEmpty { await prefetchMembership() }
-    }
-
-    private func prefetchMembership() async {
-        await withTaskGroup(of: (String, Bool).self) { group in
-            for list in lists {
-                group.addTask {
-                    do {
-                        let detail = try await environment.libraryRepository.listDetail(id: list.id)
-                        return (list.id, detail.items.contains { $0.mangaId == mangaId })
-                    } catch {
-                        return (list.id, false)
-                    }
-                }
-            }
-            for await (listId, contains) in group where contains {
-                memberOf.insert(listId)
-            }
-        }
+        // getLists embeds each list's manga ids — membership is known immediately,
+        // no per-list detail requests.
+        memberOf = Set(lists.filter { $0.mangaIds.contains(mangaId) }.map(\.id))
     }
 
     @ViewBuilder

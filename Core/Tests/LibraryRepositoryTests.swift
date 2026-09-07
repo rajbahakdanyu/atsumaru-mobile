@@ -365,4 +365,54 @@ import Testing
         #expect(entry.readAt == nil)
         #expect(entry.readAtDate == nil)
     }
+
+    @Test func listDetailDecodesMangaKey() async throws {
+        // REAL live shape: the list's manga live under "manga", not "members"/"items".
+        let json = """
+        {"status":"success","error":null,"list":{"id":"3PfuqvC7","title":"List",
+          "description":null,"visibility":"Private","countViews":1,"countUpvotes":0,
+          "countDownvotes":0,"createdAt":1788679000947,
+          "manga":[
+            {"id":"2VgNt","title":"Witch Hat Atelier","index":0,"note":null,
+             "poster":{"id":"posters/N3HO30V76uWZV9iG.jpg","smallUrl":"posters/N3HO30V76uWZV9iG-small.avif","mediumUrl":"posters/N3HO30V76uWZV9iG-medium.avif"}},
+            {"id":"3xHoW","title":"The Knight Only Lives Today","index":1,"note":null,
+             "poster":{"id":"posters/3Pe8J1zAEnTA0UeP.jpg","smallUrl":"posters/3Pe8J1zAEnTA0UeP-small.avif","mediumUrl":"posters/3Pe8J1zAEnTA0UeP-medium.avif"}}]}}
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getList")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getList")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let detail = try await repo.listDetail(id: "3PfuqvC7")
+        #expect(detail.items.count == 2)
+        #expect(detail.items[0].mangaId == "2VgNt")
+        #expect(detail.items[0].title == "Witch Hat Atelier")
+        #expect(detail.items[0].poster == "posters/N3HO30V76uWZV9iG.jpg")
+        #expect(detail.items[1].mangaId == "3xHoW")
+    }
+
+    @Test func listsDecodeEmbeddedMangaIds() async throws {
+        let json = """
+        [{"id":"3PfuqvC7","title":"List","visibility":"Private",
+          "manga":[{"id":"2VgNt","poster":{"id":"posters/a.jpg"}},
+                   {"id":"3xHoW","poster":{"id":"posters/b.jpg"}}]}]
+        """
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/user/userMangaLists/getLists")
+            let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/user/userMangaLists/getLists")!,
+                                       statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (resp, Data(json.utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+        let repo = LiveLibraryRepository(client: client)
+        let lists = try await repo.lists()
+        #expect(lists.first?.mangaIds == ["2VgNt", "3xHoW"])
+    }
 }
