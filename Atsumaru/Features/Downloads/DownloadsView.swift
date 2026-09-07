@@ -65,19 +65,23 @@ struct DownloadsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .refreshable { await viewModel.refresh() }
             } else {
-                // List with zero row insets: separators span the full width
-                // (they follow the insets) while padding lives inside the
-                // row — and native swipe-to-delete keeps working.
+                // System separators are inset by the list regardless of row
+                // insets — draw our own full-bleed divider inside each row
+                // instead (row insets are zero, so it spans the true width).
                 List {
                     ForEach(viewModel.sections) { section in
-                        NavigationLink(value: section.mangaId) {
-                            seriesHeader(section)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 10)
-                                .contentShape(Rectangle())
+                        VStack(spacing: 0) {
+                            NavigationLink(value: section.mangaId) {
+                                seriesHeader(section)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            Divider()
                         }
-                        .buttonStyle(.plain)
                         .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
                                 Task { await viewModel.delete(mangaId: section.mangaId) }
@@ -93,9 +97,9 @@ struct DownloadsView: View {
                             }
                         }
                     }
-                    .listRowSeparator(.visible)
                 }
                 .listStyle(.plain)
+                .environment(\.defaultMinListRowHeight, 1)
                 .refreshable { await viewModel.refresh() }
             }
         } else {
