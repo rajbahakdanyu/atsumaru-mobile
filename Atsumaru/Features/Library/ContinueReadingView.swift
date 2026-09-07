@@ -15,11 +15,13 @@ struct ContinueReadingView: View {
                 Text("Manga you keep reading will show up here.")
             }
         } else {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 0) {
                 ForEach(items) { item in
                     resumeRow(item)
+                    Divider()
                 }
             }
+            .padding(.horizontal, 16)
         }
     }
 
@@ -28,9 +30,31 @@ struct ContinueReadingView: View {
     /// archetype for resumable and non-resumable items.
     @ViewBuilder
     private func resumeRow(_ item: ContinueReadingItem) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 12) {
             NavigationLink(value: item.id) {
-                rowContent(for: item)
+                HStack(spacing: 12) {
+                    KFImage.poster(item.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
+                        .scaledToFill()
+                        .frame(width: 48, height: 68)
+                        .clipShape(RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(item.title ?? "Untitled")
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        if let progress = item.continueReading {
+                            Text(subtitle(progress))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        } else if let status = item.bookmarkStatus {
+                            Text(status)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
             }
             .buttonStyle(.plain)
             if let chapterId = item.continueReading?.chapterId {
@@ -40,57 +64,19 @@ struct ContinueReadingView: View {
                     isNovel: item.medium == "Novel"
                 )) {
                     Image(systemName: "play.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.accentColor)
+                        .font(.title3)
+                        .foregroundStyle(.tint)
+                        .padding(6)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Resume reading")
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
+        .padding(.vertical, 6)
     }
 
-    @ViewBuilder
-    private func rowContent(for item: ContinueReadingItem) -> some View {
-        HStack(spacing: 14) {
-            KFImage.poster(item.image.flatMap(ImageURLBuilder.poster), displayScale: displayScale)
-                .scaledToFill()
-                .frame(width: 64, height: 92)
-                .clipShape(RoundedRectangle(cornerRadius: Poster.thumbCornerRadius, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.title ?? "Untitled")
-                    .font(.headline)
-                    .lineLimit(1)
-
-                if let status = item.bookmarkStatus {
-                    Text(status)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                if let progress = item.continueReading {
-                    HStack(spacing: 6) {
-                        Image(systemName: item.medium == "Novel" ? "text.book.closed" : "book.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text(resumeLabel(progress))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func resumeLabel(_ progress: ContinueReadingItem.ContinueReadingProgress) -> String {
+    private func subtitle(_ progress: ContinueReadingItem.ContinueReadingProgress) -> String {
         var parts: [String] = []
         if let mode = progress.mode, !mode.isEmpty { parts.append(mode.capitalized) }
         if let page = progress.page { parts.append("p.\(page)") }

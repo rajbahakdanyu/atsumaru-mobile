@@ -51,10 +51,14 @@ struct MangaDetailView: View {
                 viewModel = MangaDetailViewModel(
                     mangaId: mangaId,
                     mangaRepository: environment.mangaRepository,
-                    downloadManager: environment.downloadManager
+                    downloadManager: environment.downloadManager,
+                    progressStore: environment.progressStore
                 )
             }
             await viewModel?.load()
+        }
+        .onAppear {
+            Task { await viewModel?.refreshLocalProgress() }
         }
     }
 
