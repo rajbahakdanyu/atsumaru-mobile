@@ -1,12 +1,50 @@
-# Build output
+# Xcode User Data & State
+xcuserdata/
+*.xcuserstate
+xcdebugger/
+.swiftpm/configuration/
+
+# Build Outputs & Derived Data
 DerivedData/
 .build/
 build/
-*.xcuserstate
-xcuserdata/
+*.ipa
+*.dSYM
+*.xcresult
 
-# Test fixtures (large recorded JSON)
+# Dependency Lockfiles & Pods (Massive Token Waste)
+Package.resolved
+Podfile.lock
+Pods/
+Carthage/Build/
+
+# Test Fixtures & Screenshots
 Tests/Fixtures/
+fastlane/screenshots/
+fastlane/reports/
 
-# Downloads / runtime data
+# Asset Catalogs & Binary Media
+*.xcassets/**/*.png
+*.xcassets/**/*.jpg
+*.xcassets/**/*.pdf
+*.car
+
+# Download Caches & Local Runtime
 Downloads/
+/Downloads/
+
+# macOS System Files
+.DS_Store
+
+# Local Secrets & Configs
+*.xcconfig.local
+Secrets.plist
+
+# Superpowers Working Files & Releases
+/.superpowers/
+docs/superpowers/
+/dist/
+*.part
+*.resume.json
+*.sha256
+.worktrees/
