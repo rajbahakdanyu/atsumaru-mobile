@@ -30,6 +30,9 @@ final class MangaDetailViewModel {
             manga = try await mangaRepository.page(id: mangaId)
             loadFailed = false
             isOfflineFallback = false
+            // A stale server response must not revert the instant local
+            // refresh (feedback #5): re-apply local progress on top.
+            refreshLocalProgress()
         } catch is CancellationError {
             return
         } catch let urlError as URLError where urlError.code == .cancelled {
