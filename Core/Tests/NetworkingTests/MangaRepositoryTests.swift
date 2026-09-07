@@ -3,12 +3,16 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct MangaRepositoryTests {
+    private typealias StubURLProtocol = MangaStubURLProtocol
+
     @Test func pageDecodesMangaPage() async throws {
         let json = #"{"mangaPage":{"id":"x","title":"Witch Hat Atelier","englishTitle":"Tongari Boushi","type":"Manga","medium":"Comic","status":"Ongoing","synopsis":"A girl finds a hat.","views":"14.8M","released":1500000000000,"avgRating":8.4,"mbRating":8.4,"totalChapterCount":97,"hasReadHistory":false,"poster":{"image":"posters/a.jpg","smallImage":"posters/a-small.avif","mediumImage":"posters/a-medium.avif","largeImage":"posters/a-large.avif"},"banner":{"url":"banners/b.jpg","aspectRatio":4.75},"genres":[{"id":"37","name":"Adventure","weight":"Defining"}],"tags":[{"id":"1162","name":"Accidents","namePath":"Themes > Accidents","weight":"Defining"}],"authors":[{"id":"a1","name":"Kamome Shirahama","slug":"kamome","type":"Author"}],"chapters":[{"id":"WK_m4l","scanlationMangaId":"cmrs_1","title":"Chapter 97","number":97,"createdAt":1784516183090,"index":129,"pageCount":26,"progress":null}],"recommendations":[{"id":"2VgNt","title":"Rec Title","image":"posters/r.jpg","smallImage":"posters/r-small.avif","mediumImage":"posters/r-medium.avif","largeImage":"posters/r-large.avif","isAdult":false,"type":"Manga","medium":"Comic","mbRating":8.0,"views":"1.0M"}],"similarManga":[],"relations":[{"type":"SpinOff","manga":{"id":"2VgNt","title":"Rec Title","image":"posters/r.jpg","smallImage":"posters/r-small.avif","mediumImage":"posters/r-medium.avif","largeImage":"posters/r-large.avif","isAdult":false,"type":"Manga","medium":"Comic","mbRating":8.0}}],"startReading":null}}"#
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/manga/page")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "id", value: "x")))
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/manga/page")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data(json.utf8))
@@ -76,6 +80,9 @@ import Testing
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/manga/chapters")
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "id", value: "x")))
+            #expect(items.contains(URLQueryItem(name: "page", value: "1")))
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/manga/chapters")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data(json.utf8))

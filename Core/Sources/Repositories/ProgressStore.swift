@@ -80,11 +80,29 @@ public final class ProgressStore {
         })
     }
 
+    public func delete(mangaId: String, chapterId: String) throws {
+        let context = container.mainContext
+        if let record = try fetch(mangaId: mangaId, chapterId: chapterId, in: context) {
+            context.delete(record)
+            try context.save()
+        }
+    }
+
     private func fetch(mangaId: String, chapterId: String, in context: ModelContext) throws -> ProgressRecord? {
         var descriptor = FetchDescriptor<ProgressRecord>(
             predicate: #Predicate { $0.mangaId == mangaId && $0.chapterId == chapterId }
         )
         descriptor.fetchLimit = 1
         return try context.fetch(descriptor).first
+    }
+}
+
+public extension ProgressStore {
+    static func makeInMemory() async throws -> ProgressStore {
+        try await MainActor.run {
+            let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
+            let container = try ModelContainer(for: ProgressRecord.self, configurations: configuration)
+            return try ProgressStore(container: container)
+        }
     }
 }

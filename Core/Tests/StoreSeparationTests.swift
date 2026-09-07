@@ -15,29 +15,37 @@ struct StoreSeparationTests {
     @Test func productionStoresOpenDistinctPersistentStoresAndRoundTrip() throws {
         let downloads = try DownloadStore()
         let progress = try ProgressStore()
+        let suffix = UUID().uuidString
+        let chapterId = "sep-ch-\(suffix)"
+        let mangaId = "sep-manga-\(suffix)"
+        defer {
+            try? downloads.delete(chapterId: chapterId)
+            try? progress.delete(mangaId: mangaId, chapterId: "sep-c1")
+            try? progress.delete(mangaId: mangaId, chapterId: "sep-c2")
+        }
 
         try downloads.save(DownloadedChapterSnapshot(
-            chapterId: "sep-ch1", mangaId: "sep-m1", mangaTitle: "Sep Manga",
+            chapterId: chapterId, mangaId: mangaId, mangaTitle: "Sep Manga",
             chapterTitle: "Sep Chapter", kind: "manga", pageCount: 3,
             totalBytes: 1024, completedAt: Date(timeIntervalSince1970: 100),
             state: "completed"))
-        let savedDownload = try #require(downloads.all().first { $0.chapterId == "sep-ch1" })
-        #expect(savedDownload.mangaId == "sep-m1")
+        let savedDownload = try #require(downloads.all().first { $0.chapterId == chapterId })
+        #expect(savedDownload.mangaId == mangaId)
         #expect(savedDownload.pageCount == 3)
 
         try progress.save(ProgressState(
-            mangaId: "sep-m1", chapterId: "sep-c1", pageIndex: 2,
+            mangaId: mangaId, chapterId: "sep-c1", pageIndex: 2,
             updatedAt: Date(timeIntervalSince1970: 200)))
-        let savedProgress = try #require(progress.progress(mangaId: "sep-m1", chapterId: "sep-c1"))
+        let savedProgress = try #require(progress.progress(mangaId: mangaId, chapterId: "sep-c1"))
         #expect(savedProgress.pageIndex == 2)
 
         try progress.save(ProgressState(
-            mangaId: "sep-m1", chapterId: "sep-c2", pageIndex: 4,
+            mangaId: mangaId, chapterId: "sep-c2", pageIndex: 4,
             updatedAt: Date(timeIntervalSince1970: 300)))
-        let indexedProgress = progress.progressByChapter(mangaId: "sep-m1")
+        let indexedProgress = progress.progressByChapter(mangaId: mangaId)
         #expect(indexedProgress["sep-c1"]?.pageIndex == 2)
         #expect(indexedProgress["sep-c2"]?.pageIndex == 4)
+        #expect(progress.latestProgress(mangaId: mangaId)?.chapterId == "sep-c2")
 
-        try downloads.delete(chapterId: "sep-ch1")
     }
 }

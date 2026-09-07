@@ -54,6 +54,9 @@ struct MarkdownSanitizerTests {
         #expect(MarkdownSanitizer.isAllowed(host: "sub.cdn.atsu.moe"))
         #expect(!MarkdownSanitizer.isAllowed(host: "evilstu.moe"))
         #expect(!MarkdownSanitizer.isAllowed(host: "atsu.moe.evil.com"))
+        #expect(MarkdownSanitizer.isAllowed(host: "CDN.ATSU.MOE"))
+        #expect(!MarkdownSanitizer.isAllowed(host: "localhost"))
+        #expect(!MarkdownSanitizer.isAllowed(host: "127.0.0.1"))
     }
 
     @Test func titleAttributeHostileImageDemoted() {

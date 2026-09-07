@@ -5,7 +5,13 @@ public enum KeychainError: Error {
     case unexpectedStatus(OSStatus)
 }
 
-public final class KeychainStore: Sendable {
+public protocol KeychainStoring: Sendable {
+    func save(_ data: Data, key: String) throws
+    func load(key: String) -> Data?
+    func delete(key: String) throws
+}
+
+public final class KeychainStore: KeychainStoring {
     private let service: String
 
     public init(service: String) {

@@ -12,9 +12,9 @@ public struct LiveAuthRepository: AuthRepository {
     public static let storedUserKey = "auth-user"
 
     private let client: APIClient
-    private let keychain: KeychainStore
+    private let keychain: any KeychainStoring
 
-    public init(client: APIClient, keychain: KeychainStore) {
+    public init(client: APIClient, keychain: any KeychainStoring) {
         self.client = client
         self.keychain = keychain
     }

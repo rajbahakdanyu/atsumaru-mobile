@@ -3,6 +3,7 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct CommentsRepositoryTests {
+    private typealias StubURLProtocol = CommentsStubURLProtocol
 
     @Test func threadsDecode() async throws {
         let json = #"{"comments":[{"id":"cmt1","content":"Mc reminds me of Seo Eun Hyun","createdAt":1787304830269,"score":1,"upVotes":null,"downVotes":null,"spoiler":false,"parentId":null,"user":{"id":"u1","usernameSlug":"hobin001","usernameDisplay":"HOBIN001","pfp":"pfp/abc.webp","verified":true},"replies":[]}]}"#
@@ -67,11 +68,12 @@ import Testing
         let repo = LiveCommentsRepository(client: client)
         try await repo.postComment(sectionId: "sec1", parentId: "p0", replyingToId: "r0",
                                    content: "Nice chapter", spoiler: false)
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"sectionId\""))
-        #expect(bodyString.contains("\"content\""))
-        #expect(bodyString.contains("\"spoiler\""))
-        #expect(bodyString.contains("Nice chapter"))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["sectionId"] as? String == "sec1")
+        #expect(body["parentId"] as? String == "p0")
+        #expect(body["replyingToId"] as? String == "r0")
+        #expect(body["content"] as? String == "Nice chapter")
+        #expect(body["spoiler"] as? Bool == false)
     }
 
     @Test func votePostsJSON() async throws {
@@ -89,11 +91,9 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveCommentsRepository(client: client)
         try await repo.vote(commentId: "c1", vote: 1)
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"commentId\""))
-        #expect(bodyString.contains("\"vote\""))
-        #expect(bodyString.contains("c1"))
-        #expect(bodyString.contains("1"))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["commentId"] as? String == "c1")
+        #expect(body["vote"] as? String == "up")
     }
 
     @Test func paragraphCommentSectionDecodes() async throws {
@@ -127,7 +127,7 @@ import Testing
         StubURLProtocol.handler = { request in
             #expect(request.url?.path == "/api/comments/v2/vote")
             #expect(request.httpMethod == "POST")
-            captured.value = try requestBody(of: request)
+            captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/api/comments/v2/vote")!,
                                        statusCode: 200, httpVersion: nil, headerFields: nil)!
             return (resp, Data("{}".utf8))
@@ -135,14 +135,14 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveCommentsRepository(client: client)
         try await repo.vote(commentId: "c1", vote: 1)
-        var body = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(body.contains("\"vote\":\"up\""))
+        var body = try jsonDictionary(from: captured.value)
+        #expect(body["vote"] as? String == "up")
         try await repo.vote(commentId: "c1", vote: -1)
-        body = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(body.contains("\"vote\":\"down\""))
+        body = try jsonDictionary(from: captured.value)
+        #expect(body["vote"] as? String == "down")
         try await repo.vote(commentId: "c1", vote: 0)
-        body = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(body.contains("\"vote\":\"none\""))
+        body = try jsonDictionary(from: captured.value)
+        #expect(body["vote"] as? String == "none")
     }
 
     @Test func commentSectionDecodesChapterEnvelope() async throws {
@@ -178,5 +178,46 @@ import Testing
         let threads = try await repo.threads(sectionId: "s", parentId: nil, cursor: nil, sort: nil)
         #expect(threads.first?.replies?.first?.id == "r1")
         #expect(threads.first?.descendantCount == 2)
+    }
+
+    @Test func threadsIncludesOptionalQueryParameters() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let items = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            #expect(items.contains(URLQueryItem(name: "sectionId", value: "sec1")))
+            #expect(items.contains(URLQueryItem(name: "parentId", value: "parent")))
+            #expect(items.contains(URLQueryItem(name: "cursor", value: "next")))
+            #expect(items.contains(URLQueryItem(name: "sort", value: "new")))
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data(#"{"comments":[]}"#.utf8))
+        }
+        let repository = LiveCommentsRepository(
+            client: APIClient(session: URLSession(configuration: config))
+        )
+
+        let comments = try await repository.threads(
+            sectionId: "sec1", parentId: "parent", cursor: "next", sort: "new"
+        )
+        #expect(comments.isEmpty)
+    }
+
+    @Test func commentSectionAcceptsBareShapeAndRejectsMalformedShape() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let responseData = Box(Data(#"{"id":"bare-section"}"#.utf8))
+        StubURLProtocol.handler = { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, responseData.value)
+        }
+        let repository = LiveCommentsRepository(
+            client: APIClient(session: URLSession(configuration: config))
+        )
+
+        #expect(try await repository.commentSection(chapterId: "ch1").id == "bare-section")
+        responseData.value = Data(#"{"unexpected":true}"#.utf8)
+        await #expect(throws: ApiError.decoding) {
+            _ = try await repository.commentSection(chapterId: "ch1")
+        }
     }
 }

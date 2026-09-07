@@ -8,11 +8,16 @@ private let logger = Logger(subsystem: "dev.atsumaru.app", category: "progress")
 @MainActor
 final class ProgressSaveDebouncer {
     private var task: Task<Void, Never>?
+    private let delay: Duration
+
+    init(delay: Duration = .seconds(1.5)) {
+        self.delay = delay
+    }
 
     func schedule(_ operation: @escaping @MainActor () async -> Void) {
         task?.cancel()
         task = Task {
-            try? await Task.sleep(for: .seconds(1.5))
+            try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             await operation()
         }

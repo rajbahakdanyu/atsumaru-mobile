@@ -3,6 +3,8 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct UserRepositoryTests {
+    private typealias StubURLProtocol = UserStubURLProtocol
+
     @Test func privateProfileDecodes() async throws {
         let json = #"{"profilePage":{"user":{"id":"u1","username":"dan","usernameSlug":"dan","reputation":5,"pfp":"pfp/dan.webp","mangaRead":42,"chaptersRead":900,"bookmarkCount":13,"commentCount":87}}}"#
         let config = URLSessionConfiguration.ephemeral

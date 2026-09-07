@@ -3,6 +3,8 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct BrowseRepositoryTests {
+    private typealias StubURLProtocol = BrowseStubURLProtocol
+
     @Test func searchDecodesHits() async throws {
         let json = #"{"found":1,"hits":[{"document":{"id":"x","title":"Test","image":"posters/p.jpg","smallImage":"posters/p.jpg","mediumImage":"posters/p.jpg","largeImage":"posters/p.jpg","isAdult":false,"type":"Manga","medium":"Comic","mbRating":7.0,"views":null}}]}"#
         let config = URLSessionConfiguration.ephemeral

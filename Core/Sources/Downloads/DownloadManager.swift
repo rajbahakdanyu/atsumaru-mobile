@@ -50,7 +50,7 @@ public actor DownloadManager {
 
     private let readRepository: any ReadRepository
     private let novelRepository: (any NovelRepository)?
-    private let store: DownloadStore?
+    private let store: (any DownloadStoring)?
     private let baseDirectory: URL
     private var session: URLSession
 
@@ -74,7 +74,7 @@ public actor DownloadManager {
 
     public init(readRepository: any ReadRepository,
                 novelRepository: (any NovelRepository)? = nil,
-                store: DownloadStore? = nil,
+                store: (any DownloadStoring)? = nil,
                 baseDirectory: URL? = nil,
                 sessionConfiguration: URLSessionConfiguration? = nil,
                 allowsCellularAccess: Bool = true) {
@@ -93,6 +93,10 @@ public actor DownloadManager {
         let config = Self.makeDefaultSessionConfiguration()
         config.allowsCellularAccess = allowed
         session = URLSession(configuration: config)
+    }
+
+    func isCellularAccessAllowed() -> Bool {
+        session.configuration.allowsCellularAccess
     }
 
     public func enqueue(manga: HomeItem, chapter: Chapter) async {
@@ -444,7 +448,9 @@ public actor DownloadManager {
     private func evictChapter(_ record: DownloadedChapterSnapshot) async {
         // Cancel any in-flight download first: a running task would otherwise
         // re-persist its record and resurrect the deleted chapter.
-        tasks[record.chapterId]?.task.cancel()
+        let activeTask = tasks[record.chapterId]?.task
+        activeTask?.cancel()
+        await activeTask?.value
         tasks[record.chapterId] = nil
         pageProgress[record.chapterId] = nil
         if let chapterDir = try? chapterDirectory(mangaId: record.mangaId, chapterId: record.chapterId) {

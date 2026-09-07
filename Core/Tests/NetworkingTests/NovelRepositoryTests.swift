@@ -3,6 +3,8 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct NovelRepositoryTests {
+    private typealias StubURLProtocol = NovelStubURLProtocol
+
     @Test func novelChapterDecodesParagraphsAndComments() async throws {
         let json = ##"{"readNovelChapter":{"id":"abc1","title":"Chapter 1: Awakening","number":1,"scanlationMangaId":"cmrs_n1","paragraphs":["# Chapter 1: Awakening","The morning sun crested over the hills.","\"Hold on,\" she whispered."],"wordCount":412,"paragraphComments":{"0":1,"2":3}}}"##
         let config = URLSessionConfiguration.ephemeral

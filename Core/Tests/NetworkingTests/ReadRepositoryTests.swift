@@ -3,6 +3,8 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct ReadRepositoryTests {
+    private typealias StubURLProtocol = ReadStubURLProtocol
+
     @Test func chapterDecodesReadChapterWithPages() async throws {
         let json = #"{"readChapter":{"id":"QFpTs","title":"Chapter 97","scanlationMangaId":"cmrs_1","pages":[{"id":"QFpTs-0","image":"/static/pages/scan/QFpTs/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696},{"id":"QFpTs-1","image":"/static/pages/scan/QFpTs/1.webp","number":1,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
         let config = URLSessionConfiguration.ephemeral

@@ -41,7 +41,12 @@ Run tests:
 ```bash
 xcodebuild -project Atsumaru.xcodeproj -scheme Core \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+xcodebuild -project Atsumaru.xcodeproj -scheme Atsumaru \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
+
+GitHub Actions runs both suites with code coverage on every push and pull
+request to `main`.
 
 ## Architecture
 

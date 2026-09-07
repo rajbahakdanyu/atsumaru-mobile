@@ -5,6 +5,7 @@ import SwiftData
 
 @Suite(.serialized)
 struct DownloadManagerTests {
+    private typealias StubURLProtocol = DownloadStubURLProtocol
 
     private static func makeStubURLProtocol(json: String, status: Int = 200, bodyData: Data = Data(repeating: 0xFF, count: 256)) {
         StubURLProtocol.handler = { request in
@@ -80,8 +81,6 @@ struct DownloadManagerTests {
             }
             return nil
         }
-        try await Task.sleep(nanoseconds: 100_000_000)
-
         await manager.enqueue(manga: manga, chapter: chapter)
 
         let timeoutTask = Task {
@@ -151,7 +150,6 @@ struct DownloadManagerTests {
             }
             return nil
         }
-        try await Task.sleep(nanoseconds: 100_000_000)
         await manager.enqueue(manga: manga, chapter: chapter)
 
         let timeoutTask = Task {
@@ -171,6 +169,50 @@ struct DownloadManagerTests {
             Issue.record("Expected failed state, got: \(state)")
             return
         }
+    }
+
+    @Test func enqueueFailsBeforeNetworkWhenPersistenceIsUnavailable() async throws {
+        let networkCalls = RequestCounter()
+        let config = makeBetaURLConfiguration()
+        StubURLProtocol.handler = { request in
+            networkCalls.increment()
+            let response = HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+        let repository = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let manager = DownloadManager(
+            readRepository: repository,
+            store: FailingDownloadStore(),
+            sessionConfiguration: config
+        )
+        let stream = await manager.events()
+        let collector = Task<DownloadEvent?, Never> {
+            for await event in stream {
+                if case .failed(let chapterId, _) = event, chapterId == "ch1" { return event }
+            }
+            return nil
+        }
+
+        await manager.enqueue(manga: makeManga(), chapter: Chapter(id: "ch1"))
+        let event = await collector.value
+
+        guard case .failed("ch1", _) = event else {
+            Issue.record("Expected persistence failure event")
+            return
+        }
+        #expect(networkCalls.count == 0)
+    }
+
+    @Test func cellularPolicyCanBeUpdated() async {
+        let config = makeBetaURLConfiguration()
+        let repository = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let manager = DownloadManager(
+            readRepository: repository, sessionConfiguration: config,
+            allowsCellularAccess: true
+        )
+        #expect(await manager.isCellularAccessAllowed())
+        await manager.setAllowsCellularAccess(false)
+        #expect(await !manager.isCellularAccessAllowed())
     }
 
     @Test func awaitCompletionReturnsAfterTargetsComplete() async throws {
@@ -482,6 +524,21 @@ struct DownloadManagerTests {
             libraryRepository: LiveLibraryRepository(client: APIClient(session: URLSession(configuration: config))),
             mangaRepository: LiveMangaRepository(client: APIClient(session: URLSession(configuration: config))))
 
+        let oldNotifications = UserDefaults.standard.object(forKey: BackgroundScheduler.notificationsKey)
+        let seenKey = "dev.atsumaru.app.seenChapters.m1"
+        let oldSeen = UserDefaults.standard.object(forKey: seenKey)
+        defer {
+            if let oldNotifications {
+                UserDefaults.standard.set(oldNotifications, forKey: BackgroundScheduler.notificationsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: BackgroundScheduler.notificationsKey)
+            }
+            if let oldSeen {
+                UserDefaults.standard.set(oldSeen, forKey: seenKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: seenKey)
+            }
+        }
         UserDefaults.standard.set(false, forKey: BackgroundScheduler.notificationsKey)
         // A transient failure must not permanently block the scheduler: a
         // "failed" record is retried, a "completed" one is skipped.
@@ -504,8 +561,17 @@ struct DownloadManagerTests {
     @Test func refreshEstablishesBaselineThenDownloadsOnlyNewChapters() async throws {
         let mangaId = "baseline-\(UUID().uuidString)"
         let seenKey = "dev.atsumaru.app.seenChapters.\(mangaId)"
+        let oldNotifications = UserDefaults.standard.object(forKey: BackgroundScheduler.notificationsKey)
         UserDefaults.standard.removeObject(forKey: seenKey)
-        defer { UserDefaults.standard.removeObject(forKey: seenKey) }
+        UserDefaults.standard.set(false, forKey: BackgroundScheduler.notificationsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: seenKey)
+            if let oldNotifications {
+                UserDefaults.standard.set(oldNotifications, forKey: BackgroundScheduler.notificationsKey)
+            } else {
+                UserDefaults.standard.removeObject(forKey: BackgroundScheduler.notificationsKey)
+            }
+        }
         let pageJSON = Box("""
         {"mangaPage":{"id":"\(mangaId)","title":"M1","genres":[],"tags":[],"authors":[],"chapters":[{"id":"old","title":"Old","number":1,"pageCount":1}],"recommendations":[],"relations":[]}}
         """)
@@ -557,7 +623,9 @@ struct DownloadManagerTests {
 
     @Test func deleteChapterCancelsInFlightDownloadAndPreventsResurrection() async throws {
         let chapterJSON = #"{"readChapter":{"id":"ch1","title":"Chapter 1","scanlationMangaId":"sm1","pages":[{"id":"ch1-0","image":"/static/pages/scan/ch1/0.webp","number":0,"width":960,"height":1378,"aspectRatio":0.696}]}}"#
+        let requestStarted = DispatchSemaphore(value: 0)
         let gate = DispatchSemaphore(value: 0)
+        defer { gate.signal() }
         StubURLProtocol.handler = { request in
             guard let url = request.url else {
                 throw NSError(domain: "test", code: -1, userInfo: nil)
@@ -567,6 +635,7 @@ struct DownloadManagerTests {
                 return (resp, Data(chapterJSON.utf8))
             }
             // Page image request blocks until the test releases it.
+            requestStarted.signal()
             gate.wait()
             return (resp, Data(repeating: 0xFF, count: 64))
         }
@@ -584,18 +653,24 @@ struct DownloadManagerTests {
         let chapter = try JSONDecoder().decode(Chapter.self,
                                                from: Data(#"{"id":"ch1","title":"Chapter 1","number":1,"pageCount":1}"#.utf8))
         await manager.enqueue(manga: manga, chapter: chapter)
-        // Let the download start and block on the page image request.
-        try await Task.sleep(nanoseconds: 500_000_000)
+        let didStart = await withCheckedContinuation { continuation in
+            DispatchQueue.global().async {
+                continuation.resume(returning: requestStarted.wait(timeout: .now() + 5) == .success)
+            }
+        }
+        #expect(didStart, "page request must be in flight before deletion")
+        guard didStart else { return }
 
-        await manager.deleteChapter("ch1")
+        let deletion = Task { await manager.deleteChapter("ch1") }
+        await Task.yield()
+        gate.signal()
+        await deletion.value
         let chapterDir = tmpDir.appendingPathComponent("m1").appendingPathComponent("ch1")
         #expect(!FileManager.default.fileExists(atPath: chapterDir.path))
         #expect(await manager.listChapters().isEmpty)
 
-        // Unblock the in-flight request; the cancelled download must bail
-        // before persisting, so the record stays deleted.
-        gate.signal()
-        try await Task.sleep(nanoseconds: 500_000_000)
+        // The cancelled download has fully unwound before deletion returns,
+        // so it cannot persist after these assertions.
         #expect(await manager.listChapters().isEmpty, "cancelled download must not resurrect the record")
         let state = await manager.state(for: "ch1")
         #expect(state != .completed)
@@ -620,7 +695,6 @@ struct DownloadManagerTests {
             }
             return nil
         }
-        try await Task.sleep(nanoseconds: 100_000_000)
         await trigger()
         let timeoutTask = Task {
             try await Task.sleep(nanoseconds: 10_000_000_000)
@@ -629,5 +703,30 @@ struct DownloadManagerTests {
         let event = await collector.value
         timeoutTask.cancel()
         return event
+    }
+
+    @Test func storageUsedAndDeleteAllReflectFiles() async throws {
+        let config = makeBetaURLConfiguration()
+        let repository = LiveReadRepository(client: APIClient(session: URLSession(configuration: config)))
+        let store = try await DownloadStore.makeInMemory()
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("dl-test-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = DownloadManager(
+            readRepository: repository, store: store,
+            baseDirectory: root, sessionConfiguration: config
+        )
+        let chapterDirectory = root.appendingPathComponent("m1/ch1", isDirectory: true)
+        try FileManager.default.createDirectory(at: chapterDirectory, withIntermediateDirectories: true)
+        try Data(repeating: 0xAB, count: 128).write(to: chapterDirectory.appendingPathComponent("0.webp"))
+        try await store.save(DownloadedChapterSnapshot(
+            chapterId: "ch1", mangaId: "m1", mangaTitle: "M1", chapterTitle: "Chapter 1",
+            kind: "manga", pageCount: 1, totalBytes: 128, completedAt: Date(), state: "completed"
+        ))
+
+        #expect(await manager.storageUsed() >= 128)
+        await manager.deleteAll()
+        #expect(await manager.listChapters().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: chapterDirectory.path))
     }
 }

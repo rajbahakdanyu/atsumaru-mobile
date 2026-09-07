@@ -28,12 +28,22 @@ targets:
     sources: [Core/Tests]
     dependencies:
       - target: Core
-      - target: Atsumaru
     settings:
       base:
         SWIFT_VERSION: "6.0"
         GENERATE_INFOPLIST_FILE: YES
-        CODE_SIGN_ENTITLEMENTS: Core/Tests/CoreTests.entitlements
+  AtsumaruTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources: [AtsumaruTests]
+    dependencies:
+      - target: Atsumaru
+      - target: Core
+    settings:
+      base:
+        SWIFT_VERSION: "6.0"
+        GENERATE_INFOPLIST_FILE: YES
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Atsumaru.app/Atsumaru"
         BUNDLE_LOADER: "$(TEST_HOST)"
   Atsumaru:
@@ -72,8 +82,16 @@ schemes:
     build:
       targets:
         Core: all
-        Atsumaru: [test]
         CoreTests: [test]
     test:
       targets:
         - CoreTests
+  Atsumaru:
+    build:
+      targets:
+        Core: all
+        Atsumaru: all
+        AtsumaruTests: [test]
+    test:
+      targets:
+        - AtsumaruTests

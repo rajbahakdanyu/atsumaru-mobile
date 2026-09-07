@@ -2,43 +2,9 @@ import Foundation
 import Testing
 @testable import Core
 
-@Suite(.serialized) struct KeychainStoreTests {
-    @Test func saveLoadDeleteRoundTrip() throws {
-        let store = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
-        let key = "test-key-\(UUID().uuidString)"
-        defer { try? store.delete(key: key) }
-
-        let payload = Data("hello-atsumaru".utf8)
-        #expect(store.load(key: key) == nil)
-
-        try store.save(payload, key: key)
-        #expect(store.load(key: key) == payload)
-
-        try store.delete(key: key)
-        #expect(store.load(key: key) == nil)
-    }
-
-    @Test func saveOverwritesExistingValue() throws {
-        let store = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
-        let key = "overwrite-\(UUID().uuidString)"
-        defer { try? store.delete(key: key) }
-
-        try store.save(Data("first".utf8), key: key)
-        try store.save(Data("second".utf8), key: key)
-        #expect(store.load(key: key) == Data("second".utf8))
-        try store.delete(key: key)
-    }
-
-    @Test func deleteIsIdempotentWhenAbsent() throws {
-        let store = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
-        let key = "absent-\(UUID().uuidString)"
-        try store.delete(key: key)
-        try store.delete(key: key)
-        #expect(store.load(key: key) == nil)
-    }
-}
-
 @Suite(.serialized) struct AuthRepositoryTests {
+    private typealias StubURLProtocol = AuthStubURLProtocol
+
     @Test func meReturnsNilForGuest() async throws {
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [StubURLProtocol.self]
@@ -54,7 +20,7 @@ import Testing
             return (resp, Data(#"{"me":null}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         let repo = LiveAuthRepository(client: client, keychain: keychain)
         let me = try await repo.me()
         #expect(me == nil)
@@ -74,7 +40,7 @@ import Testing
             return (resp, Data(#"{"me":null}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         try keychain.save(Data(#"{"id":"u1"}"#.utf8), key: "auth-user")
         defer { try? keychain.delete(key: "auth-user") }
         let repo = LiveAuthRepository(client: client, keychain: keychain)
@@ -93,7 +59,7 @@ import Testing
             return (resp, Data(json.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         defer { try? keychain.delete(key: "auth-user") }
         let repo = LiveAuthRepository(client: client, keychain: keychain)
         let me = try await repo.me()
@@ -127,7 +93,7 @@ import Testing
             }
         }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         defer { try? keychain.delete(key: "auth-user") }
         let repo = LiveAuthRepository(client: client, keychain: keychain)
         let user = try await repo.login(identifier: "user@example.com", password: "p@ss&word=1")
@@ -149,9 +115,9 @@ import Testing
             return (resp, Data(#"{"status":"error","error":"Invalid username or password","me":null}"#.utf8))
         }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         let repo = LiveAuthRepository(client: client, keychain: keychain)
-        await #expect(throws: ApiError.self) {
+        await #expect(throws: ApiError.server("Invalid username or password")) {
             _ = try await repo.login(identifier: "bad", password: "wrong")
         }
     }
@@ -161,13 +127,14 @@ import Testing
         config.protocolClasses = [StubURLProtocol.self]
         StubURLProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
         let client = APIClient(session: URLSession(configuration: config))
-        let keychain = KeychainStore(service: "dev.atsumaru.app.tests.\(UUID().uuidString)")
+        let keychain = InMemoryKeychainStore()
         try keychain.save(Data(#"{"id":"u1"}"#.utf8), key: "auth-user")
         defer { try? keychain.delete(key: "auth-user") }
         let cookie = try #require(HTTPCookie(properties: [
             .domain: ".atsu.moe", .path: "/", .name: "session", .value: "test",
             .secure: "TRUE"
         ]))
+        defer { HTTPCookieStorage.shared.deleteCookie(cookie) }
         HTTPCookieStorage.shared.setCookie(cookie)
         let repo = LiveAuthRepository(client: client, keychain: keychain)
 
@@ -181,9 +148,9 @@ import Testing
 
     @Test func postFormPercentEncodesAmpersandAndEqualsInValues() async throws {
         let config = URLSessionConfiguration.ephemeral
-        config.protocolClasses = [StubURLProtocol.self]
+        config.protocolClasses = [AuthStubURLProtocol.self]
         let captured = Box<Data?>(nil)
-        StubURLProtocol.handler = { request in
+        AuthStubURLProtocol.handler = { request in
             #expect(request.value(forHTTPHeaderField: "Content-Type") == "application/x-www-form-urlencoded")
             captured.value = requestBody(of: request)
             let resp = HTTPURLResponse(url: URL(string: "https://atsu.moe/x")!,
@@ -194,5 +161,37 @@ import Testing
         let _: EmptyResponse = try await client.postForm("/x", fields: ["b": "2", "a": "1&x=y"])
         let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
         #expect(bodyString == "a=1%26x%3Dy&b=2")
+    }
+
+    @Test func passwordResetEndpointsPostExpectedFormFields() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [AuthStubURLProtocol.self]
+        let requests = Box<[(String, String)]>([])
+        AuthStubURLProtocol.handler = { request in
+            let body = String(decoding: requestBody(of: request) ?? Data(), as: UTF8.self)
+            requests.value.append((request.url?.path ?? "", body))
+            let response = HTTPURLResponse(
+                url: try #require(request.url), statusCode: 204,
+                httpVersion: nil, headerFields: nil
+            )!
+            return (response, Data())
+        }
+        let repository = LiveAuthRepository(
+            client: APIClient(session: URLSession(configuration: config)),
+            keychain: InMemoryKeychainStore()
+        )
+
+        try await repository.sendPasswordReset(email: "user+test@example.com")
+        try await repository.resetPassword(
+            token: "token&1", newPassword: "new=pass", confirmPassword: "new=pass"
+        )
+
+        #expect(requests.value.count == 2)
+        #expect(requests.value[0].0 == "/api/auth/sendPasswordReset/sendPasswordReset")
+        #expect(requests.value[0].1 == "email=user%2Btest@example.com")
+        #expect(requests.value[1].0 == "/api/auth/resetPassword/reset")
+        #expect(requests.value[1].1.contains("token=token%261"))
+        #expect(requests.value[1].1.contains("newPassword=new%3Dpass"))
+        #expect(requests.value[1].1.contains("confirmPassword=new%3Dpass"))
     }
 }

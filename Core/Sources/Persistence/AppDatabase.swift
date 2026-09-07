@@ -57,7 +57,14 @@ public struct DownloadedChapterSnapshot: Sendable {
 }
 
 @MainActor
-public final class DownloadStore {
+public protocol DownloadStoring: AnyObject, Sendable {
+    func save(_ snapshot: DownloadedChapterSnapshot) throws
+    func all() -> [DownloadedChapterSnapshot]
+    func delete(chapterId: String) throws
+}
+
+@MainActor
+public final class DownloadStore: DownloadStoring {
     private let container: ModelContainer
 
     public init(container: ModelContainer? = nil) throws {

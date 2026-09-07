@@ -2,14 +2,17 @@ import Foundation
 import Testing
 @testable import Core
 
-struct APIClientTests {
+@Suite(.serialized) struct APIClientTests {
+    private typealias StubURLProtocol = APIClientStubURLProtocol
+
     @Test func imageURLsAreAbsolute() {
         #expect(ImageURLBuilder.poster("posters/abc.jpg")?.absoluteString == "https://atsu.moe/static/posters/abc.jpg")
         #expect(ImageURLBuilder.poster("banners/b.jpg")?.absoluteString == "https://atsu.moe/static/banners/b.jpg")
         #expect(ImageURLBuilder.poster("/static/posters/c.jpg")?.absoluteString == "https://atsu.moe/static/posters/c.jpg")
         #expect(ImageURLBuilder.page("/static/pages/x/1.webp")?.absoluteString == "https://atsu.moe/static/pages/x/1.webp")
-        #expect(ImageURLBuilder.page("@evil.example/x")?.host != "evil.example")
-        #expect(ImageURLBuilder.page(":443@evil.example/x")?.host != "evil.example")
+        let allowedHosts = ["atsu.moe", "cdn.atsu.moe"]
+        #expect(ImageURLBuilder.page("@evil.example/x").map { allowedHosts.contains($0.host ?? "") } ?? true)
+        #expect(ImageURLBuilder.page(":443@evil.example/x").map { allowedHosts.contains($0.host ?? "") } ?? true)
         #expect(ImageURLBuilder.page("https://cdn.atsu.moe/pages/x.webp")?.host == "cdn.atsu.moe")
     }
 
@@ -87,6 +90,47 @@ struct APIClientTests {
         let client = APIClient(session: URLSession(configuration: config))
         await #expect(throws: ApiError.offline) {
             let _: EmptyResponse = try await client.get("/api/auth/me")
+        }
+    }
+
+    @Test func transportErrorsMapAllConnectivityFailuresToOffline() async {
+        let code = Box(URLError.Code.timedOut)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { _ in throw URLError(code.value) }
+        let client = APIClient(session: URLSession(configuration: config))
+
+        for offlineCode in [
+            URLError.Code.notConnectedToInternet, .networkConnectionLost, .timedOut,
+            .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
+            .dataNotAllowed, .internationalRoamingOff,
+        ] {
+            code.value = offlineCode
+            await #expect(throws: ApiError.offline) {
+                let _: EmptyResponse = try await client.get("/api/test")
+            }
+        }
+    }
+
+    @Test func getRejectsMalformedJSONAndNonSuccessStatus() async {
+        let status = Box(200)
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        StubURLProtocol.handler = { request in
+            let response = HTTPURLResponse(
+                url: request.url!, statusCode: status.value,
+                httpVersion: nil, headerFields: nil
+            )!
+            return (response, Data("not-json".utf8))
+        }
+        let client = APIClient(session: URLSession(configuration: config))
+
+        await #expect(throws: ApiError.decoding) {
+            let _: EmptyResponse = try await client.get("/api/test")
+        }
+        status.value = 300
+        await #expect(throws: ApiError.http(300)) {
+            let _: EmptyResponse = try await client.get("/api/test")
         }
     }
 }

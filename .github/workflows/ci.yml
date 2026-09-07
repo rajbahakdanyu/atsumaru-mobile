@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build, test, and measure coverage
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Select latest stable Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: |
+          xcodegen generate
+          mkdir -p TestResults
+
+      - name: Run Core tests
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Atsumaru.xcodeproj \
+            -scheme Core \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults/Core.xcresult \
+            test
+
+      - name: Run app tests
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Atsumaru.xcodeproj \
+            -scheme Atsumaru \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=latest' \
+            -enableCodeCoverage YES \
+            -resultBundlePath TestResults/Atsumaru.xcresult \
+            test
+
+      - name: Enforce coverage floors
+        run: |
+          core_coverage=$(xcrun xccov view --report --json TestResults/Core.xcresult \
+            | jq -r '.targets[] | select(.name == "Core.framework") | .lineCoverage')
+          app_coverage=$(xcrun xccov view --report --json TestResults/Atsumaru.xcresult \
+            | jq -r '.targets[] | select(.name == "Atsumaru.app") | .lineCoverage')
+          echo "Core line coverage: $(awk -v value="$core_coverage" 'BEGIN { printf "%.2f%%", value * 100 }')"
+          echo "App line coverage: $(awk -v value="$app_coverage" 'BEGIN { printf "%.2f%%", value * 100 }')"
+          awk -v value="$core_coverage" 'BEGIN { exit(value >= 0.75 ? 0 : 1) }'
+          awk -v value="$app_coverage" 'BEGIN { exit(value >= 0.05 ? 0 : 1) }'
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults/*.xcresult
+          retention-days: 14

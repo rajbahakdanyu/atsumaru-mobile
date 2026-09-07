@@ -3,6 +3,7 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct ForumRepositoryTests {
+    private typealias StubURLProtocol = ForumStubURLProtocol
 
     @Test func channelsDecode() async throws {
         let json = #"{"channels":[{"id":"ch1","name":"General","description":"Talk about anything","postCount":42}]}"#
@@ -107,12 +108,12 @@ import Testing
             forumId: "ch1", title: "Hello world", content: "# Hi",
             spoiler: false, tagIds: ["t1", "t2"]
         )
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"forumId\":\"ch1\""))
-        #expect(bodyString.contains("\"title\":\"Hello world\""))
-        #expect(bodyString.contains("\"content\":\"# Hi\""))
-        #expect(bodyString.contains("\"spoiler\":false"))
-        #expect(bodyString.contains("\"tagIds\":[\"t1\",\"t2\"]"))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["forumId"] as? String == "ch1")
+        #expect(body["title"] as? String == "Hello world")
+        #expect(body["content"] as? String == "# Hi")
+        #expect(body["spoiler"] as? Bool == false)
+        #expect(body["tagIds"] as? [String] == ["t1", "t2"])
     }
 
     @Test func postsFilterParamsPassedAsQuery() async throws {
@@ -150,10 +151,10 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
         try await repo.editPost(postId: "p1", title: "Edited title", content: "Edited body")
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"postId\":\"p1\""))
-        #expect(bodyString.contains("\"title\":\"Edited title\""))
-        #expect(bodyString.contains("\"content\":\"Edited body\""))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["postId"] as? String == "p1")
+        #expect(body["title"] as? String == "Edited title")
+        #expect(body["content"] as? String == "Edited body")
     }
 
     @Test func removePostPostsJSON() async throws {
@@ -171,8 +172,8 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
         try await repo.removePost(postId: "p1")
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"postId\":\"p1\""))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["postId"] as? String == "p1")
     }
 
     @Test func votePostPostsVoteDirectionStrings() async throws {
@@ -190,18 +191,17 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveForumRepository(client: client)
         try await repo.votePost(postId: "p1", vote: 1)
-        var bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"postId\""))
-        #expect(bodyString.contains("\"p1\""))
-        #expect(bodyString.contains("\"vote\":\"up\""))
+        var body = try jsonDictionary(from: captured.value)
+        #expect(body["postId"] as? String == "p1")
+        #expect(body["vote"] as? String == "up")
 
         try await repo.votePost(postId: "p1", vote: -1)
-        bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"vote\":\"down\""))
+        body = try jsonDictionary(from: captured.value)
+        #expect(body["vote"] as? String == "down")
 
         try await repo.votePost(postId: "p1", vote: 0)
-        bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"vote\":\"none\""))
+        body = try jsonDictionary(from: captured.value)
+        #expect(body["vote"] as? String == "none")
     }
 
     @Test func postDecodesViewerState() async throws {
@@ -218,6 +218,27 @@ import Testing
         let post = try await repo.postDetail(postId: "p1").post
         #expect(post.viewerVote == "up")
         #expect(post.viewerBookmarked == true)
+    }
+
+    @Test func bookmarkPostSendsRequestedState() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [StubURLProtocol.self]
+        let captured = Box<Data?>(nil)
+        StubURLProtocol.handler = { request in
+            #expect(request.url?.path == "/api/forum/bookmarkPost")
+            #expect(request.httpMethod == "POST")
+            captured.value = requestBody(of: request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!
+            return (response, Data())
+        }
+        let repository = LiveForumRepository(
+            client: APIClient(session: URLSession(configuration: config))
+        )
+
+        try await repository.bookmarkPost(postId: "p1", bookmarked: true)
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["postId"] as? String == "p1")
+        #expect(body["bookmarked"] as? Bool == true)
     }
 
     @Test func tagsDecodeModOnlyAndTerminal() async throws {

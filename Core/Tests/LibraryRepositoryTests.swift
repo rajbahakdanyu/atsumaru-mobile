@@ -3,6 +3,8 @@ import Testing
 @testable import Core
 
 @Suite(.serialized) struct LibraryRepositoryTests {
+    private typealias StubURLProtocol = LibraryStubURLProtocol
+
     @Test func bookmarksDecode() async throws {
         let json = #"{"items":[{"id":"b1","title":"Solo Leveling","image":"posters/sl.jpg","smallImage":"posters/sl-s.avif","mediumImage":"posters/sl-m.avif","largeImage":"posters/sl-l.avif","isAdult":false,"type":"Manga","medium":"Comic","bookmarkStatus":"Reading"}]}"#
         let config = URLSessionConfiguration.ephemeral
@@ -122,9 +124,9 @@ import Testing
         let repo = LiveLibraryRepository(client: client)
         let exists = try await repo.addManga(listId: "l1", mangaId: "m1")
         #expect(exists == false)
-        let body = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(body.contains("\"listId\":\"l1\""))
-        #expect(body.contains("\"mangaId\":\"m1\""))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["listId"] as? String == "l1")
+        #expect(body["mangaId"] as? String == "m1")
     }
 
     @Test func addMangaReturnsAlreadyExistsTrue() async throws {
@@ -158,9 +160,9 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveLibraryRepository(client: client)
         try await repo.setPinned(listId: "l1", pinned: true)
-        let body = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(body.contains("\"listId\":\"l1\""))
-        #expect(body.contains("\"pinned\":true"))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["listId"] as? String == "l1")
+        #expect(body["pinned"] as? Bool == true)
     }
 
     @Test func listDetailTolerantDecode() async throws {
@@ -291,10 +293,10 @@ import Testing
         let client = APIClient(session: URLSession(configuration: config))
         let repo = LiveLibraryRepository(client: client)
         try await repo.createList(name: "Reading List")
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"title\":\"Reading List\""))
-        #expect(bodyString.contains("\"visibility\":\"Private\""))
-        #expect(!bodyString.contains("\"name\""))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["title"] as? String == "Reading List")
+        #expect(body["visibility"] as? String == "Private")
+        #expect(body["name"] == nil)
     }
 
     @Test func deleteListSendsJSONBody() async throws {
@@ -318,8 +320,8 @@ import Testing
         let repo = LiveLibraryRepository(client: client)
         try await repo.deleteList(id: "list1")
         #expect(capturedMethod.value == "DELETE")
-        let bodyString = String(decoding: try #require(captured.value), as: UTF8.self)
-        #expect(bodyString.contains("\"listId\":\"list1\""))
+        let body = try jsonDictionary(from: captured.value)
+        #expect(body["listId"] as? String == "list1")
     }
 
     @Test func historyDecodesEpochMsReadAtAndNestedChapter() async throws {

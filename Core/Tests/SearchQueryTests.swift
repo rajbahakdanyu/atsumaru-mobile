@@ -31,4 +31,15 @@ struct SearchQueryTests {
         let items = q.toQueryItems()
         #expect(items["filter_by"] == "tagIds:=[250] && medium:=[Novel]")
     }
+
+    @Test func preservesExplicitPagingAndOmitsEmptyQueryBy() {
+        var q = SearchQuery()
+        q.queryBy = []
+        q.page = 4
+        q.perPage = 12
+        let items = q.toQueryItems()
+        #expect(items["query_by"] == nil)
+        #expect(items["page"] == "4")
+        #expect(items["per_page"] == "12")
+    }
 }
