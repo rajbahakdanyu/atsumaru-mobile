@@ -58,6 +58,18 @@ import Testing
         #expect(page.poster == nil)
     }
 
+    @Test func posterImagesDecodeWithoutImageKey() async throws {
+        // Live manga-page posters carry id/smallImage/mediumImage; "image" may be absent.
+        let a = try JSONDecoder().decode(
+            PosterImages.self, from: Data(#"{"id":"posters/a.jpg","smallImage":"a-small.avif"}"#.utf8))
+        #expect(a.image == "posters/a.jpg")
+        let b = try JSONDecoder().decode(
+            PosterImages.self, from: Data(#"{"image":"posters/b.webp"}"#.utf8))
+        #expect(b.image == "posters/b.webp")
+        let c = try JSONDecoder().decode(PosterImages.self, from: Data(#"{}"#.utf8))
+        #expect(c.image == "")
+    }
+
     @Test func chaptersDecodesISOCreatedAt() async throws {
         let json = #"{"chapters":[{"id":"QFpTs","title":"Chapter 97","number":97,"index":98,"pageCount":26,"createdAt":"2026-06-10T00:03:06.716Z"},{"id":"NoFrac","title":"Chapter 96","number":96,"index":97,"pageCount":26,"createdAt":"2026-06-10T00:03:06Z"}]}"#
         let config = URLSessionConfiguration.ephemeral

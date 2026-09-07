@@ -41,10 +41,12 @@ struct DownloadsView: View {
             if viewModel == nil {
                 viewModel = DownloadsViewModel(
                     downloadManager: environment.downloadManager,
-                    backgroundScheduler: environment.backgroundScheduler
+                    backgroundScheduler: environment.backgroundScheduler,
+                    mangaRepository: environment.mangaRepository
                 )
             }
             await viewModel?.load()
+            await viewModel?.hydratePosters()
         }
         .onDisappear {
             viewModel?.stopEventStream()
@@ -63,43 +65,31 @@ struct DownloadsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .refreshable { await viewModel.refresh() }
             } else {
-                List {
-                    ForEach(viewModel.sections) { section in
-                        seriesSection(section)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.sections) { section in
+                            NavigationLink(value: section.mangaId) {
+                                seriesHeader(section)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
                                 Button(role: .destructive) {
                                     Task { await viewModel.delete(mangaId: section.mangaId) }
                                 } label: {
-                                    Label("Delete", systemImage: "trash")
+                                    Label("Remove all downloads", systemImage: "trash")
                                 }
                             }
+                            Divider()
+                        }
                     }
                 }
-                .listStyle(.plain)
                 .refreshable { await viewModel.refresh() }
             }
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-    }
-
-    /// One flat card per series (poster, title, aggregate status); tapping
-    /// the card opens the manga, where per-chapter status and offline
-    /// reading live.
-    @ViewBuilder
-    private func seriesSection(_ section: DownloadsViewModel.DownloadSection) -> some View {
-        NavigationLink(value: section.mangaId) {
-            seriesHeader(section)
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button(role: .destructive) {
-                Task { await viewModel?.delete(mangaId: section.mangaId) }
-            } label: {
-                Label("Remove all downloads", systemImage: "trash")
-            }
         }
     }
 
@@ -125,7 +115,7 @@ struct DownloadsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(section.title)
-                    .font(.subheadline.bold())
+                    .font(.subheadline)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 Text("\(section.kind.capitalized) · \(section.chapterCount) chapter\(section.chapterCount == 1 ? "" : "s")\(section.sizeText.map { " · \($0)" } ?? "")")

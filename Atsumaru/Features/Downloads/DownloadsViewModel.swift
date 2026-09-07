@@ -1,5 +1,8 @@
 import SwiftUI
 import Core
+import os
+
+private let logger = Logger(subsystem: "dev.atsumaru.app", category: "downloads")
 
 @Observable @MainActor
 final class DownloadsViewModel {
@@ -62,14 +65,19 @@ final class DownloadsViewModel {
 
     private let downloadManager: DownloadManager
     private let backgroundScheduler: BackgroundScheduler
+    private let mangaRepository: any MangaRepository
     private var eventTask: Task<Void, Never>?
     private var loaded = false
     private var isRefreshing = false
     private var hasPendingRefresh = false
 
-    init(downloadManager: DownloadManager, backgroundScheduler: BackgroundScheduler) {
+    init(
+        downloadManager: DownloadManager, backgroundScheduler: BackgroundScheduler,
+        mangaRepository: any MangaRepository
+    ) {
         self.downloadManager = downloadManager
         self.backgroundScheduler = backgroundScheduler
+        self.mangaRepository = mangaRepository
     }
 
     func load() async {
@@ -131,6 +139,24 @@ final class DownloadsViewModel {
 
     func posterPath(for mangaId: String) -> String? {
         UserDefaults.standard.string(forKey: "downloads.poster.\(mangaId)")
+    }
+
+    /// Fetches covers for downloads that have no cached poster path (older
+    /// downloads predate the enqueue-time cache) and persists them.
+    func hydratePosters() async {
+        var fetched = false
+        for section in sections where (posterPath(for: section.mangaId) ?? "").isEmpty {
+            do {
+                let page = try await mangaRepository.page(id: section.mangaId)
+                if let path = page.poster?.image, !path.isEmpty {
+                    UserDefaults.standard.set(path, forKey: "downloads.poster.\(section.mangaId)")
+                    fetched = true
+                }
+            } catch {
+                logger.error("poster hydrate failed for \(section.mangaId, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
+        }
+        if fetched { await refresh() }
     }
 
     /// Groups rows into per-series sections; chapters sort by the number

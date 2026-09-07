@@ -86,11 +86,15 @@ public struct MangaPage: Decodable, Sendable {
 public struct PosterImages: Decodable, Sendable {
     public let image: String
 
-    enum CodingKeys: String, CodingKey { case image }
+    enum CodingKeys: String, CodingKey { case image, id, smallImage, mediumImage }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        image = (try? c.decode(String.self, forKey: .image)) ?? ""
+        image = (try? c.decode(String.self, forKey: .image))
+            ?? (try? c.decode(String.self, forKey: .id))
+            ?? (try? c.decode(String.self, forKey: .mediumImage))
+            ?? (try? c.decode(String.self, forKey: .smallImage))
+            ?? ""
     }
 }
 
